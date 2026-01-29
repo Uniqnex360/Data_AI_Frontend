@@ -148,9 +148,10 @@ export const goldenRecordService = {
     }
   },
 
-  async publishGoldenRecord(productId: string): Promise<void> {
+  async publishGoldenRecord(id: string): Promise<void> {
     try {
-      await api.post(`/products/${productId}/publish/`);
+      const response = await api.post(`/golden-records/publish/${id}`);
+      return response.data;
     } catch (error) {
       console.error('Publishing failed:', error);
       throw new Error('Could not publish record to production.');

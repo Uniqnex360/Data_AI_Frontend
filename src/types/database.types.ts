@@ -4,7 +4,30 @@ export type IssueType = 'invalid' | 'duplicate' | 'missing' | 'inconsistent';
 export type RuleType = 'validation' | 'enum' | 'range' | 'format';
 export type ValidationStatus = 'pass' | 'fail';
 export type ProcessingStage = 'extraction' | 'aggregation' | 'cleansing' | 'standardization' | 'enrichment';
+export type TargetType = 'shopify' | 'bigcommerce' | 'magento' | 'pim' | 'marketplace' | 'csv';
 
+export interface PublishTarget {
+  id: string;
+  project_id: string;
+  target_name: string;
+  target_type: TargetType;
+  connection_config: Record<string, string | number | boolean>;
+  field_mapping: Record<string, string>;
+  active: boolean;
+  created_at: string;
+  last_publish_at?: string;
+}
+export interface SourcePriority {
+  id: string;
+  project_id: string;
+  source_id: string;
+  priority_rank: number;
+  reliability_score: number;
+  auto_select_enabled: boolean;
+  attribute_priorities: Record<string, number>;
+  created_at: string;
+  updated_at: string;
+}
 export interface Source {
   id: string;
   source_type: SourceType;
@@ -26,6 +49,7 @@ export type UserRole = 'admin' | 'catalog_manager' | 'validator' | 'viewer' | 'v
 export interface ValidationQueue {
   id: string;
   product_id: string; 
+  product_code?:string
   attribute_name: string;
   proposed_value: any;
   confidence: number;
@@ -71,6 +95,7 @@ export interface ExtractionInput{
   sourceType:'web'|'pdf'|'excel'|'csv'|'image'
   content:string
   sourceUrl:string
+  projectId?:string
 }
 export interface  ReviewItem{
   product_key:string
@@ -160,6 +185,8 @@ export interface Enrichment {
 export interface GoldenRecord {
   id: string;
   product_id: string;
+  product_code?:string
+  brand_name?:string
   sku: string;
   brand?: string;
   attributes: Record<string, unknown>;
@@ -167,6 +194,7 @@ export interface GoldenRecord {
   enrichment: Record<string, unknown>;
   ready_for_publish: boolean;
   published_at?: string;
+  completeness_score?:number
   updated_at: string;
 }
 
@@ -175,7 +203,7 @@ export interface AuditTrail {
   product_id: string;
   attribute_name: string;
   selected_value: string;
-  source_used: string;
+  sources_used: string;
   reason: string;
   stage: ProcessingStage;
   logged_at: string;

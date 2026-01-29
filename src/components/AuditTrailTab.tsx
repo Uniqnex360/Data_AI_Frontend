@@ -122,7 +122,7 @@ export default function AuditTrailTab() {
                     <div>
                       <p className="text-xs text-slate-500 mb-1">Source</p>
                       <p className="text-sm text-slate-600 font-mono">
-                        {log.source_used.slice(0, 16)}{log.source_used.length > 16 ? '...' : ''}
+                        {log.sources_used.slice(0, 16)}{log.sources_used.length > 16 ? '...' : ''}
                       </p>
                     </div>
                   </div>

@@ -16,7 +16,7 @@ interface ManualProductData {
   price: string;
   stock: string;
 }
-export default function SourcesTab() {
+export default function SourcesTab({projectId}:{projectId?:string}) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeMode, setActiveMode] = useState<'manual' | 'bulk'>('manual');
@@ -61,7 +61,8 @@ export default function SourcesTab() {
       await extractionService.extractFromSource({
         sourceType: 'excel',
         content,
-        sourceUrl: `manual-input-${manualData.sku}`
+        sourceUrl: `manual-input-${manualData.sku}`,
+        projectId:projectId
       });
       setManualData({
         brand: '',

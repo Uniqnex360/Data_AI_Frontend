@@ -51,8 +51,10 @@ function App() {
   }, []);
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
+    console.log("PROJECTID",selectedProject)
 
   const handleProjectSelect = (projectId: string) => {
+    console.log("PROJECTID1111111111",projectId)
     setSelectedProject(projectId);
     setActiveTab('sources');
   };

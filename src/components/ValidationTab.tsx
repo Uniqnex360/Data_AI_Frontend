@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Flag, Eye } from 'lucide-react';
+import {  Eye } from 'lucide-react';
 import { validationService } from '../services/validationService';
 import type { ValidationQueue } from '../types/database.types';
 
@@ -120,7 +120,7 @@ export default function ValidationTab({ projectId }: Props) {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-mono text-sm">Product: {item.product_id.slice(0, 8)}</p>
+                  <p className="font-mono text-sm">Product: {(item.product_code || item.product_id || 'UNKNOWN').slice(0, 8)}</p>
                   <p className="text-sm text-slate-600">Status: {item.status}</p>
                 </div>
                 {item.status === 'pending' && (

@@ -22,6 +22,7 @@ export default function GoldenRecordsTab() {
 
   const handlePublish = async (productId: string) => {
     try {
+      console.log('handle publish clicked')
       await goldenRecordService.publishGoldenRecord(productId);
       await loadRecords();
     } catch (error) {
@@ -71,7 +72,7 @@ export default function GoldenRecordsTab() {
                   `}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-medium text-sm">{record.sku}</p>
+                    <p className="font-medium text-sm">{record.product_code || (record as any).sku}</p>
                     {record.ready_for_publish ? (
                       <CheckCircle className="w-4 h-4 text-green-600" />
                     ) : (
@@ -79,7 +80,7 @@ export default function GoldenRecordsTab() {
                     )}
                   </div>
                   {record.brand && (
-                    <p className="text-xs text-slate-600">{record.brand}</p>
+                    <p className="text-xs text-slate-600">{record.brand_name || (record as any).brand}</p>
                   )}
                   {record.published_at && (
                     <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
@@ -100,9 +101,9 @@ export default function GoldenRecordsTab() {
                   <h3 className="text-lg font-semibold text-slate-900">{selectedRecord.sku}</h3>
                   <p className="text-sm text-slate-600">{selectedRecord.brand}</p>
                 </div>
-                {selectedRecord.ready_for_publish && !selectedRecord.published_at && (
+                {(selectedRecord.completeness_score >= 80) && !selectedRecord.published_at && (
                   <button
-                    onClick={() => handlePublish(selectedRecord.product_id)}
+                    onClick={() => handlePublish(selectedRecord.id)}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
                   >
                     <Send className="w-4 h-4" />
@@ -149,26 +150,38 @@ export default function GoldenRecordsTab() {
                 )}
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Publication Status</p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {selectedRecord.published_at
-                        ? `Published on ${new Date(selectedRecord.published_at).toLocaleString()}`
-                        : selectedRecord.ready_for_publish
-                        ? 'Ready for publication'
-                        : 'Not ready for publication'
-                      }
-                    </p>
-                  </div>
-                  {selectedRecord.ready_for_publish ? (
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  ) : (
-                    <XCircle className="w-6 h-6 text-amber-600" />
-                  )}
-                </div>
-              </div>
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 shadow-inner">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">
+        Master Publication Status
+      </p>
+      <p className="text-xs text-slate-600 mt-1">
+        {selectedRecord.published_at
+          ? `✓ Published to Global Catalog on ${new Date(selectedRecord.published_at).toLocaleString()}`
+          : selectedRecord.completeness_score >= 80
+          ? '⭐ High Quality: Ready for publication'
+          : '⚠️ Low Quality: Needs more technical specifications'
+        }
+      </p>
+    </div>
+    
+    {/* Visual Indicator Icon */}
+    {selectedRecord.published_at ? (
+      <div className="bg-green-100 p-2 rounded-full">
+        <CheckCircle className="w-6 h-6 text-green-600" />
+      </div>
+    ) : selectedRecord.completeness_score >= 80 ? (
+      <div className="bg-amber-100 p-2 rounded-full animate-pulse">
+        <Send className="w-6 h-6 text-amber-600" />
+      </div>
+    ) : (
+      <div className="bg-slate-100 p-2 rounded-full">
+        <XCircle className="w-6 h-6 text-slate-400" />
+      </div>
+    )}
+  </div>
+</div>
             </div>
           ) : (
             <div className="text-center py-16 bg-slate-50 rounded-lg border border-slate-200">
