@@ -128,7 +128,7 @@ import { CleansingIssue } from "../types/database.types.ts";
 export const cleansingService = {
   async getAllIssues(): Promise<CleansingIssue[]> {
     try {
-      const { data } = await api.get<CleansingIssue[]>('/cleansing/issues');
+      const { data } = await api.get<CleansingIssue[]>('/cleansing/issues/');
       return data || [];
     } catch (error) {
       console.error('Service Error: Failed to fetch cleansing issues', error);

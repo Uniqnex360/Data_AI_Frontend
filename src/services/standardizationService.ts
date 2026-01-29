@@ -150,7 +150,7 @@ import { StandardizedAttribute } from '../types/database.types';
 export const standardizationService={
   async getStandardizedAttribute(productId:string):Promise<StandardizedAttribute[]>{
     try {
-      const {data}=await api.get(`'/standardization/${productId}`)
+      const {data}=await api.get(`/standardization/${productId}`)
       return data.map((item:any)=>({
         ...item,
         standard_format:item.unit?`Unit:${item.unit}`:item.reason
@@ -162,7 +162,7 @@ export const standardizationService={
   },
   async performStandarization(productId:string,aggregatedData:any):Promise<void>{
     try {
-      await api.post('/standarize',{
+      await api.post('/standarize/',{
         product_key:productId,
         data:aggregatedData
       })

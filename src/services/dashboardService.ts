@@ -31,7 +31,7 @@ export interface DashboardStats{
 export const dashboardService={
   async getGlobalMetrics():Promise<DashboardStats>{
     try {
-      const {data}=await api.get<DashboardStats>('/dashboard/metrics')
+      const {data}=await api.get<DashboardStats>('/dashboard/metrics/')
       return data
     } catch (error) {
       console.error("Failed to fetch dashboard metrics",error) 

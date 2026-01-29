@@ -175,7 +175,7 @@ import { BusinessRule, RuleValidation } from '../types/database.types';
 export const businessRulesService={
   async getRules():Promise<BusinessRule[]>{
     try {
-      const {data}=await api.get<BusinessRule[]>('/rules')
+      const {data}=await api.get<BusinessRule[]>('/rules/')
       return data||[]
     } catch (error) {
       console.error('Failed to create rule',error)
@@ -184,7 +184,7 @@ export const businessRulesService={
   },
   async createRule(rule:Omit<BusinessRule,'id'|'created_at'>):Promise<BusinessRule|null>{
     try {
-      const {data}=await api.post<BusinessRule>('/rules',rule)
+      const {data}=await api.post<BusinessRule>('/rules/',rule)
       return data
 
     } catch (error) {

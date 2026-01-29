@@ -150,7 +150,7 @@ export const goldenRecordService = {
 
   async publishGoldenRecord(productId: string): Promise<void> {
     try {
-      await api.post(`/products/${productId}/publish`);
+      await api.post(`/products/${productId}/publish/`);
     } catch (error) {
       console.error('Publishing failed:', error);
       throw new Error('Could not publish record to production.');
@@ -159,7 +159,7 @@ export const goldenRecordService = {
 
   async getAllGoldenRecords(): Promise<GoldenRecord[]> {
     try {
-      const { data } = await api.get<GoldenRecord[]>('/golden-records');
+      const { data } = await api.get<GoldenRecord[]>('/golden-records/');
       return data || [];
     } catch (error) {
       console.error('Failed to fetch golden records:', error);
@@ -169,7 +169,7 @@ export const goldenRecordService = {
 
   async getPublishableRecords(): Promise<GoldenRecord[]> {
     try {
-      const { data } = await api.get<GoldenRecord[]>('/golden-records/publishable');
+      const { data } = await api.get<GoldenRecord[]>('/golden-records/publishable/');
       return data || [];
     } catch (error) {
       console.error('Failed to fetch publishable records:', error);

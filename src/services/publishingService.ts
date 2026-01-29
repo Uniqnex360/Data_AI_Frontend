@@ -59,7 +59,7 @@ import api, { BASE_URL } from '../lib/api';
 export const publishingService = {
   
   async exportCatalog(): Promise<string> {
-    const { data } = await api.post<{ excel_file: string }>('/batch-aggregate');
+    const { data } = await api.post<{ excel_file: string }>('/batch-aggregate/');
     return data.excel_file.startsWith('http') 
       ? data.excel_file 
       : `${BASE_URL}${data.excel_file}`;

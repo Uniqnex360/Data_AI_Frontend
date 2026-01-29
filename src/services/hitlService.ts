@@ -5,7 +5,7 @@ export type HITLAction = 'approve' | 'reject';
 
 export const hitlService = {
   async getPendingReviews(): Promise<Record<string, ReviewItem[]>> {
-    const { data } = await api.get<Record<string, ReviewItem[]>>('/hitl/pending');
+    const { data } = await api.get<Record<string, ReviewItem[]>>('/hitl/pending/');
     return data;
   },
 
@@ -27,7 +27,7 @@ export const hitlService = {
     newValue: string | number | boolean, 
     reviewer: string
   ): Promise<ReviewItem> {
-    const { data } = await api.post<ReviewItem>('/hitl/override', null, {
+    const { data } = await api.post<ReviewItem>('/hitl/override/', null, {
       params: { product_key: productCode, attribute, new_value: newValue, reviewer }
     });
     return data;

@@ -77,7 +77,7 @@ import type { ValidationQueue } from '../types/database.types';
 export const validationService = {
   async getQueueItems(projectId: string, status?: string): Promise<ValidationQueue[]> {
     try {
-      const { data } = await api.get('/hitl/pending', {
+      const { data } = await api.get('/hitl/pending/', {
         params: { project_id: projectId, status }
       });
       return data || [];

@@ -138,7 +138,7 @@ import { RawExtraction, ExtractionInput } from '../types/database.types';
 export const extractionService={
   async extractFromSource(input:ExtractionInput):Promise<any>{
     try {
-      const {data}=await api.post('/extract',input)
+      const {data}=await api.post('/extract/',input)
       return data
     } catch (error) {
       console.error("Extraction failed",error)
@@ -147,7 +147,7 @@ export const extractionService={
   },
   async getAllSources():Promise<Source[]>{
     try {
-      const {data}=await api.get<Source[]>('/sources')
+      const {data}=await api.get<Source[]>('/sources/')
       return data||[]
 
     } catch (error) {
@@ -157,7 +157,7 @@ export const extractionService={
   },
   async getRawExtractions(sourceId?:string):Promise<RawExtraction[]>{
     try {
-      const {data}=await api.get<RawExtraction[]>('/extraction',{
+      const {data}=await api.get<RawExtraction[]>('/extraction/',{
         params:{source_id:sourceId}
       })
       return data||[]

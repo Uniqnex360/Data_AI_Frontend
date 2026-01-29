@@ -3,7 +3,7 @@ export const userManagementService={
     async loadUsers():Promise<UserRoleRecord[]>
     {
         try {
-            const response=await api.get('/users')
+            const response=await api.get('/users/')
             return response.data
         } catch (error) {
             console.log("Failed to load users")
@@ -13,7 +13,7 @@ export const userManagementService={
     async addUser(userId:string,role:string,permissions:any,projects:string[])
     {
         try {
-            const response=await api.post('/users/addUser',{
+            const response=await api.post('/users/addUser/',{
                 user_id:userId,
                 role:role,
                 permissions:permissions,
@@ -27,7 +27,7 @@ export const userManagementService={
     },
     async deleteUser(user_id:string){
         try {
-            const response=await api.delete('/delete-user',{
+            const response=await api.delete('/delete-user/',{
                 params:{
                     user_id
                 }

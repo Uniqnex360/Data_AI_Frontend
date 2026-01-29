@@ -142,7 +142,7 @@ import api from "../lib/api.ts";
 // export const aggregationService = new AggregationService();
 export const aggregationService={
   async getAllProducts():Promise<Product[]>{
-    const {data}=await api.get<Product[]>('/products')
+    const {data}=await api.get<Product[]>('/products/')
     return data.map(p=>({...p,sku:(p as any).product_code}))
   },
   async getAggregatedAttributes(productId:string):Promise<AggregatedAttribute[]>{

@@ -44,7 +44,7 @@ export async function seedBusinessRules() {
   ];
 
   try {
-    await api.post('/rules/seed', { rules });
+    await api.post('/rules/seed/', { rules });
     console.log("Business rules synchronized with Python backend.");
   } catch (error) {
     console.error("Failed to seed business rules:", error);
