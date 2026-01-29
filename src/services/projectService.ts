@@ -38,7 +38,7 @@ import api from "../lib/api.ts";
 export const projectService={
   async getAllProjects():Promise<Project[]>{
     try {
-      const { data } = await api.get<Project[]>('/projects');
+      const { data } = await api.get<Project[]>('/projects/');
       return data||[]
         
     } catch (error) {
@@ -48,7 +48,7 @@ export const projectService={
   },
   async createProject(project:Partial<Project>):Promise<Project>{
     try {
-      const {data}=await api.post<Project>('/projects',project)
+      const {data}=await api.post<Project>('/projects/',project)
       return data
     } catch (error) {
       console.error('Failed to create project',error)

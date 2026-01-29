@@ -13,7 +13,28 @@ export interface Source {
   metadata: Record<string, unknown>;
   status: SourceStatus;
 }
+export interface UserRoleRecord {
+  id: string;
+  user_id: string;
+  role: UserRole;
+  permissions: Record<string, boolean>;
+  projects: string[];
+  created_at: string;
+}
+export type UserRole = 'admin' | 'catalog_manager' | 'validator' | 'viewer' | 'vendor';
 
+export interface ValidationQueue {
+  id: string;
+  product_id: string; 
+  attribute_name: string;
+  proposed_value: any;
+  confidence: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'in_review' | 'flagged';
+  notes?: string;
+  created_at: string;
+  reviewed_at?: string;
+}
 export interface RawExtraction {
   id: string;
   source_id: string;

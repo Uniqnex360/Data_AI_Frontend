@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Upload, FileText, Globe, FileSpreadsheet, Image, CheckCircle, XCircle, Clock, Download, Plus, Edit } from 'lucide-react';
 import { extractionService } from '../services/extractionService';
 import type { Source } from '../types/database.types';
-
 interface ManualProductData {
   brand: string;
   manufacturer: string;
@@ -17,7 +16,6 @@ interface ManualProductData {
   price: string;
   stock: string;
 }
-
 export default function SourcesTab() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,11 +36,9 @@ export default function SourcesTab() {
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [importResults, setImportResults] = useState<{ success: number; failed: number } | null>(null);
-
   useEffect(() => {
     loadSources();
   }, []);
-
   const loadSources = async () => {
     try {
       const data = await extractionService.getAllSources();
@@ -51,26 +47,22 @@ export default function SourcesTab() {
       console.error('Failed to load sources:', error);
     }
   };
-
   const handleManualSubmit = async () => {
     if (!manualData.sku || !manualData.brand) {
       alert('SKU and Brand are required fields');
       return;
     }
-
     setLoading(true);
     try {
       const content = Object.entries(manualData)
         .filter(([_, value]) => value)
         .map(([key, value]) => `${key}: ${value}`)
         .join('\n');
-
       await extractionService.extractFromSource({
         sourceType: 'excel',
         content,
         sourceUrl: `manual-input-${manualData.sku}`
       });
-
       setManualData({
         brand: '',
         manufacturer: '',
@@ -85,7 +77,6 @@ export default function SourcesTab() {
         price: '',
         stock: ''
       });
-
       await loadSources();
       alert('Product added successfully!');
     } catch (error) {
@@ -95,46 +86,37 @@ export default function SourcesTab() {
       setLoading(false);
     }
   };
-
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       alert('Please select a file');
       return;
     }
-
     setLoading(true);
     try {
       const text = await bulkFile.text();
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
       let successCount = 0;
       let failedCount = 0;
-
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-
         const values = line.split(',').map(v => v.trim());
         const rowData: Record<string, string> = {};
-
         headers.forEach((header, index) => {
           rowData[header] = values[index] || '';
         });
-
         if (rowData.sku && rowData.brand) {
           try {
             const content = Object.entries(rowData)
               .filter(([_, value]) => value)
               .map(([key, value]) => `${key}: ${value}`)
               .join('\n');
-
             await extractionService.extractFromSource({
               sourceType: 'csv',
               content,
               sourceUrl: `bulk-import-${rowData.sku}`
             });
-
             successCount++;
           } catch (error) {
             failedCount++;
@@ -144,7 +126,6 @@ export default function SourcesTab() {
           failedCount++;
         }
       }
-
       setImportResults({ success: successCount, failed: failedCount });
       setBulkFile(null);
       await loadSources();
@@ -155,7 +136,6 @@ export default function SourcesTab() {
       setLoading(false);
     }
   };
-
   const downloadTemplate = () => {
     const headers = [
       'Brand',
@@ -171,7 +151,6 @@ export default function SourcesTab() {
       'Price',
       'Stock'
     ];
-
     const sampleRow = [
       'Example Brand',
       'Example Manufacturer',
@@ -186,7 +165,6 @@ export default function SourcesTab() {
       '99.99',
       '100'
     ];
-
     const csv = [headers.join(','), sampleRow.join(',')].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -196,7 +174,6 @@ export default function SourcesTab() {
     a.click();
     window.URL.revokeObjectURL(url);
   };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -209,7 +186,6 @@ export default function SourcesTab() {
         return <Clock className="w-5 h-5 text-slate-400" />;
     }
   };
-
   const getSourceIcon = (type: string) => {
     switch (type) {
       case 'web':
@@ -225,14 +201,12 @@ export default function SourcesTab() {
         return <FileText className="w-4 h-4" />;
     }
   };
-
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-xl font-semibold text-slate-900 mb-1">Product Input & Data Sources</h3>
         <p className="text-sm text-slate-600">Add products manually or import in bulk via CSV</p>
       </div>
-
       <div className="flex gap-2">
         <button
           onClick={() => setActiveMode('manual')}
@@ -257,11 +231,9 @@ export default function SourcesTab() {
           Bulk Import
         </button>
       </div>
-
       {activeMode === 'manual' ? (
         <div className="bg-white rounded-lg p-6 border border-slate-200">
           <h4 className="text-lg font-semibold text-slate-900 mb-4">Add Product Manually</h4>
-
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -275,7 +247,6 @@ export default function SourcesTab() {
                 placeholder="e.g., Apple"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Manufacturer
@@ -288,7 +259,6 @@ export default function SourcesTab() {
                 placeholder="e.g., Foxconn"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 SKU <span className="text-red-600">*</span>
@@ -301,7 +271,6 @@ export default function SourcesTab() {
                 placeholder="e.g., IPHN14-BLK-128"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 MPN
@@ -314,7 +283,6 @@ export default function SourcesTab() {
                 placeholder="e.g., MPN123456"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Model
@@ -327,7 +295,6 @@ export default function SourcesTab() {
                 placeholder="e.g., iPhone 14"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 UPC/EAN/GTIN
@@ -340,7 +307,6 @@ export default function SourcesTab() {
                 placeholder="e.g., 123456789012"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Variant SKU
@@ -353,7 +319,6 @@ export default function SourcesTab() {
                 placeholder="e.g., VAR-SKU-001"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Variant MPN
@@ -366,7 +331,6 @@ export default function SourcesTab() {
                 placeholder="e.g., VAR-MPN-001"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Variant Model
@@ -379,7 +343,6 @@ export default function SourcesTab() {
                 placeholder="e.g., Black 128GB"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Taxonomy
@@ -392,7 +355,6 @@ export default function SourcesTab() {
                 placeholder="e.g., Electronics > Mobile Phones"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Price
@@ -405,7 +367,6 @@ export default function SourcesTab() {
                 placeholder="e.g., 999.99"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Stock
@@ -419,7 +380,6 @@ export default function SourcesTab() {
               />
             </div>
           </div>
-
           <button
             onClick={handleManualSubmit}
             disabled={loading || !manualData.sku || !manualData.brand}
@@ -432,7 +392,6 @@ export default function SourcesTab() {
       ) : (
         <div className="bg-white rounded-lg p-6 border border-slate-200">
           <h4 className="text-lg font-semibold text-slate-900 mb-4">Bulk Import via CSV</h4>
-
           <div className="mb-4">
             <button
               onClick={downloadTemplate}
@@ -445,7 +404,6 @@ export default function SourcesTab() {
               Download the template, fill it with your product data, and upload it below
             </p>
           </div>
-
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Upload CSV File
@@ -462,7 +420,6 @@ export default function SourcesTab() {
               </p>
             )}
           </div>
-
           <button
             onClick={handleBulkUpload}
             disabled={loading || !bulkFile}
@@ -471,7 +428,6 @@ export default function SourcesTab() {
             <Upload className="w-4 h-4" />
             {loading ? 'Importing...' : 'Import Products'}
           </button>
-
           {importResults && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h5 className="font-semibold text-blue-900 mb-2">Import Results</h5>
@@ -487,10 +443,8 @@ export default function SourcesTab() {
           )}
         </div>
       )}
-
       <div>
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Import History</h3>
-
         <div className="space-y-2">
           {sources.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">
