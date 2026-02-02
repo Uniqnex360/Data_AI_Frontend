@@ -119,7 +119,7 @@ export default function GoldenRecordsTab() {
                     <div key={key} className="flex items-start justify-between p-2 bg-slate-50 rounded">
                       <span className="text-sm font-medium text-slate-700">{key}</span>
                       <span className="text-sm text-slate-600 text-right max-w-md">
-                        {typeof value === 'object' ? value.value : String(value)}
+                        {typeof value === 'object' ? value?.value : String(value)}
                       </span>
                     </div>
                   ))}
