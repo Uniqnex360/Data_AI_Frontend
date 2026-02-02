@@ -146,11 +146,11 @@ export const aggregationService={
     return data.map(p=>({...p,sku:(p as any).product_code}))
   },
   async getAggregatedAttributes(productId:string):Promise<AggregatedAttribute[]>{
-    const {data}=await api.get<AggregatedAttribute[]>(`/aggregation/attributes/${productId}`)
+    const {data}=await api.get<AggregatedAttribute[]>(`/aggregation/attributes/${productId}/`)
     return data
   },
   async aggregateProductData(productId:string):Promise<AggregatedAttribute[]>{
-    await api.post(`/products/${productId}/aggregate`)
+    await api.post(`/products/${productId}/aggregate/`)
   }
 
 }
