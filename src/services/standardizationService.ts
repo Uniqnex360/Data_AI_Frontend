@@ -2,9 +2,10 @@ import type { StandardizedAttribute } from '../types/database.types';
 import api from '../lib/api';
 
 export const standardizationService = {
+ 
   async getStandardizedAttributes(productId: string): Promise<StandardizedAttribute[]> {
     try {
-      const { data } = await api.get(`/standardization/${productId}/`);
+      const { data } = await api.get(`/standardization/${productId}`);
       
       return (data || []).map((item: any) => ({
         ...item,
@@ -17,9 +18,10 @@ export const standardizationService = {
     }
   },
 
+  
   async performStandardization(productId: string): Promise<void> {
     try {
-      await api.post(`/standardization/run/${productId}/`);
+      await api.post(`/standardization/run/${productId}`);
     } catch (error) {
       console.error('Standardization run error:', error);
       throw new Error("Failed to run standardization engine.");
