@@ -98,7 +98,9 @@ export default function GoldenRecordsTab() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">{selectedRecord.sku}</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">
+  {selectedRecord.product_code || (selectedRecord as any).sku}
+</h3>
                   <p className="text-sm text-slate-600">{selectedRecord.brand}</p>
                 </div>
                 {(selectedRecord.completeness_score >= 80) && !selectedRecord.published_at && (
@@ -112,19 +114,48 @@ export default function GoldenRecordsTab() {
                 )}
               </div>
 
-              <div className="p-4 bg-white border border-slate-200 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-3">Attributes</h4>
-                <div className="space-y-2">
-                  {Object.entries(selectedRecord.attributes).map(([key, value]: [string, any]) => (
-                    <div key={key} className="flex items-start justify-between p-2 bg-slate-50 rounded">
-                      <span className="text-sm font-medium text-slate-700">{key}</span>
-                      <span className="text-sm text-slate-600 text-right max-w-md">
-                        {typeof value === 'object' ? value?.value : String(value)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+             {/* Inside GoldenRecordsTab.tsx - Attributes Section */}
+<div className="p-4 bg-white border border-slate-200 rounded-lg">
+  <h4 className="font-semibold text-slate-900 mb-3">Attributes</h4>
+  <div className="space-y-2">
+    {Object.entries(selectedRecord.attributes).map(([key, value]: [string, any]) => {
+      // Helper function to format complex objects into readable strings
+      const formatValue = (val: any): string => {
+        if (val === null || val === undefined) return 'N/A';
+        
+        // Handle standard { value: "...", unit: "..." } objects
+        if (typeof val === 'object' && 'value' in val) {
+          return `${val.value}${val.unit ? ' ' + val.unit : ''}`;
+        }
+        
+        // Handle complex objects like Dimensions { length: 10, width: 5 ... }
+        if (typeof val === 'object' && !Array.isArray(val)) {
+          return Object.entries(val)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ');
+        }
+        
+        // Handle Arrays
+        if (Array.isArray(val)) {
+          return val.join(', ');
+        }
+
+        return String(val);
+      };
+
+      return (
+        <div key={key} className="flex items-start justify-between p-2 bg-slate-50 rounded">
+          <span className="text-sm font-medium text-slate-700 capitalize">
+            {key.replace(/_/g, ' ')}
+          </span>
+          <span className="text-sm text-slate-600 text-right max-w-md font-mono">
+            {formatValue(value)}
+          </span>
+        </div>
+      );
+    })}
+  </div>
+</div>
 
               <div className="p-4 bg-white border border-slate-200 rounded-lg">
                 <h4 className="font-semibold text-slate-900 mb-3">Enrichment</h4>
