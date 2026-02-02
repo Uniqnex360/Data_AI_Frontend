@@ -8,24 +8,24 @@ export interface DashboardStats{
   publishedProducts:number
   catalogHealth:number
 }
-export const dashboardService={
-  async getGlobalMetrics():Promise<DashboardStats>{
+export const dashboardService = {
+  async getGlobalMetrics(): Promise<DashboardStats> {
     try {
-      const {data}=await api.get<DashboardStats>('/dashboard/metrics/')
-      return data
+      const { data } = await api.get<DashboardStats>('/dashboard/metrics/'); 
+      return data;
     } catch (error) {
-      console.error("Failed to fetch dashboard metrics",error) 
-      return {totalProducts:0,activeProjects:0,totalProjects:0,publishedProducts:0,catalogHealth:0}
+      console.error("Failed to fetch dashboard metrics", error); 
+      return { totalProducts: 0, activeProjects: 0, totalProjects: 0, publishedProducts: 0, catalogHealth: 0 };
     }
   },
-  async getProjectMetrics(projectId:string)
-  {
+  
+  async getProjectMetrics(projectId: string) {
     try {
-      const {data}=await  api.get(`/dashboard/metrics/${projectId}/`)
-      return data
+      const { data } = await api.get(`/dashboard/metrics/${projectId}/`); 
+      return data;
     } catch (error) {
-      console.error('Failed to fetch project metrics',error)
-      return []
+      console.error('Failed to fetch project metrics', error);
+      return { totalProducts: 0, activeProjects: 0, totalProjects: 0, publishedProducts: 0, catalogHealth: 0 };
     }
   }
-}
+};
