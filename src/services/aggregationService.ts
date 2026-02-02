@@ -150,7 +150,7 @@ export const aggregationService={
     return data
   },
   async aggregateProductData(productId:string):Promise<AggregatedAttribute[]>{
-    await api.post(`/products/${productId}/aggregate/`)
+    await api.post(`/aggregation/run/${productId}/`); 
   }
 
 }
