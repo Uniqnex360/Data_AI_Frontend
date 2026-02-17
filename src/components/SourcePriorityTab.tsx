@@ -22,7 +22,6 @@ export default function SourcePriorityTab({ projectId }: Props) {
   const [loading, setLoading] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [attributePriorities, setAttributePriorities] = useState<Record<string, number>>({});
-  console.log("PROJECTID",projectId)
   useEffect(() => {
     if (projectId) {
       loadSources();

@@ -138,11 +138,39 @@ import { RawExtraction, ExtractionInput } from '../types/database.types';
 export const extractionService={
   async extractFromSource(input:ExtractionInput):Promise<any>{
     try {
-      const {data}=await api.post('/extract/',input)
+      const {data}=await api.post('/sources/',input)
       return data
     } catch (error) {
       console.error("Extraction failed",error)
       throw new Error('AI extraction failed to process source')
+    }
+  },
+  async download(sourceId: string, type: 'input' | 'output') {
+    try {
+      const response = await api.get(`/sources/${sourceId}/download`, {
+        params: { file_type: type }, 
+        responseType: 'blob',
+      });
+
+      const extension = type === 'input' ? 'csv' : 'xlsx';
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `data_ai_${type}_${sourceId}.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Download Error", error);
+    }
+  },
+  async getSourcesByProject(projectId:string):Promise<Source[]>{
+    try {
+      const {data}=await api.get(`/sources/project/${projectId}`)
+      return data||[]
+    } catch (error) {
+      console.error("Failed to load project sources",error)
+      return []
     }
   },
   async getAllSources():Promise<Source[]>{

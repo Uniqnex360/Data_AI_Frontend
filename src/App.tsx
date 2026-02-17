@@ -15,6 +15,7 @@ import PublishingTab from './components/PublishingTab';
 import AuditTrailTab from './components/AuditTrailTab';
 import UserManagementTab from './components/UserManagementTab';
 import { seedBusinessRules } from './utils/seedData';
+import { Toaster } from 'sonner';
 
 type TabId = 'dashboard' | 'projects' | 'sources' | 'priority' | 'aggregation' | 'cleansing' | 'standardization' | 'rules' | 'enrichment' | 'validation' | 'golden' | 'publishing' | 'audit' | 'users';
 
@@ -28,7 +29,7 @@ interface Tab {
 const tabs: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3, component: DashboardTab },
   { id: 'projects', label: 'Projects', icon: FolderOpen, component: ProjectsTab },
-  { id: 'sources', label: 'Sources', icon: FileText, component: SourcesTab },
+  { id: 'sources', label: 'Input & Sources', icon: FileText, component: SourcesTab },
   { id: 'priority', label: 'Source Priority', icon: TrendingUp, component: SourcePriorityTab },
   { id: 'aggregation', label: 'Aggregation', icon: GitMerge, component: AggregationTab },
   { id: 'cleansing', label: 'Cleansing', icon: Sparkles, component: CleansingTab },
@@ -51,7 +52,6 @@ function App() {
   }, []);
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
-    console.log("PROJECTID",selectedProject)
 
   const handleProjectSelect = (projectId: string) => {
     console.log("PROJECTID1111111111",projectId)
@@ -60,6 +60,8 @@ function App() {
   };
 
   return (
+    <>
+    <Toaster position='top-right' richColors expand={true}/>
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -121,6 +123,8 @@ function App() {
         </div>
       </div>
     </div>
+    </>
+
   );
 }
 
