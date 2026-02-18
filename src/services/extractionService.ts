@@ -134,7 +134,6 @@ import { RawExtraction, ExtractionInput } from '../types/database.types';
 // }
 
 // export const extractionService = new ExtractionService();
-
 export const extractionService={
   async extractFromSource(input:ExtractionInput):Promise<any>{
     try {
@@ -143,6 +142,35 @@ export const extractionService={
     } catch (error) {
       console.error("Extraction failed",error)
       throw new Error('AI extraction failed to process source')
+    }
+  },
+  
+  async batchAggregate(file: File, projectId?: string): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (projectId) {
+        formData.append('projectId', projectId);
+      }
+
+      const { data } = await api.post('/sources/batch-aggregate', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return data;
+    } catch (error) {
+      console.error("Batch upload failed", error);
+      throw new Error('Batch processing failed');
+    }
+  },
+  async getBatchStatus(batchId:string){
+    try {
+      const { data } = await api.get(`/sources/batch-status/${batchId}`);
+    return data; 
+    } catch (error) {
+      console.error("Failed to get batch status", error);
+      throw new Error("Failed to get batch status")
     }
   },
   async download(sourceId: string, type: 'input' | 'output') {
@@ -164,6 +192,7 @@ export const extractionService={
       console.error("Download Error", error);
     }
   },
+  
   async getSourcesByProject(projectId:string):Promise<Source[]>{
     try {
       const {data}=await api.get(`/sources/project/${projectId}`)
@@ -173,16 +202,17 @@ export const extractionService={
       return []
     }
   },
+  
   async getAllSources():Promise<Source[]>{
     try {
       const {data}=await api.get<Source[]>('/sources/')
       return data||[]
-
     } catch (error) {
       console.error("Failed to fetch sources",error)
       return []
     }
   },
+  
   async getRawExtractions(sourceId?:string):Promise<RawExtraction[]>{
     try {
       const {data}=await api.get<RawExtraction[]>('/extraction/',{
