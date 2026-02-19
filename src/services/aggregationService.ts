@@ -1,156 +1,152 @@
-// import { supabase } from '../lib/supabase';
-// import type { AggregatedAttribute, AttributeValue, Product } from '../types/database.types';
-
-import { AggregatedAttribute, Product } from "../types/database.types.ts";
-import { Product } from '../types/database.types';
 import api from "../lib/api.ts";
+import type { Product, AggregatedAttribute } from "../types/database.types";
+import {
+  ProjectWithStats,
+  ProductsResponse,
+  AggregationResponse,
+  ProductAggregationResponse,
+  AggregationStatus,
+  AggregationJob,
+} from "../types/database.types";
 
-// const SOURCE_TRUST_ORDER = {
-//   excel: 4,
-//   pdf: 3,
-//   web: 2,
-//   image: 1,
-//   csv: 4
-// };
-
-// export class AggregationService {
-//   async createOrGetProduct(sku: string, mpn?: string, brand?: string): Promise<Product> {
-//     const { data: existing } = await supabase
-//       .from('products')
-//       .select('*')
-//       .eq('sku', sku)
-//       .maybeSingle();
-
-//     if (existing) {
-//       return existing;
-//     }
-
-//     const { data, error } = await supabase
-//       .from('products')
-//       .insert({ sku, mpn, brand })
-//       .select()
-//       .maybeSingle();
-
-//     if (error) throw error;
-//     return data!;
-//   }
-
-//   async aggregateProductData(productId: string) {
-//     const { data: extractions, error: extError } = await supabase
-//       .from('raw_extractions')
-//       .select('*, sources!inner(*)')
-//       .eq('product_keys->>sku', productId);
-
-//     if (extError) throw extError;
-
-//     const attributeMap = new Map<string, AttributeValue[]>();
-
-//     for (const extraction of extractions || []) {
-//       const rawAttrs = extraction.raw_attributes as Record<string, unknown>;
-
-//       for (const [attrName, attrValue] of Object.entries(rawAttrs)) {
-//         if (!attributeMap.has(attrName)) {
-//           attributeMap.set(attrName, []);
-//         }
-
-//         attributeMap.get(attrName)!.push({
-//           value: String(attrValue),
-//           source_id: extraction.source_id,
-//           confidence: extraction.confidence
-//         });
-//       }
-//     }
-
-//     for (const [attrName, values] of attributeMap.entries()) {
-//       const uniqueValues = new Set(values.map(v => v.value));
-//       const hasConflict = uniqueValues.size > 1;
-
-//       await supabase
-//         .from('aggregated_attributes')
-//         .upsert({
-//           product_id: productId,
-//           attribute_name: attrName,
-//           values,
-//           has_conflict: hasConflict
-//         });
-
-//       await supabase
-//         .from('audit_trail')
-//         .insert({
-//           product_id: productId,
-//           attribute_name: attrName,
-//           selected_value: values[0]?.value || '',
-//           source_used: values[0]?.source_id || '',
-//           reason: hasConflict ? 'Multiple values detected - conflict' : 'Single value from source',
-//           stage: 'aggregation'
-//         });
-//     }
-//   }
-
-//   async getAggregatedAttributes(productId: string): Promise<AggregatedAttribute[]> {
-//     const { data, error } = await supabase
-//       .from('aggregated_attributes')
-//       .select('*')
-//       .eq('product_id', productId);
-
-//     if (error) throw error;
-//     return data || [];
-//   }
-
-//   async getAllProducts(): Promise<Product[]> {
-//     const { data, error } = await supabase
-//       .from('products')
-//       .select('*')
-//       .order('created_at', { ascending: false });
-
-//     if (error) throw error;
-//     return data || [];
-//   }
-
-//   async resolveConflict(attributeId: string, selectedValue: AttributeValue) {
-//     const { data: attribute } = await supabase
-//       .from('aggregated_attributes')
-//       .select('*')
-//       .eq('id', attributeId)
-//       .maybeSingle();
-
-//     if (!attribute) return;
-
-//     const updatedValues = [selectedValue];
-
-//     await supabase
-//       .from('aggregated_attributes')
-//       .update({
-//         values: updatedValues,
-//         has_conflict: false
-//       })
-//       .eq('id', attributeId);
-
-//     await supabase
-//       .from('audit_trail')
-//       .insert({
-//         product_id: attribute.product_id,
-//         attribute_name: attribute.attribute_name,
-//         selected_value: selectedValue.value,
-//         source_used: selectedValue.source_id,
-//         reason: 'Manually resolved conflict',
-//         stage: 'aggregation'
-//       });
-//   }
-// }
-
-// export const aggregationService = new AggregationService();
-export const aggregationService={
-  async getAllProducts():Promise<Product[]>{
-    const {data}=await api.get<Product[]>('/products/')
-    return data.map(p=>({...p,sku:(p as any).product_code}))
+export const aggregationService = {
+  async getProjectsWithAggregationStats(): Promise<ProjectWithStats[]> {
+    try {
+      const { data } = await api.get<ProjectWithStats[]>(
+        "/aggregation/projects/stats",
+      );
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch projects with stats:", error);
+      return [];
+    }
   },
-  async getAggregatedAttributes(productId:string):Promise<AggregatedAttribute[]>{
-    const {data}=await api.get<AggregatedAttribute[]>(`/aggregation/attributes/${productId}`)
-    return data
+  async getProductsByProject(
+    projectId: string,
+    skip: number = 0,
+    limit: number = 10,
+    status?: string,
+  ): Promise<ProductsResponse> {
+    try {
+      const params: any = {
+      project_id: projectId,
+      skip,
+      limit
+    };
+      if (status && status !== 'all') {
+      params.enrichment_status = status; 
+    }
+      const { data } = await api.get<ProductsResponse | Product[]>('/products/', { params });
+      if (Array.isArray(data)) {
+        return {
+          products: data,
+          total: data.length,
+          skip,
+          limit,
+        };
+      }
+      return {
+        products: data.products || [],
+        total: data.total || 0,
+        skip: data.skip || skip,
+        limit: data.limit || limit,
+        project: data.project
+      };
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      return { products: [], total: 0 };
+    }
   },
-  async aggregateProductData(productId:string):Promise<void>{
-    await api.post(`/aggregation/run/${productId}`);
-  }
-
-}
+  async getAllProducts(): Promise<Product[]> {
+    try {
+      const { data } = await api.get<Product[]>("/products/");
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return data.products || [];
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      return [];
+    }
+  },
+  async getAggregatedAttributes(
+    productId: string,
+  ): Promise<AggregatedAttribute[]> {
+    try {
+      const { data } = await api.get<AggregatedAttribute[]>(
+        `/aggregation/attributes/${productId}`,
+      );
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch attributes:", error);
+      return [];
+    }
+  },
+  async aggregateProject(projectId: string): Promise<AggregationResponse> {
+    try {
+      const { data } = await api.post<AggregationResponse>(
+        `/aggregation/project/${projectId}`,
+      );
+      return data;
+    } catch (error) {
+      console.error("Failed to aggregate project:", error);
+      throw new Error("Project aggregation failed");
+    }
+  },
+  async aggregateProduct(
+    productId: string,
+  ): Promise<ProductAggregationResponse> {
+    try {
+      const { data } = await api.post<ProductAggregationResponse>(
+        `/aggregation/run/${productId}`,
+      );
+      return data;
+    } catch (error) {
+      console.error("Failed to aggregate product:", error);
+      throw new Error("Product aggregation failed");
+    }
+  },
+  async getProjectAggregationStatus(
+    projectId: string,
+  ): Promise<AggregationJob> {
+    try {
+      const { data } = await api.get<AggregationJob>(
+        `/aggregation/project/${projectId}/status`,
+      );
+      return data;
+    } catch (error) {
+      console.error("Failed to get aggregation status:", error);
+      return {
+        id: "",
+        project_id: projectId,
+        status: "idle",
+        total_products: 0,
+        successful: 0,
+        failed: 0,
+        progress_percent: 0,
+      };
+    }
+  },
+  async cancelProjectAggregation(
+    projectId: string,
+  ): Promise<{ status: string; message: string }> {
+    const { data } = await api.post<{ status: string; message: string }>(
+      `/aggregation/project/${projectId}/cancel`,
+    );
+    return data;
+  },
+  async cleanupOldJobs(days: number = 7): Promise<{ deleted_count: number }> {
+    const { data } = await api.delete<{ deleted_count: number }>(
+      "/aggregation/jobs/cleanup",
+      {
+        params: { days },
+      },
+    );
+    return data;
+  },
+  async aggregateProductData(
+    productId: string,
+  ): Promise<ProductAggregationResponse> {
+    return this.aggregateProduct(productId);
+  },
+};

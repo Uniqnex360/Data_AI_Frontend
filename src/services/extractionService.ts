@@ -134,6 +134,7 @@ import { RawExtraction, ExtractionInput } from '../types/database.types';
 // }
 
 // export const extractionService = new ExtractionService();
+
 export const extractionService={
   async extractFromSource(input:ExtractionInput):Promise<any>{
     try {
@@ -176,7 +177,7 @@ export const extractionService={
   async download(sourceId: string, type: 'input' | 'output') {
     try {
       const response = await api.get(`/sources/${sourceId}/download`, {
-        params: { file_type: type }, 
+        params: { type: type }, 
         responseType: 'blob',
       });
 
@@ -224,4 +225,14 @@ export const extractionService={
       return []
     }
   },
+  async triggerAggregation(sourceId:string){
+    try {
+      if(!sourceId)throw new Error("Source Id is missing")
+      const response=await api.post(`/sources/aggregate/${sourceId}`)
+      return response.data
+    } catch (error) {
+       console.error('Failed to fetch extractions',error)
+      return []
+    }
+  }
 }

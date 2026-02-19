@@ -123,14 +123,86 @@ export interface AttributeValue {
   source_id: string;
   confidence: number;
 }
+export interface ProjectWithStats {
+  id: string;
+  name: string;
+  client?: string;
+  status: string;
+  totalProducts: number;
+  aggregatedProducts: number;
+  pendingProducts: number;
+  aggregationStatus: 'yet_to_start' | 'in_progress' | 'completed';
+}
+export interface AggregationJob{
+  id:string
+  project_id:string
+  status:'pending'|'processing'|'completed'|"failed"|'cancelled'|'idle'
+  total_products:number
+  successful:number
+  failed:number
+  current_product?:string
+  error_message?:string
+  started_at?:string
+  completed_at?:string
+  progress_percent:number
+}
+export interface Project {
+  id: string;
+  name: string;
+  client: string;
+  status: string; 
+  target_platform: string;
+  created_at?: string;
+  updated_at?: string;
+}
+export interface ProductsResponse {
+  products: Product[];
+  total: number;
+  skip: number;
+  limit: number;
+  project: Project | null;
+}
+export interface AggregationTriggerResponse{
+  status:string
+  message:string
+  job_id:string
+  project_id:string
+  total_products:number
+}
 
+export interface AggregationStatus {
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  successful: number;
+  failed: number;
+  total: number;
+}
+export interface AggregationResponse {
+  status: string;
+  message: string;
+  project_id?: string;
+  product_id?: string;
+}
+export interface ProductAggregationResponse {
+  status: string;
+  data?: {
+    golden_record: {
+      attributes: Record<string, string | number | boolean>;
+      confidence: number;
+    };
+    sources_used: number;
+  };
+}
+export interface AggregatedAttributeValue{
+  value:string
+  confidence:number
+  source_id:string
+}
 export interface AggregatedAttribute {
   id: string;
   product_id: string;
   attribute_name: string;
-  values: AttributeValue[];
   has_conflict: boolean;
-  aggregated_at: string;
+  values: AggregatedAttributeValue[];
 }
 
 export interface CleansingIssue {
@@ -208,3 +280,4 @@ export interface AuditTrail {
   stage: ProcessingStage;
   logged_at: string;
 }
+

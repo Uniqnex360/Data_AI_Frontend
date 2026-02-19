@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Upload, FileText, Globe, FileSpreadsheet, Image, CheckCircle, XCircle, Clock, Download, Plus, Edit } from 'lucide-react';
 import { extractionService } from '../services/extractionService';
 import type { Source } from '../types/database.types';
@@ -22,7 +22,7 @@ interface ManualProductData {
 export default function SourcesTab({ projectId }: { projectId?: string }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMode, setActiveMode] = useState<'manual' | 'bulk'>('bulk');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [manualData, setManualData] = useState<ManualProductData>({
@@ -53,33 +53,56 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
       console.error('Failed to load sources:', error);
     }
   };
-  const pollBatchStatus = async (batchId: string) => {
-  const maxAttempts = 60; // Poll for up to 5 minutes (60 * 5 seconds)
+ const pollBatchStatus = async (batchId: string) => {
+  const maxAttempts = 60; 
   let attempts = 0;
 
   const poll = async () => {
     try {
       const response = await extractionService.getBatchStatus(batchId);
-      const { status, metadata } = response.data;
+      const { status, metadata } = response;
 
-      if (status === 'completed' || status === 'failed') {
-        // Processing complete, show results
+      if (status === 'completed') {
+        // Notification for Success
+        notify.success(
+          'Import Finished', 
+          `Successfully processed ${metadata?.successful || 0} products.`
+        );
+        
         setImportResults({
           success: metadata?.successful || 0,
           failed: metadata?.failed || 0,
           status: status
         });
-        await loadSources(); // Refresh the list
+        await loadSources(); 
         return;
       }
 
-      // Still processing, poll again
+      if (status === 'failed') {
+        // Notification for Failure
+        notify.error(
+          'Import Failed', 
+          metadata?.error_message || 'An error occurred during processing.'
+        );
+        
+        setImportResults({
+          success: metadata?.successful || 0,
+          failed: metadata?.failed || 0,
+          status: status
+        });
+        await loadSources();
+        return;
+      }
+
       attempts++;
       if (attempts < maxAttempts) {
-        setTimeout(poll, 5000); // Poll every 5 seconds
+        setTimeout(poll, 5000); 
+      } else {
+        notify.error('Polling Timeout', 'The import is taking longer than expected. Please check back later.');
       }
     } catch (error) {
       console.error('Failed to poll batch status:', error);
+      notify.error('Connection Error', 'Lost connection while checking import status.');
     }
   };
 
@@ -120,7 +143,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
         stock: ''
       });
       await loadSources();
-      alert('Product added successfully!');
+      notify.success('Product added successfully!');
     } catch (error) {
       console.error('Failed to add product:', error);
       notify.error('Failed to add product');
@@ -130,7 +153,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
   };
   const handleBulkUpload = async () => {
     if (!bulkFile) {
-      alert('Please select a file');
+      notify.info('Please select a file');
       return;
     }
     if (!projectId) {
@@ -140,8 +163,11 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
     setLoading(true);
     try {
       const result = await extractionService.batchAggregate(bulkFile, projectId);
-
-      notify.success('Batch upload started!', `Processing ${bulkFile.name}...`);
+      setBulkFile(null);
+       if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+      // notify.success('Batch upload started!', `Processing ${bulkFile.name}...`);
 
       setImportResults({
         success: 0,
@@ -435,6 +461,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
             </label>
             <input
               type="file"
+              ref={fileInputRef} 
               accept=".csv"
               onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -1,168 +1,625 @@
-import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, GitMerge } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  AlertTriangle, CheckCircle, GitMerge, ChevronLeft, ChevronRight,
+  Play, Loader2, FolderOpen, Package, RefreshCw, Clock, CheckCircle2,
+  AlertCircle, XCircle, StopCircle, ArrowRight, X, List, Box, FileSpreadsheet
+} from 'lucide-react';
 import { aggregationService } from '../services/aggregationService';
-import type { Product, AggregatedAttribute } from '../types/database.types';
+import { notify } from '../lib/notifications';
+import type {
+  Product,
+  ProjectWithStats,
+  AggregatedAttribute,
+  AggregationJob
+} from '../types/database.types';
+
+const PRODUCTS_PER_PAGE = 10;
+const POLL_INTERVAL = 3000;
+
+const safeParseValue = (value: any): any => {
+  if (value === null || value === undefined || value === '-' || value === 'null') return null;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return value;
+  
+  const str = value.trim();
+  if (!str || str === '[object Object]') return null;
+  
+  // Check if it looks like JSON or a Python Dict
+  if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      try {
+        // Handle Python style: Replace ' with ", None with null, True with true
+        const normalized = str
+          .replace(/'/g, '"')
+          .replace(/None/g, 'null')
+          .replace(/True/g, 'true')
+          .replace(/False/g, 'false');
+        return JSON.parse(normalized);
+      } catch {
+        return str;
+      }
+    }
+  }
+  return str;
+};
+
+const unwrapSingleKeyObject = (obj: any): any => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const keys = Object.keys(obj);
+  // If the object has only one key and that key's value is also an object/array, unwrap it
+  if (keys.length === 1) {
+    const val = obj[keys[0]];
+    if (val && typeof val === 'object') return unwrapSingleKeyObject(val);
+    return val;
+  }
+  return obj;
+};
+const flattenForDisplay = (obj: any, parentKey = ''): Array<[string, any]> => {
+  const items: Array<[string, any]> = [];
+  for (const [key, value] of Object.entries(obj)) {
+    const displayKey = parentKey ? `${parentKey} ${key}` : key;
+    if (Array.isArray(value)) {
+      items.push([displayKey, value]);
+    } else if (value && typeof value === 'object') {
+      items.push(...flattenForDisplay(value, displayKey));
+    } else {
+      items.push([displayKey, value]);
+    }
+  }
+  return items;
+};
+
+const renderTable = (items: any[]) => {
+  if (!items.length || typeof items[0] !== 'object') return null;
+  const allKeys = new Set<string>();
+  items.forEach(item => { if (typeof item === 'object' && item !== null) Object.keys(item).forEach(k => allKeys.add(k)); });
+  const keys = Array.from(allKeys);
+  if (keys.length < 2) return null;
+  
+  return (
+    <div className="overflow-x-auto -mx-1 mt-1 mb-2">
+      <table className="min-w-full text-xs border border-slate-200 rounded-md">
+        <thead className="bg-slate-50">
+          <tr>{keys.map(key => <th key={key} className="px-2 py-1.5 text-left font-semibold text-slate-600 capitalize border-b border-slate-200 whitespace-nowrap">{key.replace(/_/g, ' ')}</th>)}</tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 bg-white">
+          {items.map((item, idx) => (
+            <tr key={idx} className="hover:bg-slate-50">
+              {keys.map(key => (
+                <td key={key} className="px-2 py-1.5 text-slate-700 border-r border-slate-100 last:border-r-0 whitespace-nowrap">
+                  {item[key] !== undefined && item[key] !== null ? String(item[key]) : '-'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const formatValue = (value: any) => {
+  if (!value || value === '-') return <span className="text-slate-400 text-sm">-</span>;
+  try {
+    let parsed = safeParseValue(value);
+    if (!parsed) return <span className="text-slate-400 text-sm">-</span>;
+    parsed = unwrapSingleKeyObject(parsed);
+    
+    if (Array.isArray(parsed)) {
+      if (parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
+        const table = renderTable(parsed);
+        if (table) return table;
+      }
+      return (
+        <ul className="list-disc list-inside space-y-0.5 text-sm mt-1">
+          {parsed.map((item, i) => {
+            if (typeof item === 'object' && item !== null) {
+              return <li key={i} className="text-slate-700">{Object.entries(item).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(', ')}</li>;
+            }
+            return <li key={i} className="text-slate-700">{String(item)}</li>;
+          })}
+        </ul>
+      );
+    }
+    
+    if (typeof parsed === 'object' && parsed !== null) {
+      const flattened = flattenForDisplay(parsed);
+      if (flattened.length === 1) {
+        const [key, val] = flattened[0];
+        return <div className="text-sm text-slate-700"><span className="font-medium capitalize text-slate-500">{key.replace(/_/g, ' ')}: </span><span>{Array.isArray(val) ? val.join(', ') : String(val)}</span></div>;
+      }
+      return (
+        <div className="space-y-1 text-xs mt-1">
+          {flattened.map(([key, val], idx) => {
+            if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
+              const table = renderTable(val);
+              if (table) return <div key={idx} className="mb-2"><div className="font-medium text-slate-600 capitalize mb-1">{key.replace(/_/g, ' ')}:</div>{table}</div>;
+            }
+            return (
+              <div key={idx} className="flex gap-2 border-l-2 border-slate-200 pl-2">
+                <span className="font-medium text-slate-500 capitalize whitespace-nowrap">{key.replace(/_/g, ' ')}:</span>
+                <span className="text-slate-700 flex-1 break-words">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    return <span className="text-slate-700 text-sm">{String(parsed)}</span>;
+  } catch (error) {
+    return <span className="text-slate-700 text-sm">{String(value)}</span>;
+  }
+};
+
+// ==================== MAIN COMPONENT ====================
 
 export default function AggregationTab() {
+  // State
+  const [projects, setProjects] = useState<ProjectWithStats[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+
   const [products, setProducts] = useState<Product[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [productsLoading, setProductsLoading] = useState(false);
+  
+  // NEW: Filter Status
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'failed' | 'pending'>('all');
+
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [attributesLoading, setAttributesLoading] = useState(false);
 
-  useEffect(() => {
-    loadProducts();
+  const [activeJob, setActiveJob] = useState<AggregationJob | null>(null);
+  const [aggregatingProductId, setAggregatingProductId] = useState<string | null>(null);
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ==================== DATA LOADING ====================
+
+  const loadProjects = useCallback(async () => {
+    try {
+      setProjectsLoading(true);
+      const data = await aggregationService.getProjectsWithAggregationStats();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      notify.error('Failed to load projects');
+    } finally {
+      setProjectsLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    if (selectedProduct) {
-      loadAttributes(selectedProduct);
-    }
-  }, [selectedProduct]);
+const loadProductsByProject = useCallback(async (projectId: string, page: number, status: string = 'all') => {
+  try {
+    setProductsLoading(true);
+    const skip = (page - 1) * PRODUCTS_PER_PAGE;
+    
+    const response = await aggregationService.getProductsByProject(
+      projectId,
+      skip,
+      PRODUCTS_PER_PAGE,
+      status 
+    );
+    
+    setProducts(response.products);
+    setTotalProducts(response.total);
+  } catch (error) {
+    console.error('Failed to load products:', error);
+    notify.error('Failed to load products');
+  } finally {
+    setProductsLoading(false);
+  }
+}, []); // Empty is fine as it uses arguments
 
-  const loadProducts = async () => {
+  const loadAttributes = useCallback(async (productId: string) => {
     try {
-      const data = await aggregationService.getAllProducts();
-      setProducts(data);
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    }
-  };
-
-  const loadAttributes = async (productId: string) => {
-    try {
+      setAttributesLoading(true);
       const data = await aggregationService.getAggregatedAttributes(productId);
       setAttributes(data);
     } catch (error) {
       console.error('Failed to load attributes:', error);
+    } finally {
+      setAttributesLoading(false);
+    }
+  }, []);
+
+  const loadAggregationStatus = useCallback(async (projectId: string) => {
+    try {
+      const status = await aggregationService.getProjectAggregationStatus(projectId);
+      setActiveJob(status.status !== 'idle' ? status : null);
+      return status;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  // ==================== POLLING & EFFECTS ====================
+
+  const startPolling = useCallback((projectId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(async () => {
+      const status = await loadAggregationStatus(projectId);
+      if (status && ['completed', 'failed', 'cancelled'].includes(status.status)) {
+        stopPolling();
+        await loadProjects();
+        await loadProductsByProject(projectId, currentPage, statusFilter);
+        if (status.status === 'completed') notify.success('Aggregation Complete!', `${status.successful} enriched`);
+        else if (status.status === 'failed') notify.error('Aggregation Failed', status.error_message);
+      }
+    }, POLL_INTERVAL);
+  }, [loadAggregationStatus, loadProjects, loadProductsByProject, currentPage, statusFilter]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+  }, []);
+
+  useEffect(() => { loadProjects(); return () => stopPolling(); }, [loadProjects, stopPolling]);
+
+// This is the "Source of Truth" for loading products
+useEffect(() => {
+  if (selectedProject) {
+    loadProductsByProject(selectedProject, currentPage, statusFilter);
+    loadAggregationStatus(selectedProject);
+  }
+}, [selectedProject, currentPage, statusFilter, loadProductsByProject, loadAggregationStatus]);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      loadAttributes(selectedProduct);
+      setIsDrawerOpen(true);
+    } else {
+      setIsDrawerOpen(false);
+    }
+  }, [selectedProduct, loadAttributes]);
+
+  useEffect(() => {
+    if (activeJob && ['pending', 'processing'].includes(activeJob.status) && selectedProject) startPolling(selectedProject);
+    else stopPolling();
+  }, [activeJob, selectedProject, startPolling, stopPolling]);
+
+  // ==================== HANDLERS ====================
+
+  const handleAggregateProject = async (projectId: string) => {
+    try {
+      const response = await aggregationService.aggregateProject(projectId);
+      notify.success('Aggregation Started', response.message);
+      setActiveJob({ id: response.job_id, project_id: projectId, status: 'processing', total_products: response.total_products, successful: 0, failed: 0, progress_percent: 0 });
+      startPolling(projectId);
+    } catch (error: any) {
+      if (error.response?.status === 409) notify.warning('Already Running', error.response.data.detail);
+      else notify.error('Failed to Start', error.response?.data?.detail);
     }
   };
 
-  const handleAggregate = async (productId: string) => {
-    setLoading(true);
+  const handleAggregateProduct = async (productId: string) => {
     try {
-      await aggregationService.aggregateProductData(productId);
-      await loadAttributes(productId);
+      setAggregatingProductId(productId);
+      await aggregationService.aggregateProduct(productId);
+      notify.success('Product Aggregation Started');
+      setTimeout(async () => {
+        if (selectedProject) await loadProductsByProject(selectedProject, currentPage, statusFilter);
+        if (selectedProduct === productId) await loadAttributes(productId);
+        setAggregatingProductId(null);
+      }, 5000);
     } catch (error) {
-      console.error('Aggregation failed:', error);
-    } finally {
-      setLoading(false);
+      setAggregatingProductId(null);
+      notify.error('Product Aggregation Failed');
     }
   };
+
+  const handleCancelAggregation = async (projectId: string) => {
+    await aggregationService.cancelProjectAggregation(projectId);
+    stopPolling();
+    await loadProjects();
+    await loadAggregationStatus(projectId);
+  };
+
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+    setTimeout(() => setSelectedProduct(null), 300);
+  };
+
+const handleStatusClick = (e: React.MouseEvent, projectId: string, status: 'completed' | 'failed' | 'pending') => {
+  e.stopPropagation();
+  
+  if (selectedProject !== projectId) {
+    setSelectedProject(projectId);
+  }
+  
+  setStatusFilter(status);
+  setCurrentPage(1); 
+};
+
+  // ==================== BADGES ====================
+
+  const getProjectStatusBadge = (project: ProjectWithStats) => {
+    if (activeJob?.project_id === project.id && ['pending', 'processing'].includes(activeJob.status))
+      return <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> {activeJob.progress_percent}%</span>;
+    if (project.aggregationStatus === 'completed') return <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex gap-1 items-center"><CheckCircle2 className="w-3 h-3"/> Done</span>;
+    if (project.aggregationStatus === 'in_progress') return <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex gap-1 items-center"><Clock className="w-3 h-3"/> Active</span>;
+    return <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">To Do</span>;
+  };
+
+  const getProductStatusBadge = (status: string) => {
+    if (status === 'completed') return <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Enriched</span>;
+    if (status === 'processing') return <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Processing</span>;
+    if (status === 'failed') return <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Failed</span>;
+    return <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pending</span>;
+  };
+
+  const selectedProductData = products.find(p => p.id === selectedProduct);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-1">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Products</h3>
-          <div className="space-y-2">
-            {products.length === 0 ? (
-              <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600">No products found</p>
+    <div className="h-[calc(100vh-140px)] flex flex-col relative">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Data Aggregation</h2>
+          <p className="text-sm text-slate-600">Select a project to manage aggregation</p>
+        </div>
+        <button onClick={loadProjects} className="p-2 hover:bg-slate-100 rounded-full">
+          <RefreshCw className={`w-5 h-5 text-slate-500 ${projectsLoading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
+        
+        {/* LEFT SIDEBAR: PROJECTS */}
+        <div className="col-span-3 flex flex-col gap-3 overflow-y-auto pr-2">
+          {projects.map(project => {
+            const isSelected = selectedProject === project.id;
+            const progress = project.totalProducts > 0 ? Math.round((project.aggregatedProducts / project.totalProducts) * 100) : 0;
+
+            return (
+              <div 
+                key={project.id} 
+                 onClick={() => { 
+    setSelectedProject(project.id); 
+    setStatusFilter('all'); 
+    setCurrentPage(1);
+  }} 
+                className={`p-4 rounded-lg border cursor-pointer transition-all ${isSelected ? 'bg-blue-50 border-blue-400 shadow-sm ring-1 ring-blue-200' : 'bg-white border-slate-200 hover:border-blue-200 hover:shadow-sm'}`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-semibold text-slate-900 truncate pr-2">{project.name}</h3>
+                  {getProjectStatusBadge(project)}
+                </div>
+                {/* <div className="text-xs text-slate-500 mb-3">{project.client || 'No Client'}</div> */}
+                <div className="w-full bg-slate-200 h-1.5 rounded-full mb-3 overflow-hidden">
+                  <div className={`h-full ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }} />
+                </div>
+                
+                {/* NEW: Clickable Stats Grid */}
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div onClick={(e) => handleStatusClick(e, project.id, 'completed')} className={`flex flex-col items-center p-1.5 rounded cursor-pointer transition-colors ${statusFilter === 'completed' && isSelected ? 'bg-green-100 border border-green-200' : 'bg-green-50 hover:bg-green-100'}`}>
+                    <span className="font-bold text-green-700">{project.aggregatedProducts}</span>
+                    <span className="text-[10px] text-green-600">Success</span>
+                  </div>
+                  <div onClick={(e) => handleStatusClick(e, project.id, 'failed')} className={`flex flex-col items-center p-1.5 rounded cursor-pointer transition-colors ${statusFilter === 'failed' && isSelected ? 'bg-red-100 border border-red-200' : 'bg-red-50 hover:bg-red-100'}`}>
+                    <span className="font-bold text-red-700">{project.failedProducts}</span>
+                    <span className="text-[10px] text-red-600">Failed</span>
+                  </div>
+                  <div onClick={(e) => handleStatusClick(e, project.id, 'pending')} className={`flex flex-col items-center p-1.5 rounded cursor-pointer transition-colors ${statusFilter === 'pending' && isSelected ? 'bg-yellow-100 border border-yellow-200' : 'bg-yellow-50 hover:bg-yellow-100'}`}>
+                    <span className="font-bold text-yellow-700">{project.pendingProducts}</span>
+                    <span className="text-[10px] text-yellow-600">Pending</span>
+                  </div>
+                </div>
               </div>
-            ) : (
-              products.map(product => (
-                <button
-                  key={product.id}
-                  onClick={() => setSelectedProduct(product.id)}
-                  className={`
-                    w-full text-left p-3 rounded-lg border transition-colors
-                    ${selectedProduct === product.id
-                      ? 'bg-blue-50 border-blue-200 text-blue-900'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  <p className="font-medium text-sm">{product.sku}</p>
-                  {product.brand && (
-                    <p className="text-xs text-slate-600 mt-1">{product.brand}</p>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
+            );
+          })}
+          {projects.length === 0 && !projectsLoading && (
+            <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">No projects found</div>
+          )}
         </div>
 
-        <div className="col-span-2">
-          {selectedProduct ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Aggregated Attributes</h3>
-                <button
-                  onClick={() => handleAggregate(selectedProduct)}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
-                >
-                  <GitMerge className="w-4 h-4" />
-                  {loading ? 'Aggregating...' : 'Aggregate Data'}
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {attributes.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">
-                    <GitMerge className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <p className="text-slate-600">No aggregated data yet</p>
-                    <p className="text-sm text-slate-500 mt-1">Click Aggregate Data to merge sources</p>
-                  </div>
-                ) : (
-                  attributes.map(attr => (
-                    <div
-                      key={attr.id}
-                      className={`
-                        p-4 rounded-lg border
-                        ${attr.has_conflict
-                          ? 'bg-amber-50 border-amber-200'
-                          : 'bg-white border-slate-200'
-                        }
-                      `}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-slate-900">{attr.attribute_name}</h4>
-                          {attr.has_conflict ? (
-                            <AlertTriangle className="w-4 h-4 text-amber-600" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          )}
-                        </div>
-                        {attr.has_conflict && (
-                          <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
-                            Conflict Detected
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        {attr.values.map((val, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded text-sm"
-                          >
-                            <span className="text-slate-900">{val.value}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-500">
-                                Confidence: {(val.confidence * 100).toFixed(0)}%
-                              </span>
-                              <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-mono">
-                                {val.source_id.slice(0, 8)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+        {/* RIGHT CONTENT: PRODUCTS LIST */}
+        <div className="col-span-9 flex flex-col gap-4 h-full overflow-hidden">
+          {selectedProject ? (
+            <>
+              {activeJob && ['pending', 'processing'].includes(activeJob.status) && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                    <div>
+                      <p className="text-sm font-semibold text-purple-900">Aggregation In Progress</p>
+                      <p className="text-xs text-purple-700">
+  Processing: {activeJob.current_product || 'Initializing...'} ({Math.min(activeJob.successful + activeJob.failed + 1, activeJob.total_products)} / {activeJob.total_products})
+</p>
                     </div>
-                  ))
-                )}
+                  </div>
+                  <button onClick={() => handleCancelAggregation(activeJob.project_id)} className="flex items-center gap-1 px-3 py-1.5 bg-white border border-red-200 text-red-600 text-xs font-medium rounded hover:bg-red-50"><StopCircle className="w-3 h-3" /> Cancel</button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-5 h-5 text-slate-400" />
+                    <span className="font-semibold text-slate-700">{totalProducts} Products</span>
+                  </div>
+                  {statusFilter !== 'all' && (
+                    <span className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-full border border-slate-200">
+                      Filter: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+                      <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-red-500 p-0.5 rounded-full hover:bg-slate-200"><X className="w-3 h-3"/></button>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 bg-slate-100 rounded-md p-1">
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || productsLoading} className="p-1 hover:bg-white rounded disabled:opacity-30"><ChevronLeft className="w-4 h-4"/></button>
+                    <span className="text-xs px-2 min-w-[60px] text-center">Page {currentPage} / {Math.ceil(totalProducts / PRODUCTS_PER_PAGE) || 1}</span>
+                    <button onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalProducts / PRODUCTS_PER_PAGE), p + 1))} disabled={currentPage >= Math.ceil(totalProducts / PRODUCTS_PER_PAGE) || productsLoading} className="p-1 hover:bg-white rounded disabled:opacity-30"><ChevronRight className="w-4 h-4"/></button>
+                  </div>
+                  {!(activeJob && ['pending', 'processing'].includes(activeJob.status)) && (
+                    <button onClick={() => handleAggregateProject(selectedProject)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-purple-blue shadow-sm"><Play className="w-4 h-4" /> Aggregate All</button>
+                  )}
+                </div>
               </div>
-            </div>
+
+              <div className="flex-1 overflow-y-auto bg-white rounded-lg border border-slate-200 shadow-sm">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-slate-600">Product Info</th>
+                      <th className="px-4 py-3 font-semibold text-slate-600">Import Source</th>
+                      <th className="px-4 py-3 font-semibold text-slate-600">Completeness</th>
+                      <th className="px-4 py-3 font-semibold text-slate-600">Status</th>
+                      <th className="px-4 py-3 font-semibold text-slate-600 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {productsLoading ? (
+                      <tr><td colSpan={5} className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500"/></td></tr>
+                    ) : products.length === 0 ? (
+                      <tr><td colSpan={5} className="p-8 text-center text-slate-500">No products found.</td></tr>
+                    ) : products.map(product => {
+                      const isSelected = selectedProduct === product.id;
+                      return (
+                        <tr key={product.id} onClick={() => setSelectedProduct(product.id)} className={`hover:bg-slate-50 cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-900">{product.product_name}</div>
+                            <div className="text-xs text-slate-500 font-mono mt-0.5">{product.product_code}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <FileSpreadsheet className="w-3.5 h-3.5 text-blue-500" />
+                              <span className="truncate max-w-[150px]" title={product.source_url || 'Unknown'}>{product.source_url ? product.source_url.replace(/^Manual_\d+_/, '') : 'Manual Entry'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-slate-200 h-1.5 rounded-full">
+                                <div className={`h-1.5 rounded-full ${product.completeness_score > 80 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${product.completeness_score}%` }} />
+                              </div>
+                              <span className="text-xs text-slate-500">{product.completeness_score}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">{getProductStatusBadge(product.enrichment_status)}</td>
+                          <td className="px-4 py-3 text-right">
+                            {product.enrichment_status !== 'completed' && product.enrichment_status !== 'processing' && (
+                              <button onClick={(e) => { e.stopPropagation(); handleAggregateProduct(product.id); }} disabled={aggregatingProductId === product.id} className="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded hover:bg-purple-100 disabled:opacity-50">{aggregatingProductId === product.id ? <Loader2 className="w-3 h-3 animate-spin"/> : 'Run'}</button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
-            <div className="text-center py-16 bg-slate-50 rounded-lg border border-slate-200">
-              <GitMerge className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-              <p className="text-slate-600">Select a product to view aggregated data</p>
+            <div className="h-full flex flex-col items-center justify-center bg-slate-50 rounded-lg border border-dashed border-slate-300 text-slate-400">
+              <ArrowRight className="w-12 h-12 mb-4 text-slate-300" />
+              <p className="font-medium">Select a project from the left sidebar</p>
+              <p className="text-sm">to view products and manage aggregation.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* ===================== PRODUCT DETAILS DRAWER ===================== */}
+      
+      {isDrawerOpen && selectedProductData && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={closeDrawer} />
+          <div className="relative w-full max-w-2xl bg-white shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
+            
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 leading-tight">{selectedProductData.product_name}</h2>
+                <div className="flex items-center gap-3 mt-1 text-sm text-slate-600">
+                  <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">{selectedProductData.product_code}</span>
+                  <span>{selectedProductData.brand_name}</span>
+                </div>
+              </div>
+              <button onClick={closeDrawer} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
+                <div className="flex-1">
+                  <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Data Completeness</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-blue-200 h-2 rounded-full overflow-hidden"><div className="bg-blue-600 h-full rounded-full" style={{ width: `${selectedProductData.completeness_score}%` }} /></div>
+                    <span className="font-bold text-blue-700">{selectedProductData.completeness_score}%</span>
+                  </div>
+                </div>
+                <div className="px-4 border-l border-blue-200">
+                  <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">Status</p>
+                  {getProductStatusBadge(selectedProductData.enrichment_status)}
+                </div>
+              </div>
+
+              {attributesLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-500"><Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500"/><p>Loading attributes...</p></div>
+              ) : attributes.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
+                  <GitMerge className="w-10 h-10 mx-auto mb-3 text-slate-300"/><p>No attributes found for this product.</p>
+                  <button onClick={() => handleAggregateProduct(selectedProductData.id)} className="mt-3 text-blue-600 hover:underline text-sm font-medium">Run Aggregation Now</button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2"><Box className="w-4 h-4"/> Specifications</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {attributes.map(attr => (
+                        <div key={attr.id} className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-xs font-semibold text-slate-500 uppercase">{attr.attribute_name}</span>
+                            {attr.has_conflict && <AlertTriangle className="w-3 h-3 text-amber-500" title="Source Conflict"/>}
+                          </div>
+                          <div className="text-sm text-slate-900 font-medium">{formatValue(attr.values[0]?.value)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2"><List className="w-4 h-4"/> Technical Data Source</h3>
+                    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase">
+                          <tr><th className="px-4 py-2 font-semibold text-left">Attribute</th><th className="px-4 py-2 font-semibold text-left">Value</th><th className="px-4 py-2 font-semibold text-right">Confidence</th><th className="px-4 py-2 font-semibold text-right">Source ID</th></tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+  {attributes.map(attr => (
+    <tr key={attr.id} className="hover:bg-slate-50">
+      <td className="px-4 py-2 font-medium text-slate-700">{attr.attribute_name}</td>
+      <td className="px-4 py-2 text-slate-600">
+        <div className="max-h-24 overflow-y-auto">
+          {formatValue(attr.values[0]?.value)}
+        </div>
+      </td>
+      <td className="px-4 py-2 text-right">
+        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${attr.values[0]?.confidence > 0.8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+          {(attr.values[0]?.confidence * 100).toFixed(0)}%
+        </span>
+      </td>
+      <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">
+        {attr.values[0]?.source_id?.slice(0, 8)}
+      </td>
+    </tr>
+  ))}
+</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+              <span className="text-xs text-slate-500">Last updated: {new Date().toLocaleDateString()}</span>
+              <button onClick={() => handleAggregateProduct(selectedProductData.id)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors shadow-sm"><RefreshCw className="w-4 h-4"/> Re-Aggregate</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

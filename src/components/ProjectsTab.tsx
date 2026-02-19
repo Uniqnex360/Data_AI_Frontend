@@ -11,7 +11,7 @@ import { projectService } from "../services/projectService";
 import type { Project } from "../types/database.types";
 import { extractionService } from "../services/extractionService";
 import { getStatusIcon } from "../utils/statusIcon";
-import { Clock, XCircle } from "lucide-react";
+import { Clock, XCircle, AlertCircle } from 'lucide-react';
 
 interface Props {
   onProjectSelect?: (projectId: string) => void;
@@ -50,22 +50,22 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
     }
   };
   const loadSourcesForProject = async (id: string) => {
-    console.log("🔄 Loading Sources for Project", {
+    console.log(" Loading Sources for Project", {
       projectId: id,
       existingSources: projectSources[id],
     });
 
     if (!id) {
-      console.error("❌ Invalid Project ID", { id });
+      console.error(" Invalid Project ID", { id });
       return;
     }
 
     try {
-      console.log("📡 Calling API for Sources", {
+      console.log(" Calling API for Sources", {
         endpoint: `extractionService.getSourcesByProject(${id})`,
       });
       const sourcesData = await extractionService.getSourcesByProject(id);
-      console.log("📥 API Response Received", {
+      console.log(" API Response Received", {
         projectId: id,
         sourcesCount: sourcesData.length,
         sources: sourcesData,
@@ -73,38 +73,38 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
 
       setProjectSources((prev) => {
         const newState = { ...prev, [id]: sourcesData };
-        console.log("🔄 Updated Project Sources State", {
+        console.log(" Updated Project Sources State", {
           projectId: id,
           newSources: newState[id],
         });
         return newState;
       });
     } catch (error) {
-      console.error("❌ Failed to Load Sources", {
+      console.error(" Failed to Load Sources", {
         projectId: id,
         error: (error as Error).message,
       });
     }
   };
   const toggleProject = async (projectId: string) => {
-    console.log("🔽 Toggle Project Clicked", {
+    console.log(" Toggle Project Clicked", {
       projectId,
       currentExpanded: expandedProjects.has(projectId),
     });
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
       newExpanded.delete(projectId);
-      console.log("🔼 Collapsing Project", { projectId });
+      console.log(" Collapsing Project", { projectId });
     } else {
       newExpanded.add(projectId);
-      console.log("📂 Expanding Project", {
+      console.log(" Expanding Project", {
         projectId,
         hasCachedSources: !!projectSources[projectId],
       });
       await loadSourcesForProject(projectId);
     }
     setExpandedProjects(newExpanded);
-    console.log("✅ Updated Expanded Projects", {
+    console.log(" Updated Expanded Projects", {
       newExpanded: Array.from(newExpanded),
     });
   };
@@ -238,54 +238,53 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
                         No imports for this project yet
                       </div>
                     ) : (
-                      projectSources[project.id]?.map((source) => (
-                        <div
-                          key={source.id}
-                          className="flex items-center justify-between p-3 bg-slate-50 rounded-md text-sm"
-                        >
-                          <div className="flex items-center gap-2">
-                            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
-                            <span>{source.source_url}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {/* Input Download - Always visible */}
-                            <button
-                              onClick={() =>
-                                extractionService.download(source.id, "input")
-                              }
-                              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
-                            >
-                              <Download className="w-3.5 h-3.5" /> Input
-                            </button>
-
-                            {/* Output Download - Only show if completed */}
-                            {source.status === "completed" ? (
+                      projectSources[project.id]?.map((source) => {
+                        const aggStatus = source.metadata?.aggregation_status;
+                        console.log('aggregation_status',aggStatus)
+                        const isEnriched = aggStatus === 'completed'
+                        const isAggregating = aggStatus === 'processing'
+                        return (
+                          <div
+                            key={source.id}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-md text-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+                              <span>{source.source_url}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
                               <button
                                 onClick={() =>
-                                  extractionService.download(
-                                    source.id,
-                                    "output",
-                                  )
+                                  extractionService.download(source.id, "input")
                                 }
-                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
                               >
-                                <Download className="w-3.5 h-3.5" /> Output
+                                <Download className="w-3.5 h-3.5" /> Input
                               </button>
-                            ) : source.status === "processing" ? (
-                              <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-400 italic">
-                                <Clock className="w-3.5 h-3.5 animate-spin" />{" "}
-                                Preparing...
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-400">
-                                <XCircle className="w-3.5 h-3.5" /> Failed
-                              </div>
-                            )}
 
-                            {getStatusIcon(source.status)}
+                              {isEnriched ? (
+                                <button
+                                  onClick={() => extractionService.download(source.id, "output")}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Output
+                                </button>
+                              ) : isAggregating ? (
+                                <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-purple-600 italic">
+                                  <Clock className="w-3.5 h-3.5 animate-spin" /> Aggregating...
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
+                                  <AlertCircle className="w-3.5 h-3.5" /> Needs Aggregation
+                                </div>
+                              )}
+
+                              {getStatusIcon(source.status)}
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        )
+
+                      })
                     )}
                   </div>
                 </div>
