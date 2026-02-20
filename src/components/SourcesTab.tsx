@@ -156,6 +156,18 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
       notify.info('Please select a file');
       return;
     }
+     const validTypes = [
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+  const validExtensions = ['.csv', '.xlsx', '.xls'];
+  
+  const fileExtension = bulkFile.name.substring(bulkFile.name.lastIndexOf('.')).toLowerCase();
+  if (!validTypes.includes(bulkFile.type) && !validExtensions.includes(fileExtension)) {
+    notify.error('Invalid file type', 'Please upload CSV or Excel files only');
+    return;
+  }
     if (!projectId) {
     notify.error('Please select a project first before uploading');
     return;
@@ -442,7 +454,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
         </div>
       ) : (
         <div className="bg-white rounded-lg p-6 border border-slate-200">
-          <h4 className="text-lg font-semibold text-slate-900 mb-4">Bulk Import via CSV</h4>
+          <h4 className="text-lg font-semibold text-slate-900 mb-4">Bulk Import via CSV or Excel</h4>
           <div className="mb-4">
             <button
               onClick={downloadTemplate}
@@ -462,7 +474,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
             <input
               type="file"
               ref={fileInputRef} 
-              accept=".csv"
+              accept=".csv, .xlsx, .xls"
               onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
