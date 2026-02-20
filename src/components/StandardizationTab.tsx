@@ -23,7 +23,8 @@ export default function StandardizationTab() {
   const loadProducts = async () => {
     try {
       const data = await aggregationService.getAllProducts();
-      setProducts(data);
+      const productList = data.products || data
+      setProducts(productList);
     } catch (error) {
       console.error('Failed to load products:', error);
     }
@@ -68,9 +69,9 @@ export default function StandardizationTab() {
                   }
                 `}
               >
-                <p className="font-medium text-sm">{product.sku}</p>
-                {product.brand && (
-                  <p className="text-xs text-slate-600 mt-1">{product.brand}</p>
+                <p className="font-medium text-sm">{product.product_code}</p>
+                {product.brand_name && (
+                  <p className="text-xs text-slate-600 mt-1">{product.brand_name}</p>
                 )}
               </button>
             ))}

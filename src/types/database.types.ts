@@ -1,3 +1,4 @@
+import { DashboardStats } from '../services/dashboardService';
 export type SourceType = 'web' | 'pdf' | 'excel' | 'csv' | 'image';
 export type SourceStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type IssueType = 'invalid' | 'duplicate' | 'missing' | 'inconsistent';
@@ -281,3 +282,26 @@ export interface AuditTrail {
   logged_at: string;
 }
 
+export interface DashboardMetric{
+  metric_type:string
+  metric_value:number
+}
+export interface CategoryStat{
+  category_name:string
+  count:number
+}
+export interface DashboardStats{
+  name:string
+  totalProjects:number
+  activeProjecs:number
+  totalProducts:number
+  aggregatedProducts:number
+  cleanedProducts:number
+  standardizedProducts:number
+  enrichedProducts:number
+  publishedProducts:number
+  failedProducts:number
+  pendingProducts:number
+  catalogHealth:number
+  categoryDistribution:CategoryStat[]
+}

@@ -6,9 +6,11 @@ import {
   Plus,
   ChevronUp,
   ChevronDown,
+  Search,
+  SearchIcon,
 } from "lucide-react";
 import { projectService } from "../services/projectService";
-import type { Project } from "../types/database.types";
+import type { Project, Source } from "../types/database.types";
 import { extractionService } from "../services/extractionService";
 import { getStatusIcon } from "../utils/statusIcon";
 import { Clock, XCircle, AlertCircle } from 'lucide-react';
@@ -22,12 +24,9 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
   const [sources, setSources] = useState<Source[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    new Set(),
-  );
-  const [projectSources, setProjectSources] = useState<
-    Record<string, Source[]>
-  >({});
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set(),);
+  const [projectSources, setProjectSources] = useState<Record<string, Source[]>>({});
+  const [searchQuery,setSearchQuery]=useState('')
   const [formData, setFormData] = useState({
     name: "",
     client: "",
@@ -122,11 +121,26 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
       console.error("Failed to create project:", error);
     }
   };
-
+  const filteredProjects=projects.filter((project)=>{
+    const query=searchQuery.toLowerCase()
+    return (
+      project.name.toLowerCase().includes(query)||project.client?.toLowerCase().includes(query)
+    )
+  })
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-slate-900">Projects</h3>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+             <input type="text" placeholder="Search projects"
+              value={searchQuery}
+              onChange={(e)=>setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+            />
+          </div>
+        </div>
         <button
           onClick={() => setShowCreateForm(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -180,10 +194,20 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
       )}
 
       <div className="space-y-3">
-        {projects.length === 0 ? (
+        {filteredProjects.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">
-            <FolderOpen className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            {searchQuery ? (
+              <>
+              <Search className="w-12 h-12 text-slate-400 mx-auto mb-3"/>
+              <p className="text-slate-600">No projects found matching "{searchQuery}"</p>
+              </>
+            ):(
+              <>
+              <FolderOpen className="w-12 h-12 text-slate-400 mx-auto mb-3" />
             <p className="text-slate-600">No projects yet</p>
+            </>
+            )}
+            
           </div>
         ) : (
           projects.map((project, index) => (

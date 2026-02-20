@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { BarChart3, FolderOpen, Database, FileText, GitMerge, Sparkles, CheckCircle, Shield, Target, FileSearch, Eye, Send, TrendingUp, Users } from 'lucide-react';
 import DashboardTab from './components/DashboardTab';
@@ -30,13 +31,13 @@ const tabs: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3, component: DashboardTab },
   { id: 'projects', label: 'Projects', icon: FolderOpen, component: ProjectsTab },
   { id: 'sources', label: 'Input & Sources', icon: FileText, component: SourcesTab },
+  { id: 'rules', label: 'Business Rules', icon: Shield, component: BusinessRulesTab },
+  { id: 'validation', label: 'Validation', icon: Eye, component: ValidationTab },
   { id: 'priority', label: 'Source Priority', icon: TrendingUp, component: SourcePriorityTab },
   { id: 'aggregation', label: 'Aggregation', icon: GitMerge, component: AggregationTab },
   { id: 'cleansing', label: 'Cleansing', icon: Sparkles, component: CleansingTab },
   { id: 'standardization', label: 'Standardization', icon: CheckCircle, component: StandardizationTab },
-  { id: 'rules', label: 'Business Rules', icon: Shield, component: BusinessRulesTab },
   { id: 'enrichment', label: 'Enrichment', icon: Target, component: EnrichmentTab },
-  { id: 'validation', label: 'Validation', icon: Eye, component: ValidationTab },
   { id: 'golden', label: 'Golden Records', icon: Database, component: GoldenRecordsTab },
   { id: 'publishing', label: 'Publishing', icon: Send, component: PublishingTab },
   { id: 'audit', label: 'Audit Trail', icon: FileSearch, component: AuditTrailTab },
@@ -46,6 +47,7 @@ const tabs: Tab[] = [
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
+  const [aggregationFilter, setAggregationFilter] = useState<string>('all');
 
   useEffect(() => {
     seedBusinessRules().catch(console.error);
@@ -54,40 +56,46 @@ function App() {
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
 
   const handleProjectSelect = (projectId: string) => {
-    console.log("PROJECTID1111111111",projectId)
+    console.log("PROJECTID1111111111", projectId);
     setSelectedProject(projectId);
     setActiveTab('sources');
   };
 
+  const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
+    setActiveTab(tab);
+    if (filterStatus) {
+      setAggregationFilter(filterStatus);
+    }
+  };
+
   return (
     <>
-    <Toaster position='top-right' richColors expand={true}/>
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Product Intelligence & Catalog Automation
-          </h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Enterprise catalog management with AI-powered data processing
-          </p>
-          {selectedProject && (
-            <div className="mt-2">
-              <button
-                onClick={() => setSelectedProject(undefined)}
-                className="text-xs text-blue-600 hover:text-blue-700"
-              >
-                Clear Project Selection
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <Toaster position='top-right' richColors expand={true} />
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <header className="bg-white border-b border-slate-200 shrink-0">
+          <div className="px-6 py-4">
+            <h1 className="text-2xl font-semibold text-slate-900">
+              Product Intelligence & Catalog Automation
+            </h1>
+            <p className="text-sm text-slate-600 mt-1">
+              Enterprise catalog management with AI-powered data processing
+            </p>
+            {selectedProject && (
+              <div className="mt-2">
+                <button
+                  onClick={() => setSelectedProject(undefined)}
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                >
+                  Clear Project Selection
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="border-b border-slate-200 overflow-x-auto">
-            <nav className="flex">
+        <div className="flex flex-1 overflow-hidden">
+          <nav className="w-64 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
+            <div className="p-2">
               {tabs.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -95,36 +103,39 @@ function App() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id === 'aggregation') setAggregationFilter('all');
+                    }}
                     className={`
-                      flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                      flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-lg transition-all mb-1
                       ${isActive
-                        ? 'border-blue-600 text-blue-600 bg-blue-50'
-                        : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'
                       }
                     `}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
                     {tab.label}
                   </button>
                 );
               })}
-            </nav>
-          </div>
+            </div>
+          </nav>
 
-          <div className="p-6">
-            {ActiveComponent && (
-              <ActiveComponent
-                projectId={selectedProject}
-                onProjectSelect={activeTab === 'projects' ? handleProjectSelect : undefined}
-              />
-            )}
-          </div>
+          <main className="flex-1 overflow-y-auto bg-slate-50 p-2">
+              {ActiveComponent && (
+                <ActiveComponent
+                  projectId={selectedProject}
+                  onProjectSelect={activeTab === 'projects' ? handleProjectSelect : undefined}
+                  onNavigate={activeTab === 'dashboard' ? handleDashboardNavigate : undefined}
+                  initialFilter={activeTab === 'aggregation' ? aggregationFilter : undefined}
+                />
+              )}
+          </main>
         </div>
       </div>
-    </div>
     </>
-
   );
 }
 

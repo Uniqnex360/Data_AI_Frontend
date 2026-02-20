@@ -167,7 +167,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
        if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
-      // notify.success('Batch upload started!', `Processing ${bulkFile.name}...`);
+        notify.success('Upload Successful', 'File accepted. Processing in background...');
 
       setImportResults({
         success: 0,

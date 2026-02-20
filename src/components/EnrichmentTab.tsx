@@ -68,9 +68,9 @@ export default function EnrichmentTab() {
                   }
                 `}
               >
-                <p className="font-medium text-sm">{product.sku}</p>
-                {product.brand && (
-                  <p className="text-xs text-slate-600 mt-1">{product.brand}</p>
+                <p className="font-medium text-sm">{product.product_code}</p>
+                {product.brand_name && (
+                  <p className="text-xs text-slate-600 mt-1">{product.brand_name}</p>
                 )}
               </button>
             ))}
