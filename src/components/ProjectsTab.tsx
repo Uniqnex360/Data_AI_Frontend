@@ -13,7 +13,7 @@ import { projectService } from "../services/projectService";
 import type { Project, Source } from "../types/database.types";
 import { extractionService } from "../services/extractionService";
 import { getStatusIcon } from "../utils/statusIcon";
-import { Clock, XCircle, AlertCircle } from 'lucide-react';
+import { Clock, XCircle, AlertCircle } from "lucide-react";
 
 interface Props {
   onProjectSelect?: (projectId: string) => void;
@@ -24,9 +24,13 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
   const [sources, setSources] = useState<Source[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set(),);
-  const [projectSources, setProjectSources] = useState<Record<string, Source[]>>({});
-  const [searchQuery,setSearchQuery]=useState('')
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    new Set(),
+  );
+  const [projectSources, setProjectSources] = useState<
+    Record<string, Source[]>
+  >({});
+  const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     client: "",
@@ -121,34 +125,30 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
       console.error("Failed to create project:", error);
     }
   };
-  const filteredProjects=projects.filter((project)=>{
-    const query=searchQuery.toLowerCase()
+  const filteredProjects = projects.filter((project) => {
+    const query = searchQuery.toLowerCase();
     return (
-      project.name.toLowerCase().includes(query)||project.client?.toLowerCase().includes(query)
-    )
-  })
+      project.name.toLowerCase().includes(query) ||
+      project.client?.toLowerCase().includes(query)
+    );
+  });
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-slate-900">Projects</h3>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-             <input type="text" placeholder="Search projects"
-              value={searchQuery}
-              onChange={(e)=>setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-            />
-          </div>
-        </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          New Project
-        </button>
-      </div>
+      <div className="flex items-center justify-between p-4">
+  <h1 className="text-xl font-bold">Projects</h1>
+  <div className="flex items-center gap-4">
+    <input
+      type="text"
+      placeholder="Search..."
+      className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      value={searchQuery}
+      onChange={(e)=>setSearchQuery(e.target.value)}
+    />
+    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+      New Project
+    </button>
+  </div>
+</div>
 
       {showCreateForm && (
         <div className="bg-white border border-slate-200 rounded-lg p-6">
@@ -198,19 +198,20 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
           <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">
             {searchQuery ? (
               <>
-              <Search className="w-12 h-12 text-slate-400 mx-auto mb-3"/>
-              <p className="text-slate-600">No projects found matching "{searchQuery}"</p>
+                <Search className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                <p className="text-slate-600">
+                  No projects found matching "{searchQuery}"
+                </p>
               </>
-            ):(
+            ) : (
               <>
-              <FolderOpen className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-600">No projects yet</p>
-            </>
+                <FolderOpen className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                <p className="text-slate-600">No projects yet</p>
+              </>
             )}
-            
           </div>
         ) : (
-          projects.map((project, index) => (
+          filteredProjects.map((project, index) => (
             <div
               key={project.id}
               className="bg-white border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow"
@@ -264,9 +265,9 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
                     ) : (
                       projectSources[project.id]?.map((source) => {
                         const aggStatus = source.metadata?.aggregation_status;
-                        console.log('aggregation_status',aggStatus)
-                        const isEnriched = aggStatus === 'completed'
-                        const isAggregating = aggStatus === 'processing'
+                        console.log("aggregation_status", aggStatus);
+                        const isEnriched = aggStatus === "completed";
+                        const isAggregating = aggStatus === "processing";
                         return (
                           <div
                             key={source.id}
@@ -288,26 +289,32 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
 
                               {isEnriched ? (
                                 <button
-                                  onClick={() => extractionService.download(source.id, "output")}
+                                  onClick={() =>
+                                    extractionService.download(
+                                      source.id,
+                                      "output",
+                                    )
+                                  }
                                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
                                 >
                                   <Download className="w-3.5 h-3.5" /> Output
                                 </button>
                               ) : isAggregating ? (
                                 <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-purple-600 italic">
-                                  <Clock className="w-3.5 h-3.5 animate-spin" /> Aggregating...
+                                  <Clock className="w-3.5 h-3.5 animate-spin" />{" "}
+                                  Aggregating...
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
-                                  <AlertCircle className="w-3.5 h-3.5" /> Needs Aggregation
+                                  <AlertCircle className="w-3.5 h-3.5" /> Needs
+                                  Aggregation
                                 </div>
                               )}
 
                               {getStatusIcon(source.status)}
                             </div>
                           </div>
-                        )
-
+                        );
                       })
                     )}
                   </div>
