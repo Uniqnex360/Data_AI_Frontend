@@ -12,7 +12,7 @@ export const sourcePriorityService = {
   },
   async calculateSourceMetrics(sourceId: string) {
     try {
-      const { data } = await api.get(`/sources/${sourceId}/metrics/`);
+      const { data } = await api.get(`/sources/${sourceId}/metrics`);
       return data;
     } catch (error) {
       console.error("Metrics fetch failed", error);
