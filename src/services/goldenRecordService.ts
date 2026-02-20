@@ -170,7 +170,7 @@ export const goldenRecordService = {
 
   async getPublishableRecords(): Promise<GoldenRecord[]> {
     try {
-      const { data } = await api.get<GoldenRecord[]>('/golden-records/publishable/');
+      const { data } = await api.get<GoldenRecord[]>('/golden-records/publishable');
       return data || [];
     } catch (error) {
       console.error('Failed to fetch publishable records:', error);

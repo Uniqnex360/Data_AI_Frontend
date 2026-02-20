@@ -3,7 +3,7 @@ import api from '../lib/api';
 export const sourcePriorityService = {
   async getProjectPriorities(projectId: string): Promise<SourcePriority[]> {
     try {
-      const { data } = await api.get(`/sources/priorities/${projectId}/`);
+      const { data } = await api.get(`/sources/priorities/${projectId}`);
       return data || [];
     } catch (error) {
       console.error(`Failed to fetch project priorities: ${projectId}`, error);
