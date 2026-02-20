@@ -469,7 +469,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Upload CSV File
+              Upload CSV or Excel File
             </label>
             <input
               type="file"
