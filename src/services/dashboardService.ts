@@ -11,7 +11,7 @@ export interface DashboardStats{
 export const dashboardService = {
   async getGlobalMetrics(): Promise<DashboardStats> {
     try {
-      const { data } = await api.get<DashboardStats>('/dashboard/metrics/'); 
+      const { data } = await api.get<DashboardStats>('/dashboard/metrics'); 
       return data;
     } catch (error) {
       console.error("Failed to fetch dashboard metrics", error); 
@@ -21,7 +21,7 @@ export const dashboardService = {
   
   async getProjectMetrics(projectId: string) {
     try {
-      const { data } = await api.get(`/dashboard/metrics/${projectId}/`); 
+      const { data } = await api.get(`/dashboard/metrics/${projectId}`); 
       return data;
     } catch (error) {
       console.error('Failed to fetch project metrics', error);
