@@ -144,7 +144,8 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
       value={searchQuery}
       onChange={(e)=>setSearchQuery(e.target.value)}
     />
-    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+    <button  onClick={() => setShowCreateForm(true)}   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+      
       New Project
     </button>
   </div>
