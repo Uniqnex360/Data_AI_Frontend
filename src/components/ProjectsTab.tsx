@@ -299,7 +299,7 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
       <Download className="w-3.5 h-3.5" /> Output
     </button>
   ) : isAggregating ? (
-    <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-purple-600 italic">
+    <div className="flex items-center gap-2 px-3 py-1zz.5 text-xs font-medium text-purple-600 italic">
       <Clock className="w-3.5 h-3.5 animate-spin" /> Aggregating...
     </div>
   ) : isFailed ? (
