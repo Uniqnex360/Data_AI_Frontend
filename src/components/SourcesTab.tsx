@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Globe, FileSpreadsheet, Image, CheckCircle, XCircle, Clock, Download, Plus, Edit } from 'lucide-react';
+import { Upload, FileText, Globe, FileSpreadsheet, Image, CheckCircle, XCircle, Clock, Download, Plus, Edit, AlertCircle } from 'lucide-react';
 import { extractionService } from '../services/extractionService';
 import type { Source } from '../types/database.types';
 import { notify } from '../lib/notifications.ts';
-import { getStatusIcon } from '../utils/statusIcon';
 interface ManualProductData {
   brand: string;
   title: string;
@@ -53,6 +52,11 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
       console.error('Failed to load sources:', error);
     }
   };
+    useEffect(() => {
+    if (!projectId) {
+      notify.error('No Project Selected', 'Please select a project from the Projects tab to enable data entry.');
+    }
+  }, [projectId]);
  const pollBatchStatus = async (batchId: string) => {
   const maxAttempts = 60; 
   let attempts = 0;
@@ -443,14 +447,21 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               />
             </div>
           </div>
-          <button
-            onClick={handleManualSubmit}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-4 h-4" />
-            {loading ? 'Adding Product...' : 'Add Product'}
-          </button>
+         {projectId ? (
+  <button
+    onClick={handleManualSubmit}
+    disabled={loading}
+    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <Plus className="w-4 h-4" />
+    {loading ? 'Adding Product...' : 'Add Product'}
+  </button>
+) : (
+  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+    <AlertCircle className="w-4 h-4" />
+    Select a project to enable adding products
+  </div>
+)}
         </div>
       ) : (
         <div className="bg-white rounded-lg p-6 border border-slate-200">
@@ -484,14 +495,21 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               </p>
             )}
           </div>
-          <button
-            onClick={handleBulkUpload}
-            disabled={loading || !bulkFile}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload className="w-4 h-4" />
-            {loading ? 'Importing...' : 'Import Products'}
-          </button>
+          {projectId ? (
+  <button
+    onClick={handleBulkUpload}
+    disabled={loading || !bulkFile}
+    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <Upload className="w-4 h-4" />
+    {loading ? 'Importing...' : 'Import Products'}
+  </button>
+) : (
+  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+    <AlertCircle className="w-4 h-4" />
+    Select a project to enable file imports
+  </div>
+)}
           {/* {importResults && (
   <div className={`mt-4 p-4 rounded-lg border ${
     importResults.status === 'completed' ? 'bg-green-50 border-green-200' :

@@ -933,6 +933,18 @@ export default function AggregationTab({ initialFilter = "all" }: Props) {
               ) : (
                 <>
                   <div>
+                    {selectedProductData.image_url_1 && (
+                      <div className="mb-6 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm aspect-video flex items-center justify-center p-4">
+                        <img
+                          src={selectedProductData.image_url_1}
+                          alt={selectedProductData.product_name}
+                          className="max-h-full max-w-full object-contain"
+                          onError={(e) =>
+                            (e.currentTarget.style.display = "none")
+                          }
+                        />
+                      </div>
+                    )}
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                       <Box className="w-4 h-4" /> Specifications
                     </h3>
