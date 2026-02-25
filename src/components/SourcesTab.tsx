@@ -1,8 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Globe, FileSpreadsheet, Image, CheckCircle, XCircle, Clock, Download, Plus, Edit, AlertCircle } from 'lucide-react';
-import { extractionService } from '../services/extractionService';
-import type { Source } from '../types/database.types';
-import { notify } from '../lib/notifications.ts';
+import { useState, useEffect, useRef } from "react";
+import {
+  Upload,
+  FileText,
+  Globe,
+  FileSpreadsheet,
+  Image,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Download,
+  Plus,
+  Edit,
+  AlertCircle,
+} from "lucide-react";
+import { extractionService } from "../services/extractionService";
+import type { Source } from "../types/database.types";
+import { notify } from "../lib/notifications.ts";
 interface ManualProductData {
   brand: string;
   title: string;
@@ -22,25 +35,29 @@ export default function SourcesTab({ projectId }: { projectId?: string }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeMode, setActiveMode] = useState<'manual' | 'bulk'>('bulk');
+  const [activeMode, setActiveMode] = useState<"manual" | "bulk">("bulk");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [manualData, setManualData] = useState<ManualProductData>({
-    brand: '',
+    brand: "",
     title: "",
-    manufacturer: '',
-    sku: '',
-    mpn: '',
-    model: '',
-    upc_ean_gtin: '',
-    variant_sku: '',
-    variant_mpn: '',
-    variant_model: '',
-    taxonomy: '',
-    price: '',
-    stock: ''
+    manufacturer: "",
+    sku: "",
+    mpn: "",
+    model: "",
+    upc_ean_gtin: "",
+    variant_sku: "",
+    variant_mpn: "",
+    variant_model: "",
+    taxonomy: "",
+    price: "",
+    stock: "",
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
-const [importResults, setImportResults] = useState<{ success: number; failed: number; status: string } | null>(null);
+  const [importResults, setImportResults] = useState<{
+    success: number;
+    failed: number;
+    status: string;
+  } | null>(null);
   useEffect(() => {
     loadSources();
   }, []);
@@ -49,206 +66,235 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
       const data = await extractionService.getAllSources();
       setSources(data);
     } catch (error) {
-      console.error('Failed to load sources:', error);
+      console.error("Failed to load sources:", error);
     }
   };
-    useEffect(() => {
+  useEffect(() => {
     if (!projectId) {
-      notify.error('No Project Selected', 'Please select a project from the Projects tab to enable data entry.');
+      notify.error(
+        "No Project Selected",
+        "Please select a project from the Projects tab to enable data entry.",
+      );
     }
   }, [projectId]);
- const pollBatchStatus = async (batchId: string) => {
-  const maxAttempts = 60; 
-  let attempts = 0;
+  const pollBatchStatus = async (batchId: string) => {
+    const maxAttempts = 60;
+    let attempts = 0;
 
-  const poll = async () => {
-    try {
-      const response = await extractionService.getBatchStatus(batchId);
-      const { status, metadata } = response;
+    const poll = async () => {
+      try {
+        const response = await extractionService.getBatchStatus(batchId);
+        const { status, metadata } = response;
 
-      if (status === 'completed') {
-        // Notification for Success
-        notify.success(
-          'Import Finished', 
-          `Successfully processed ${metadata?.successful || 0} products.`
-        );
-        
-        setImportResults({
-          success: metadata?.successful || 0,
-          failed: metadata?.failed || 0,
-          status: status
-        });
-        await loadSources(); 
-        return;
-      }
+        if (status === "completed") {
+          // Notification for Success
+          notify.success(
+            "Import Finished",
+            `Successfully processed ${metadata?.successful || 0} products.`,
+          );
 
-      if (status === 'failed') {
-        // Notification for Failure
+          setImportResults({
+            success: metadata?.successful || 0,
+            failed: metadata?.failed || 0,
+            status: status,
+          });
+          await loadSources();
+          return;
+        }
+
+        if (status === "failed") {
+          // Notification for Failure
+          notify.error(
+            "Import Failed",
+            metadata?.error_message || "An error occurred during processing.",
+          );
+
+          setImportResults({
+            success: metadata?.successful || 0,
+            failed: metadata?.failed || 0,
+            status: status,
+          });
+          await loadSources();
+          return;
+        }
+
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        } else {
+          notify.error(
+            "Polling Timeout",
+            "The import is taking longer than expected. Please check back later.",
+          );
+        }
+      } catch (error) {
+        console.error("Failed to poll batch status:", error);
         notify.error(
-          'Import Failed', 
-          metadata?.error_message || 'An error occurred during processing.'
+          "Connection Error",
+          "Lost connection while checking import status.",
         );
-        
-        setImportResults({
-          success: metadata?.successful || 0,
-          failed: metadata?.failed || 0,
-          status: status
-        });
-        await loadSources();
-        return;
       }
+    };
 
-      attempts++;
-      if (attempts < maxAttempts) {
-        setTimeout(poll, 5000); 
-      } else {
-        notify.error('Polling Timeout', 'The import is taking longer than expected. Please check back later.');
-      }
-    } catch (error) {
-      console.error('Failed to poll batch status:', error);
-      notify.error('Connection Error', 'Lost connection while checking import status.');
-    }
+    poll();
   };
-
-  poll();
-};
   const handleManualSubmit = async () => {
     const newErrors: Record<string, string> = {};
     if (!manualData.mpn) newErrors.mpn = "MPN is required";
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      notify.error('Missing required fields', 'Please fill MPN')
+      setErrors(newErrors);
+      notify.error("Missing required fields", "Please fill MPN");
+      return;
     }
-    setErrors({})
+    setErrors({});
     setLoading(true);
     try {
       const content = Object.entries(manualData)
         .filter(([_, value]) => value)
         .map(([key, value]) => `${key}: ${value}`)
-        .join('\n');
+        .join("\n");
       await extractionService.extractFromSource({
-        sourceType: 'excel',
+        sourceType: "excel",
         content,
         sourceUrl: `manual-input-${manualData.sku}`,
-        projectId: projectId
+        projectId: projectId,
       });
       setManualData({
-        brand: '',
-        manufacturer: '',
-        sku: '',
-        mpn: '',
-        model: '',
-        upc_ean_gtin: '',
-        variant_sku: '',
-        variant_mpn: '',
-        variant_model: '',
-        taxonomy: '',
-        price: '',
-        stock: ''
+        brand: "",
+        title: "",
+        manufacturer: "",
+        sku: "",
+        mpn: "",
+        model: "",
+        upc_ean_gtin: "",
+        variant_sku: "",
+        variant_mpn: "",
+        variant_model: "",
+        taxonomy: "",
+        price: "",
+        stock: "",
       });
       await loadSources();
-      notify.success('Product added successfully!');
+      notify.success("Product added successfully!");
     } catch (error) {
-      console.error('Failed to add product:', error);
-      notify.error('Failed to add product');
+      console.error("Failed to add product:", error);
+      notify.error("Failed to add product");
     } finally {
       setLoading(false);
     }
   };
   const handleBulkUpload = async () => {
     if (!bulkFile) {
-      notify.info('Please select a file');
+      notify.info("Please select a file");
       return;
     }
-     const validTypes = [
-    'text/csv',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  ];
-  const validExtensions = ['.csv', '.xlsx', '.xls'];
-  
-  const fileExtension = bulkFile.name.substring(bulkFile.name.lastIndexOf('.')).toLowerCase();
-  if (!validTypes.includes(bulkFile.type) && !validExtensions.includes(fileExtension)) {
-    notify.error('Invalid file type', 'Please upload CSV or Excel files only');
-    return;
-  }
+    if(!projectId)
+    {
+      notify.info("Please select a project first")
+      return
+    }
+    const validTypes = [
+      "text/csv",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    const validExtensions = [".csv", ".xlsx", ".xls"];
+
+    const fileExtension = bulkFile.name
+      .substring(bulkFile.name.lastIndexOf("."))
+      .toLowerCase();
+    if (
+      !validTypes.includes(bulkFile.type) &&
+      !validExtensions.includes(fileExtension)
+    ) {
+      notify.error(
+        "Invalid file type",
+        "Please upload CSV or Excel files only",
+      );
+      return;
+    }
     if (!projectId) {
-    notify.error('Please select a project first before uploading');
-    return;
-  }
+      notify.error("Please select a project first before uploading");
+      return;
+    }
     setLoading(true);
     try {
-      const result = await extractionService.batchAggregate(bulkFile, projectId);
+      const result = await extractionService.batchAggregate(
+        bulkFile,
+        projectId,
+      );
       setBulkFile(null);
-       if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-        notify.success('Upload Successful', 'File accepted. Processing in background...');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      notify.success(
+        "Upload Successful",
+        "File accepted. Processing in background...",
+      );
 
       setImportResults({
         success: 0,
-        failed: 0
+        failed: 0,
       });
       setBulkFile(null);
       pollBatchStatus(result.batch_id);
       await loadSources();
-
     } catch (error) {
-      console.error('Bulk upload failed:', error);
-      notify.error('Bulk upload failed');
+      console.error("Bulk upload failed:", error);
+      notify.error("Bulk upload failed");
     } finally {
       setLoading(false);
     }
   };
   const downloadTemplate = () => {
     const headers = [
-      'Brand',
-      'Manufacturer',
-      'SKU',
-      'MPN',
-      'Model',
-      'UPC_EAN_GTIN',
-      'Variant_SKU',
-      'Variant_MPN',
-      'Variant_Model',
-      'Taxonomy',
-      'Price',
-      'Stock'
+      "Brand",
+      "Manufacturer",
+      "SKU",
+      "MPN",
+      "Model",
+      "UPC_EAN_GTIN",
+      "Variant_SKU",
+      "Variant_MPN",
+      "Variant_Model",
+      "Taxonomy",
+      "Price",
+      "Stock",
     ];
     const sampleRow = [
-      'Example Brand',
-      'Example Manufacturer',
-      'SKU-001',
-      'MPN-001',
-      'Model-X',
-      '123456789012',
-      'VAR-SKU-001',
-      'VAR-MPN-001',
-      'Variant-Model-A',
-      'Electronics > Computers',
-      '99.99',
-      '100'
+      "Example Brand",
+      "Example Manufacturer",
+      "SKU-001",
+      "MPN-001",
+      "Model-X",
+      "123456789012",
+      "VAR-SKU-001",
+      "VAR-MPN-001",
+      "Variant-Model-A",
+      "Electronics > Computers",
+      "99.99",
+      "100",
     ];
-    const csv = [headers.join(','), sampleRow.join(',')].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = [headers.join(","), sampleRow.join(",")].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'product-import-template.csv';
+    a.download = "product-import-template.csv";
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
   const getSourceIcon = (type: string) => {
     switch (type) {
-      case 'web':
+      case "web":
         return <Globe className="w-4 h-4" />;
-      case 'pdf':
+      case "pdf":
         return <FileText className="w-4 h-4" />;
-      case 'excel':
-      case 'csv':
+      case "excel":
+      case "csv":
         return <FileSpreadsheet className="w-4 h-4" />;
-      case 'image':
+      case "image":
         return <Image className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
@@ -257,35 +303,42 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-semibold text-slate-900 mb-1">Product Input & Data Sources</h3>
-        <p className="text-sm text-slate-600">Import in bulk via CSV or add products manually</p>
+        <h3 className="text-xl font-semibold text-slate-900 mb-1">
+          Product Input & Data Sources
+        </h3>
+        <p className="text-sm text-slate-600">
+          Import in bulk via CSV or add products manually
+        </p>
       </div>
       <div className="flex gap-2">
         <button
-          onClick={() => setActiveMode('bulk')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeMode === 'bulk'
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
+          onClick={() => setActiveMode("bulk")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeMode === "bulk"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
+          }`}
         >
           <FileSpreadsheet className="w-4 h-4" />
           Bulk Import
         </button>
         <button
-          onClick={() => setActiveMode('manual')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeMode === 'manual'
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
+          onClick={() => setActiveMode("manual")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeMode === "manual"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
+          }`}
         >
           <Edit className="w-4 h-4" />
           Manual Input
         </button>
-
       </div>
-      {activeMode === 'manual' ? (
+      {activeMode === "manual" ? (
         <div className="bg-white rounded-lg p-6 border border-slate-200">
-          <h4 className="text-lg font-semibold text-slate-900 mb-4">Add Product Manually</h4>
+          <h4 className="text-lg font-semibold text-slate-900 mb-4">
+            Add Product Manually
+          </h4>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -294,7 +347,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.title}
-                onChange={(e) => setManualData({ ...manualData, title: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, title: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., iPhone 16 pro"
               />
@@ -306,7 +361,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.brand}
-                onChange={(e) => setManualData({ ...manualData, brand: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, brand: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Apple"
               />
@@ -318,7 +375,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.manufacturer}
-                onChange={(e) => setManualData({ ...manualData, manufacturer: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, manufacturer: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Foxconn"
               />
@@ -330,7 +389,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.sku}
-                onChange={(e) => setManualData({ ...manualData, sku: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, sku: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., IPHN14-BLK-128"
               />
@@ -342,7 +403,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.mpn}
-                onChange={(e) => setManualData({ ...manualData, mpn: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, mpn: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., MPN123456"
               />
@@ -357,7 +420,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.model}
-                onChange={(e) => setManualData({ ...manualData, model: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, model: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., iPhone 14"
               />
@@ -369,7 +434,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.upc_ean_gtin}
-                onChange={(e) => setManualData({ ...manualData, upc_ean_gtin: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, upc_ean_gtin: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., 123456789012"
               />
@@ -417,7 +484,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.taxonomy}
-                onChange={(e) => setManualData({ ...manualData, taxonomy: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, taxonomy: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Electronics > Mobile Phones"
               />
@@ -429,7 +498,9 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.price}
-                onChange={(e) => setManualData({ ...manualData, price: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, price: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., 999.99"
               />
@@ -441,31 +512,35 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               <input
                 type="text"
                 value={manualData.stock}
-                onChange={(e) => setManualData({ ...manualData, stock: e.target.value })}
+                onChange={(e) =>
+                  setManualData({ ...manualData, stock: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., 100"
               />
             </div>
           </div>
-         {projectId ? (
-  <button
-    onClick={handleManualSubmit}
-    disabled={loading}
-    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    <Plus className="w-4 h-4" />
-    {loading ? 'Adding Product...' : 'Add Product'}
-  </button>
-) : (
-  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
-    <AlertCircle className="w-4 h-4" />
-    Select a project to enable adding products
-  </div>
-)}
+          {projectId ? (
+            <button
+              onClick={handleManualSubmit}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" />
+              {loading ? "Adding Product..." : "Add Product"}
+            </button>
+          ) : (
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              Select a project to enable adding products
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg p-6 border border-slate-200">
-          <h4 className="text-lg font-semibold text-slate-900 mb-4">Bulk Import via CSV or Excel</h4>
+          <h4 className="text-lg font-semibold text-slate-900 mb-4">
+            Bulk Import via CSV or Excel
+          </h4>
           <div className="mb-4">
             <button
               onClick={downloadTemplate}
@@ -475,7 +550,8 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
               Download CSV Template
             </button>
             <p className="text-xs text-slate-500 mt-2">
-              Download the template, fill it with your product data, and upload it below
+              Download the template, fill it with your product data, and upload
+              it below
             </p>
           </div>
           <div className="mb-4">
@@ -484,7 +560,7 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
             </label>
             <input
               type="file"
-              ref={fileInputRef} 
+              ref={fileInputRef}
               accept=".csv, .xlsx, .xls"
               onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -496,20 +572,20 @@ const [importResults, setImportResults] = useState<{ success: number; failed: nu
             )}
           </div>
           {projectId ? (
-  <button
-    onClick={handleBulkUpload}
-    disabled={loading || !bulkFile}
-    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    <Upload className="w-4 h-4" />
-    {loading ? 'Importing...' : 'Import Products'}
-  </button>
-) : (
-  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
-    <AlertCircle className="w-4 h-4" />
-    Select a project to enable file imports
-  </div>
-)}
+            <button
+              onClick={handleBulkUpload}
+              disabled={loading || !bulkFile}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-4 h-4" />
+              {loading ? "Importing..." : "Import Products"}
+            </button>
+          ) : (
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              Select a project to enable file imports
+            </div>
+          )}
           {/* {importResults && (
   <div className={`mt-4 p-4 rounded-lg border ${
     importResults.status === 'completed' ? 'bg-green-50 border-green-200' :
