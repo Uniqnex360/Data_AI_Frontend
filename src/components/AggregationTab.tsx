@@ -31,40 +31,35 @@
   const PRODUCT_POLL_INTERVAL = 2000;
 
   const safeParseValue = (value: any): any => {
-    if (
-      value === null ||
-      value === undefined ||
-      value === "-" ||
-      value === "null"
-    )
-      return null;
-    if (typeof value === "object") return value;
-    if (typeof value !== "string") return value;
+  if (value === null || value === undefined || value === "-" || value === "null")
+    return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return value;
 
-    const str = value.trim();
-    if (!str || str === "[object Object]") return null;
+  const str = value.trim();
+  if (!str || str === "[object Object]") return null;
 
-    if (
-      (str.startsWith("{") && str.endsWith("}")) ||
-      (str.startsWith("[") && str.endsWith("]"))
-    ) {
+  if (
+    (str.startsWith("{") && str.endsWith("}")) ||
+    (str.startsWith("[") && str.endsWith("]"))
+  ) {
+    try {
+      return JSON.parse(str);
+    } catch {
       try {
-        return JSON.parse(str);
+        const normalized = str
+          .replace(/'/g, '"')
+          .replace(/None/g, "null")
+          .replace(/True/g, "true")
+          .replace(/False/g, "false");
+        return JSON.parse(normalized);
       } catch {
-        try {
-          const normalized = str
-            .replace(/'/g, '"')
-            .replace(/None/g, "null")
-            .replace(/True/g, "true")
-            .replace(/False/g, "false");
-          return JSON.parse(normalized);
-        } catch {
-          return str;
-        }
+        return str;
       }
     }
-    return str;
-  };
+  }
+  return str;
+};
 
   const unwrapSingleKeyObject = (obj: any): any => {
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
@@ -77,160 +72,172 @@
     return obj;
   };
 
-  const flattenForDisplay = (obj: any, parentKey = ""): Array<[string, any]> => {
-    const items: Array<[string, any]> = [];
-    for (const [key, value] of Object.entries(obj)) {
-      const displayKey = parentKey ? `${parentKey} ${key}` : key;
-      if (Array.isArray(value)) {
-        items.push([displayKey, value]);
-      } else if (value && typeof value === "object") {
-        items.push(...flattenForDisplay(value, displayKey));
-      } else {
-        items.push([displayKey, value]);
-      }
+ const flattenForDisplay = (obj: any, parentKey = ""): Array<[string, any]> => {
+  const items: Array<[string, any]> = [];
+  
+  if (!obj || typeof obj !== 'object') return items;
+
+  for (const [key, value] of Object.entries(obj)) {
+    const displayKey = parentKey ? `${parentKey} ${key}` : key;
+    const cleanKey = displayKey.replace(/_/g, " ");
+
+    if (Array.isArray(value)) {
+      items.push([cleanKey, value]);
+    } else if (value !== null && typeof value === "object") {
+      items.push(...flattenForDisplay(value, cleanKey));
+    } else {
+      items.push([cleanKey, value]);
     }
-    return items;
-  };
+  }
+  return items;
+};
 
   const renderTable = (items: any[]) => {
-    if (!items.length || typeof items[0] !== "object") return null;
-    const allKeys = new Set<string>();
-    items.forEach((item) => {
-      if (typeof item === "object" && item !== null)
-        Object.keys(item).forEach((k) => allKeys.add(k));
-    });
-    const keys = Array.from(allKeys);
-    if (keys.length < 2) return null;
+  if (!items.length || typeof items[0] !== "object") return null;
+  
+  // Collect all unique keys
+  const allKeys = new Set<string>();
+  items.forEach((item) => {
+    if (typeof item === "object" && item !== null)
+      Object.keys(item).forEach((k) => allKeys.add(k));
+  });
+  
+  const keys = Array.from(allKeys);
+  if (keys.length < 2) return null;
 
-    return (
-      <div className="overflow-x-auto -mx-1 mt-1 mb-2">
-        <table className="min-w-full text-xs border border-slate-200 rounded-md">
-          <thead className="bg-slate-50">
-            <tr>
-              {keys.map((key) => (
-                <th
-                  key={key}
-                  className="px-2 py-1.5 text-left font-semibold text-slate-600 capitalize border-b border-slate-200 whitespace-nowrap"
-                >
-                  {key.replace(/_/g, " ")}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
-            {items.map((item, idx) => (
-              <tr key={idx} className="hover:bg-slate-50">
-                {keys.map((key) => (
+  return (
+    <div className="overflow-x-auto -mx-1 mt-1 mb-2">
+      <table className="min-w-full text-xs border border-slate-200 rounded-md">
+        <thead className="bg-slate-50">
+          <tr>
+            {keys.map((key) => (
+              <th
+                key={key}
+                className="px-2 py-1.5 text-left font-semibold text-slate-600 capitalize border-b border-slate-200 whitespace-nowrap"
+              >
+                {key.replace(/_/g, " ")}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 bg-white">
+          {items.map((item, idx) => (
+            <tr key={idx} className="hover:bg-slate-50">
+              {keys.map((key) => {
+                const cellValue = item[key];
+                
+                // ✅ Handle nested objects and arrays in table cells
+                let displayValue;
+                if (cellValue === null || cellValue === undefined) {
+                  displayValue = "-";
+                } else if (typeof cellValue === 'object') {
+                  // For nested objects/arrays, show compact JSON
+                  displayValue = JSON.stringify(cellValue);
+                } else {
+                  displayValue = String(cellValue);
+                }
+                
+                return (
                   <td
                     key={key}
-                    className="px-2 py-1.5 text-slate-700 border-r border-slate-100 last:border-r-0 whitespace-nowrap"
+                    className="px-2 py-1.5 text-slate-700 border-r border-slate-100 last:border-r-0"
                   >
-                    {item[key] !== undefined && item[key] !== null
-                      ? String(item[key])
-                      : "-"}
+                    <div className="max-w-xs truncate" title={displayValue}>
+                      {displayValue}
+                    </div>
                   </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+const formatValue = (value: any) => {
+  if (!value || value === "-")
+    return <span className="text-slate-400 text-sm">-</span>;
+
+  // ✅ Step 1: Parse the value first
+  let parsed = safeParseValue(value);
+  
+  if (parsed === null) 
+    return <span className="text-slate-400 text-sm">-</span>;
+
+  // ✅ Step 2: Unwrap single-key objects (critical!)
+  parsed = unwrapSingleKeyObject(parsed);
+  
+  if (parsed === null) 
+    return <span className="text-slate-400 text-sm">-</span>;
+
+  // ✅ Step 3: Handle Arrays
+  if (Array.isArray(parsed)) {
+    // Check if it's an array of objects with multiple keys → render table
+    if (parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
+      const firstObjKeys = Object.keys(parsed[0]);
+      
+      // If objects have 2+ keys, render as table
+      if (firstObjKeys.length >= 2) {
+        const table = renderTable(parsed);
+        if (table) return table;
+      }
+    }
+    
+    // Otherwise, render as pills/badges
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {parsed.map((item, i) => (
+          <span 
+            key={i} 
+            className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs text-slate-700"
+          >
+            {typeof item === 'object' && item !== null
+              ? JSON.stringify(item) 
+              : String(item)
+            }
+          </span>
+        ))}
       </div>
     );
-  };
+  }
 
-  const formatValue = (value: any) => {
-    if (!value || value === "-")
-      return <span className="text-slate-400 text-sm">-</span>;
-    try {
-      let parsed = safeParseValue(value);
-      if (!parsed) return <span className="text-slate-400 text-sm">-</span>;
-      parsed = unwrapSingleKeyObject(parsed);
-
-      if (Array.isArray(parsed)) {
-        if (
-          parsed.length > 0 &&
-          typeof parsed[0] === "object" &&
-          parsed[0] !== null
-        ) {
-          const table = renderTable(parsed);
-          if (table) return table;
-        }
-        return (
-          <ul className="list-disc list-inside space-y-0.5 text-sm mt-1">
-            {parsed.map((item, i) => {
-              if (typeof item === "object" && item !== null) {
-                return (
-                  <li key={i} className="text-slate-700">
-                    {Object.entries(item)
-                      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
-                      .join(", ")}
-                  </li>
-                );
-              }
-              return (
-                <li key={i} className="text-slate-700">
-                  {String(item)}
-                </li>
-              );
-            })}
-          </ul>
-        );
-      }
-
-      if (typeof parsed === "object" && parsed !== null) {
-        const flattened = flattenForDisplay(parsed);
-        if (flattened.length === 1) {
-          const [key, val] = flattened[0];
-          return (
-            <div className="text-sm text-slate-700">
-              <span className="font-medium capitalize text-slate-500">
-                {key.replace(/_/g, " ")}:{" "}
-              </span>
-              <span>{Array.isArray(val) ? val.join(", ") : String(val)}</span>
-            </div>
-          );
-        }
-        return (
-          <div className="space-y-1 text-xs mt-1">
-            {flattened.map(([key, val], idx) => {
-              if (
-                Array.isArray(val) &&
-                val.length > 0 &&
-                typeof val[0] === "object"
-              ) {
-                const table = renderTable(val);
-                if (table)
-                  return (
-                    <div key={idx} className="mb-2">
-                      <div className="font-medium text-slate-600 capitalize mb-1">
-                        {key.replace(/_/g, " ")}:
-                      </div>
-                      {table}
-                    </div>
-                  );
-              }
-              return (
-                <div
-                  key={idx}
-                  className="flex gap-2 border-l-2 border-slate-200 pl-2"
-                >
-                  <span className="font-medium text-slate-500 capitalize whitespace-nowrap">
-                    {key.replace(/_/g, " ")}:
-                  </span>
-                  <span className="text-slate-700 flex-1 break-words">
-                    {Array.isArray(val) ? val.join(", ") : String(val)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-      return <span className="text-slate-700 text-sm">{String(parsed)}</span>;
-    } catch (error) {
-      return <span className="text-slate-700 text-sm">{String(value)}</span>;
+  // ✅ Step 4: Handle Objects
+  if (typeof parsed === "object" && parsed !== null) {
+    const flattened = flattenForDisplay(parsed);
+    
+    // If only one key-value, display inline
+    if (flattened.length === 1) {
+      const [key, val] = flattened[0];
+      return (
+        <span className="text-slate-700 text-sm">
+          {String(val)}
+        </span>
+      );
     }
-  };
+    
+return (
+  <div className="space-y-1 mt-1 overflow-hidden">
+    {flattened.map(([key, val], idx) => (
+      <div key={idx} className="text-xs flex flex-col sm:flex-row gap-x-2 border-b border-slate-100 pb-1 last:border-0">
+        <span className="text-slate-500 font-medium capitalize shrink-0">
+          {key}:
+        </span>
+        <span className="text-slate-800 break-all sm:break-words">
+          {typeof val === 'object' && val !== null 
+            ? JSON.stringify(val)
+            : String(val)
+          }
+        </span>
+      </div>
+    ))}
+  </div>
+);
+  }
+
+  // ✅ Step 5: Primitive values
+  return <span className="text-slate-700 text-sm">{String(parsed)}</span>;
+};
 
   interface Props {
     initialFilter?: "all" | "completed" | "failed" | "pending";
@@ -453,6 +460,7 @@
       return () => {
         stopPolling();
         stopAllProductPolling();
+        productPollingRef.current.forEach(clearInterval);
       };
     }, [loadProjects, stopPolling, stopAllProductPolling]);
 
@@ -1102,10 +1110,10 @@
                         {attributes.map((attr) => (
                           <div
                             key={attr.id}
-                            className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow"
+                            className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow overflow-hidden break-words"
                           >
                             <div className="flex justify-between items-start mb-1">
-                              <span className="text-xs font-semibold text-slate-500 uppercase">
+                              <span className="text-xs font-semibold text-slate-500 uppercase truncate mr-2">
                                 {attr.attribute_name}
                               </span>
                               {attr.has_conflict && (
@@ -1148,11 +1156,11 @@
                           <tbody className="divide-y divide-slate-100">
                             {attributes.map((attr) => (
                               <tr key={attr.id} className="hover:bg-slate-50">
-                                <td className="px-4 py-2 font-medium text-slate-700">
+                               <td className="px-4 py-2 font-medium text-slate-700 whitespace-nowrap">
                                   {attr.attribute_name}
                                 </td>
-                                <td className="px-4 py-2 text-slate-600">
-                                  <div className="max-h-24 overflow-y-auto">
+                                <td className="px-4 py-2 text-slate-600 min-w-[200px]">
+                                  <div className="max-h-32 overflow-y-auto break-words text-xs leading-relaxed">
                                     {formatValue(attr.values[0]?.value)}
                                   </div>
                                 </td>
