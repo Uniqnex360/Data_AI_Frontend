@@ -92,10 +92,9 @@
   return items;
 };
 
-  const renderTable = (items: any[]) => {
+ const renderTable = (items: any[]) => {
   if (!items.length || typeof items[0] !== "object") return null;
   
-  // Collect all unique keys
   const allKeys = new Set<string>();
   items.forEach((item) => {
     if (typeof item === "object" && item !== null)
@@ -103,18 +102,15 @@
   });
   
   const keys = Array.from(allKeys);
-  if (keys.length < 2) return null;
+  if (keys.length < 1) return null;
 
   return (
-    <div className="overflow-x-auto -mx-1 mt-1 mb-2">
-      <table className="min-w-full text-xs border border-slate-200 rounded-md">
-        <thead className="bg-slate-50">
+    <div className="overflow-x-auto -mx-1 mt-1 mb-2 border border-slate-200 rounded-md">
+      <table className="min-w-full text-[10px] sm:text-xs">
+        <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
             {keys.map((key) => (
-              <th
-                key={key}
-                className="px-2 py-1.5 text-left font-semibold text-slate-600 capitalize border-b border-slate-200 whitespace-nowrap"
-              >
+              <th key={key} className="px-2 py-1 text-left font-semibold text-slate-600 capitalize whitespace-nowrap">
                 {key.replace(/_/g, " ")}
               </th>
             ))}
@@ -122,32 +118,13 @@
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
           {items.map((item, idx) => (
-            <tr key={idx} className="hover:bg-slate-50">
-              {keys.map((key) => {
-                const cellValue = item[key];
-                
-                // ✅ Handle nested objects and arrays in table cells
-                let displayValue;
-                if (cellValue === null || cellValue === undefined) {
-                  displayValue = "-";
-                } else if (typeof cellValue === 'object') {
-                  // For nested objects/arrays, show compact JSON
-                  displayValue = JSON.stringify(cellValue);
-                } else {
-                  displayValue = String(cellValue);
-                }
-                
-                return (
-                  <td
-                    key={key}
-                    className="px-2 py-1.5 text-slate-700 border-r border-slate-100 last:border-r-0"
-                  >
-                    <div className="max-w-xs truncate" title={displayValue}>
-                      {displayValue}
-                    </div>
-                  </td>
-                );
-              })}
+            <tr key={idx} className="hover:bg-slate-50/50">
+              {keys.map((key) => (
+                <td key={key} className="px-2 py-1 text-slate-700 border-r border-slate-50 last:border-r-0">
+                  {/* ✅ RECURSIVE CALL: Use formatValue for the cell content */}
+                  {formatValue(item[key])}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -155,88 +132,72 @@
     </div>
   );
 };
-const formatValue = (value: any) => {
-  if (!value || value === "-")
-    return <span className="text-slate-400 text-sm">-</span>;
+const formatValue = (value: any): JSX.Element | string => {
+  if (value === null || value === undefined || value === "" || value === "-") {
+    return <span className="text-slate-400">-</span>;
+  }
 
-  // ✅ Step 1: Parse the value first
+  // 1. Try to parse if it's a stringified JSON
   let parsed = safeParseValue(value);
   
-  if (parsed === null) 
-    return <span className="text-slate-400 text-sm">-</span>;
-
-  // ✅ Step 2: Unwrap single-key objects (critical!)
+  // 2. Unwrap single-key wrappers (e.g., {"color": "red"} -> "red")
   parsed = unwrapSingleKeyObject(parsed);
-  
-  if (parsed === null) 
-    return <span className="text-slate-400 text-sm">-</span>;
 
-  // ✅ Step 3: Handle Arrays
+  // 3. Handle Arrays
   if (Array.isArray(parsed)) {
-    // Check if it's an array of objects with multiple keys → render table
-    if (parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
-      const firstObjKeys = Object.keys(parsed[0]);
-      
-      // If objects have 2+ keys, render as table
-      if (firstObjKeys.length >= 2) {
-        const table = renderTable(parsed);
-        if (table) return table;
+    if (parsed.length === 0) return <span className="text-slate-400">-</span>;
+
+    // If array of objects -> render table
+    if (typeof parsed[0] === "object" && parsed[0] !== null) {
+      // If objects are simple (1 key), just list them
+      if (Object.keys(parsed[0]).length < 2) {
+        return (
+          <div className="flex flex-wrap gap-1">
+            {parsed.map((item, i) => (
+              <span key={i} className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">
+                {Object.values(item)[0] as string}
+              </span>
+            ))}
+          </div>
+        );
       }
+      return renderTable(parsed) || "-";
     }
-    
-    // Otherwise, render as pills/badges
+
+    // If simple array -> comma separated list
     return (
-      <div className="flex flex-wrap gap-1 mt-1">
-        {parsed.map((item, i) => (
-          <span 
-            key={i} 
-            className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs text-slate-700"
-          >
-            {typeof item === 'object' && item !== null
-              ? JSON.stringify(item) 
-              : String(item)
-            }
-          </span>
+      <span className="text-slate-700">
+        {parsed.join(", ")}
+      </span>
+    );
+  }
+
+  // 4. Handle Objects
+  if (typeof parsed === "object" && parsed !== null) {
+    const flattened = flattenForDisplay(parsed);
+    
+    if (flattened.length === 0) return <span className="text-slate-400">-</span>;
+    if (flattened.length === 1) return String(flattened[0][1]);
+
+    return (
+      <div className="space-y-0.5 mt-0.5">
+        {flattened.map(([key, val], idx) => (
+          <div key={idx} className="flex gap-1.5 leading-tight">
+            <span className="text-slate-400 font-medium whitespace-nowrap">
+              {key}:
+            </span>
+            <span className="text-slate-700 break-words">
+              {/* ✅ RECURSIVE CALL: handle nested data in object values */}
+              {typeof val === 'object' ? "..." : String(val)}
+            </span>
+          </div>
         ))}
       </div>
     );
   }
 
-  // ✅ Step 4: Handle Objects
-  if (typeof parsed === "object" && parsed !== null) {
-    const flattened = flattenForDisplay(parsed);
-    
-    // If only one key-value, display inline
-    if (flattened.length === 1) {
-      const [key, val] = flattened[0];
-      return (
-        <span className="text-slate-700 text-sm">
-          {String(val)}
-        </span>
-      );
-    }
-    
-return (
-  <div className="space-y-1 mt-1 overflow-hidden">
-    {flattened.map(([key, val], idx) => (
-      <div key={idx} className="text-xs flex flex-col sm:flex-row gap-x-2 border-b border-slate-100 pb-1 last:border-0">
-        <span className="text-slate-500 font-medium capitalize shrink-0">
-          {key}:
-        </span>
-        <span className="text-slate-800 break-all sm:break-words">
-          {typeof val === 'object' && val !== null 
-            ? JSON.stringify(val)
-            : String(val)
-          }
-        </span>
-      </div>
-    ))}
-  </div>
-);
-  }
-
-  // ✅ Step 5: Primitive values
-  return <span className="text-slate-700 text-sm">{String(parsed)}</span>;
+  // 5. Primitive values
+  return String(parsed);
 };
 
   interface Props {
