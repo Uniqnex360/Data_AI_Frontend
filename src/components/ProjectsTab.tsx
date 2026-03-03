@@ -303,7 +303,6 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
       <Clock className="w-3.5 h-3.5 animate-spin" /> Aggregating...
     </div>
   ) : isFailed ? (
-    // <--- NEW FAILED STATE
     <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg border border-red-100 cursor-help" title="Some products failed to process. Check Aggregation tab for details.">
       <XCircle className="w-3.5 h-3.5" /> Failed
     </div>
@@ -313,7 +312,6 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
     </div>
   )}
 
-  {/* 3. General Status Icon */}
   {getStatusIcon(source.status)}
 </div>
                           </div>

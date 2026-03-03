@@ -5,9 +5,6 @@ import {
   Globe,
   FileSpreadsheet,
   Image,
-  CheckCircle,
-  XCircle,
-  Clock,
   Download,
   Plus,
   Edit,
@@ -87,7 +84,6 @@ export default function SourcesTab({ projectId }: { projectId?: string }) {
         const { status, metadata } = response;
 
         if (status === "completed") {
-          // Notification for Success
           notify.success(
             "Import Finished",
             `Successfully processed ${metadata?.successful || 0} products.`,
@@ -103,7 +99,6 @@ export default function SourcesTab({ projectId }: { projectId?: string }) {
         }
 
         if (status === "failed") {
-          // Notification for Failure
           notify.error(
             "Import Failed",
             metadata?.error_message || "An error occurred during processing.",
@@ -246,45 +241,152 @@ export default function SourcesTab({ projectId }: { projectId?: string }) {
       setLoading(false);
     }
   };
+  // const downloadTemplate = () => {
+  //   const headers = [
+  //     "Brand",
+  //     "Manufacturer",
+  //     "SKU",
+  //     "MPN",
+  //     "Model",
+  //     "UPC_EAN_GTIN",
+  //     "Variant_SKU",
+  //     "Variant_MPN",
+  //     "Variant_Model",
+  //     "Taxonomy",
+  //     "Price",
+  //     "Stock",
+  //   ];
+  //   const sampleRow = [
+  //     "Example Brand",
+  //     "Example Manufacturer",
+  //     "SKU-001",
+  //     "MPN-001",
+  //     "Model-X",
+  //     "123456789012",
+  //     "VAR-SKU-001",
+  //     "VAR-MPN-001",
+  //     "Variant-Model-A",
+  //     "Electronics > Computers",
+  //     "99.99",
+  //     "100",
+  //   ];
+  //   const csv = [headers.join(","), sampleRow.join(",")].join("\n");
+  //   const blob = new Blob([csv], { type: "text/csv" });
+  //   const url = window.URL.createObjectURL(blob);
+  //   const a = document.createElement("a");
+  //   a.href = url;
+  //   a.download = "product-import-template.csv";
+  //   a.click();
+  //   window.URL.revokeObjectURL(url);
+  // };
   const downloadTemplate = () => {
+    // 1. Core Identity & Basic Info
+    const coreHeaders = [
+      "Prod ID", "SKU", "Product_Type", "Parent_SKU", "Product_Name", "Brand",
+      "GTIN", "ean", "upc", "unspc", "MPN", "Discontinue_Status"
+    ];
+
+    // 2. Categories
+    const catHeaders = [
+      "industry_name",
+      "category 1", "category 2", "category 3", "category 4",
+      "category 5", "category 6", "category 7", "category 8", "Taxonomy"
+    ];
+
+    // 3. Physical & Specs
+    const physHeaders = [
+      "Country_of_Origin", "Warranty", "Weight", "Weight_Unit",
+      "Length", "Width", "Height", "Dimension_Unit", "Variant_Status"
+    ];
+
+    // 4. Pricing & Stock
+    const priceHeaders = [
+      "Currency", "Base Price", "Sale Price", "Selling_Price",
+      "Special_Price", "Stock_Qty", "Stock_Status",
+      "Vendor_Name", "Vendor_SKU"
+    ];
+
+    // 5. Media - Images (1-8)
+    const imageHeaders: string[] = [];
+    for (let i = 1; i <= 8; i++) {
+      imageHeaders.push(`image_name_${i}`, `image_url_${i}`);
+    }
+
+    // 6. Media - Videos (1-3)
+    const videoHeaders: string[] = [];
+    for (let i = 1; i <= 3; i++) {
+      videoHeaders.push(`video_name_${i}`, `video_url_${i}`);
+    }
+
+    // 7. Media - Documents (1-5)
+    const docHeaders: string[] = [];
+    for (let i = 1; i <= 5; i++) {
+      docHeaders.push(`document_name_${i}`, `document_url_${i}`);
+    }
+
+    // 8. Content & SEO
+    const contentHeaders = [
+      "3D_Model_URL", "Short_Description", "Long_Description",
+      "features_1", "features_2", "features_3", "features_4", "features_5",
+      "features_6", "features_7", "features_8", "features_9", "features_10",
+      "Meta_Title", "Meta_Description", "Search_Keywords",
+      "Certification", "Safety_Standard", "Hazardous_Material", "Prop65_Warning"
+    ];
+
+    // 9. Attributes (1-20)
+    // Format: name, value, uom, valid_val, valid_uom
+    const attrHeaders: string[] = [];
+    for (let i = 1; i <= 20; i++) {
+      attrHeaders.push(
+        `attribute_name${i}`,
+        `attribute_value${i}`,
+        `attribute_uom${i}`,
+        `validation_value${i}`,
+        `validation_uom${i}`
+      );
+    }
+
+    // Combine All
     const headers = [
-      "Brand",
-      "Manufacturer",
-      "SKU",
-      "MPN",
-      "Model",
-      "UPC_EAN_GTIN",
-      "Variant_SKU",
-      "Variant_MPN",
-      "Variant_Model",
-      "Taxonomy",
-      "Price",
-      "Stock",
+      ...coreHeaders,
+      ...catHeaders,
+      ...physHeaders,
+      ...priceHeaders,
+      ...imageHeaders,
+      ...videoHeaders,
+      ...docHeaders,
+      ...contentHeaders,
+      ...attrHeaders
     ];
-    const sampleRow = [
-      "Example Brand",
-      "Example Manufacturer",
-      "SKU-001",
-      "MPN-001",
-      "Model-X",
-      "123456789012",
-      "VAR-SKU-001",
-      "VAR-MPN-001",
-      "Variant-Model-A",
-      "Electronics > Computers",
-      "99.99",
-      "100",
-    ];
+
+    // Sample Data Logic (Minimal valid sample)
+    const sampleRow = new Array(headers.length).fill("");
+    
+    // Map sample values to indices
+    const setVal = (headerName: string, val: string) => {
+      const idx = headers.indexOf(headerName);
+      if (idx !== -1) sampleRow[idx] = val;
+    };
+
+    setVal("SKU", "DEMO-1001");
+    setVal("Product_Name", "High Performance LED Light");
+    setVal("Brand", "DemoBrand");
+    setVal("MPN", "LED-HP-100");
+    setVal("Taxonomy", "Lighting > Indoor > High Bay");
+    setVal("Base Price", "150.00");
+    setVal("attribute_name1", "Lumens");
+    setVal("attribute_value1", "15000");
+    setVal("attribute_uom1", "lm");
+
     const csv = [headers.join(","), sampleRow.join(",")].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "product-import-template.csv";
+    a.download = "PIM_Import_Template_Full.csv";
     a.click();
     window.URL.revokeObjectURL(url);
   };
-
   const getSourceIcon = (type: string) => {
     switch (type) {
       case "web":

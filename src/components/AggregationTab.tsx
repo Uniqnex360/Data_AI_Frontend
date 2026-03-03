@@ -121,7 +121,6 @@
             <tr key={idx} className="hover:bg-slate-50/50">
               {keys.map((key) => (
                 <td key={key} className="px-2 py-1 text-slate-700 border-r border-slate-50 last:border-r-0">
-                  {/* ✅ RECURSIVE CALL: Use formatValue for the cell content */}
                   {formatValue(item[key])}
                 </td>
               ))}
@@ -137,19 +136,14 @@ const formatValue = (value: any): JSX.Element | string => {
     return <span className="text-slate-400">-</span>;
   }
 
-  // 1. Try to parse if it's a stringified JSON
   let parsed = safeParseValue(value);
   
-  // 2. Unwrap single-key wrappers (e.g., {"color": "red"} -> "red")
   parsed = unwrapSingleKeyObject(parsed);
 
-  // 3. Handle Arrays
   if (Array.isArray(parsed)) {
     if (parsed.length === 0) return <span className="text-slate-400">-</span>;
 
-    // If array of objects -> render table
     if (typeof parsed[0] === "object" && parsed[0] !== null) {
-      // If objects are simple (1 key), just list them
       if (Object.keys(parsed[0]).length < 2) {
         return (
           <div className="flex flex-wrap gap-1">
@@ -164,7 +158,6 @@ const formatValue = (value: any): JSX.Element | string => {
       return renderTable(parsed) || "-";
     }
 
-    // If simple array -> comma separated list
     return (
       <span className="text-slate-700">
         {parsed.join(", ")}
@@ -172,7 +165,6 @@ const formatValue = (value: any): JSX.Element | string => {
     );
   }
 
-  // 4. Handle Objects
   if (typeof parsed === "object" && parsed !== null) {
     const flattened = flattenForDisplay(parsed);
     
@@ -187,7 +179,6 @@ const formatValue = (value: any): JSX.Element | string => {
               {key}:
             </span>
             <span className="text-slate-700 break-words">
-              {/* ✅ RECURSIVE CALL: handle nested data in object values */}
               {typeof val === 'object' ? "..." : String(val)}
             </span>
           </div>
@@ -196,7 +187,6 @@ const formatValue = (value: any): JSX.Element | string => {
     );
   }
 
-  // 5. Primitive values
   return String(parsed);
 };
 
@@ -224,10 +214,8 @@ const formatValue = (value: any): JSX.Element | string => {
 
     const [activeJob, setActiveJob] = useState<AggregationJob | null>(null);
     
-    // Track products currently being aggregated (local UI state)
     const [processingProducts, setProcessingProducts] = useState<Set<string>>(new Set());
     
-    // Track polling intervals for individual products
     const productPollingRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -302,7 +290,6 @@ const formatValue = (value: any): JSX.Element | string => {
       }
     }, []);
 
-    // Stop polling for a specific product
     const stopProductPolling = useCallback((productId: string) => {
       const interval = productPollingRef.current.get(productId);
       if (interval) {
@@ -311,7 +298,6 @@ const formatValue = (value: any): JSX.Element | string => {
       }
     }, []);
 
-    // Stop all product polling
     const stopAllProductPolling = useCallback(() => {
       productPollingRef.current.forEach((interval, productId) => {
         clearInterval(interval);
@@ -319,48 +305,39 @@ const formatValue = (value: any): JSX.Element | string => {
       productPollingRef.current.clear();
     }, []);
 
-    // Poll for individual product status
     const startProductPolling = useCallback(
       (productId: string) => {
-        // Clear existing polling for this product if any
         stopProductPolling(productId);
 
         const pollInterval = setInterval(async () => {
           try {
-            // Fetch the product's current status from the list
             if (selectedProject) {
               const response = await aggregationService.getProductsByProject(
                 selectedProject,
                 0,
-                1000, // Get all to find our product
+                1000, 
                 "all",
               );
               
               const product = response.products.find(p => p.id === productId);
               
               if (product && (product.enrichment_status === 'completed' || product.enrichment_status === 'failed')) {
-                // Stop polling for this product
                 stopProductPolling(productId);
                 
-                // Remove from local processing state
                 setProcessingProducts(prev => {
                   const newSet = new Set(prev);
                   newSet.delete(productId);
                   return newSet;
                 });
                 
-                // Refresh the products list
                 await loadProductsByProject(selectedProject, currentPage, statusFilter);
                 
-                // Refresh attributes if viewing this product
                 if (selectedProduct === productId) {
                   await loadAttributes(productId);
                 }
                 
-                // Refresh project stats
                 await loadProjects();
                 
-                // Show notification
                 if (product.enrichment_status === 'completed') {
                   notify.success('Product Aggregation Complete', product.product_name);
                 } else {
@@ -480,40 +457,30 @@ const formatValue = (value: any): JSX.Element | string => {
 
     const handleAggregateProduct = async (productId: string) => {
       try {
-        // Add to local processing state immediately for instant UI feedback
         setProcessingProducts(prev => new Set(prev).add(productId));
         
-        // Also update the product in the local products array for immediate UI update
         setProducts(prev => prev.map(p => 
           p.id === productId 
             ? { ...p, enrichment_status: 'processing' as const } 
             : p
         ));
 
-        // Start the aggregation request
         const aggregationPromise = aggregationService.aggregateProduct(productId);
         
-        // Start polling for this product's status
         startProductPolling(productId);
         
-        // Wait for the API call to complete
         await aggregationPromise;
         
-        // Note: We don't update UI here - the polling will handle it
-        // This is because the backend might still be processing even after the API returns
         
       } catch (error: any) {
-        // On immediate error (e.g., network error), remove from processing state
         setProcessingProducts(prev => {
           const newSet = new Set(prev);
           newSet.delete(productId);
           return newSet;
         });
         
-        // Stop polling for this product
         stopProductPolling(productId);
         
-        // Revert the local product status
         if (selectedProject) {
           await loadProductsByProject(selectedProject, currentPage, statusFilter);
         }
@@ -549,12 +516,10 @@ const formatValue = (value: any): JSX.Element | string => {
       setCurrentPage(1);
     };
 
-    // Helper to determine if a product is processing (either from local state or backend)
     const isProductProcessing = (product: Product): boolean => {
       return processingProducts.has(product.id) || product.enrichment_status === 'processing';
     };
 
-    // Get the display status for a product (prioritize local processing state)
     const getProductDisplayStatus = (product: Product): string => {
       if (processingProducts.has(product.id)) {
         return 'processing';
@@ -769,7 +734,6 @@ const formatValue = (value: any): JSX.Element | string => {
                         </button>
                       </span>
                     )}
-                    {/* Show indicator if any products are being processed locally */}
                     {processingProducts.size > 0 && (
                       <span className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full border border-blue-200">
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -1014,7 +978,6 @@ const formatValue = (value: any): JSX.Element | string => {
                   </div>
                 </div>
 
-                {/* Show processing indicator in drawer */}
                 {isProductProcessing(selectedProductData) && (
                   <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
