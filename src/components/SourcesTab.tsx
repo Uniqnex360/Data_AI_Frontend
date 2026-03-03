@@ -9,6 +9,7 @@ import {
   Plus,
   Edit,
   AlertCircle,
+  Columns,
 } from "lucide-react";
 import { extractionService } from "../services/extractionService";
 import type { Source } from "../types/database.types";
