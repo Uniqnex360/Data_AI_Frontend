@@ -7,6 +7,25 @@ export const productService = {
     });
     return response.data;
   },
+  async getProductsByProject(projectId: string, skip = 0, limit = 100): Promise<Product[]> {
+  const response = await api.get('/products/', {
+    params: { project_id: projectId, skip, limit }
+  });
+  
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  
+  if (response.data?.products) {
+    return response.data.products;
+  }
+  
+  if (response.data?.items) {
+    return response.data.items;
+  }
+  
+  return [];
+},
   async getProductByCode(code: string): Promise<Product> {
     const response = await api.get(`/products/${code}`);
     return response.data;

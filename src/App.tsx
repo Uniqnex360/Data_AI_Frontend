@@ -1,8 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { BarChart3, FolderOpen, Database, FileText, GitMerge, Sparkles, CheckCircle, Shield, Target, FileSearch, Eye, Send, TrendingUp, Users } from 'lucide-react';
+import { BarChart3, Database, FileText, GitMerge, Sparkles, CheckCircle, Shield, Target, FileSearch, Eye, Send, TrendingUp, Users } from 'lucide-react';
 import DashboardTab from './components/DashboardTab';
-import ProjectsTab from './components/ProjectsTab';
 import SourcesTab from './components/SourcesTab';
 import SourcePriorityTab from './components/SourcePriorityTab';
 import AggregationTab from './components/AggregationTab';
@@ -29,7 +28,7 @@ interface Tab {
 
 const tabs: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3, component: DashboardTab },
-  { id: 'projects', label: 'Projects', icon: FolderOpen, component: ProjectsTab },
+  // { id: 'projects', label: 'Projects', icon: FolderOpen, component: ProjectsTab },
   { id: 'sources', label: 'Input & Sources', icon: FileText, component: SourcesTab },
   { id: 'rules', label: 'Business Rules', icon: Shield, component: BusinessRulesTab },
   { id: 'validation', label: 'Validation', icon: Eye, component: ValidationTab },
@@ -127,7 +126,7 @@ function App() {
               {ActiveComponent && (
                 <ActiveComponent
                   projectId={selectedProject}
-                  onProjectSelect={activeTab === 'projects' ? handleProjectSelect : undefined}
+                  onProjectSelect={activeTab === 'sources' ? handleProjectSelect : undefined}
                   onNavigate={activeTab === 'dashboard' ? handleDashboardNavigate : undefined}
                   initialFilter={activeTab === 'aggregation' ? aggregationFilter : undefined}
                 />

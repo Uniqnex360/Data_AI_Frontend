@@ -3,11 +3,9 @@ import {
   Download,
   FileSpreadsheet,
   FolderOpen,
-  Plus,
   ChevronUp,
   ChevronDown,
   Search,
-  SearchIcon,
 } from "lucide-react";
 import { projectService } from "../services/projectService";
 import type { Project, Source } from "../types/database.types";
@@ -34,7 +32,6 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
   const [formData, setFormData] = useState({
     name: "",
     client: "",
-    target_platform: "shopify",
     status: "draft" as const,
   });
 
@@ -116,8 +113,8 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
     try {
       await projectService.createProject({
         ...formData,
-        categories: [],
-        output_schema: {},
+        // categories: [],
+        // output_schema: {},
       });
       setShowCreateForm(false);
       await loadProjects();
