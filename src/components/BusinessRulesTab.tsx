@@ -7,7 +7,6 @@ import {
   ChevronUp,
   Loader2,
   Edit,
-  Trash2,
   Archive,
 } from "lucide-react";
 import { businessRulesService } from "../services/businessRulesService";
@@ -23,16 +22,17 @@ import EditPromptModal from "./BusinessModal/EditPromptModal";
 import AddRuleModal from "./BusinessModal/AddRuleModal.tsx";
 import AddPromptModal from "./BusinessModal/AddPromptModal.tsx";
 import StatusConfirmModal from "./BusinessModal/StatusConfirmModal";
-
 const CATEGORY_COLORS: Record<RuleCategory, string> = {
   enrichment: "bg-emerald-100 text-emerald-700 border-emerald-200",
   aggregation: "bg-indigo-100 text-indigo-700 border-indigo-200",
   standardization: "bg-amber-100 text-amber-700 border-amber-200",
   extraction: "bg-purple-100 text-purple-700 border-purple-200",
 };
-
 export default function BusinessRulesTab() {
   const [rules, setRules] = useState<BusinessRule[]>([]);
+  const [allRules, setAllRules] = useState<BusinessRule[]>([]);
+  const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
+  const [promptNameFilter, setPromptNameFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<RuleCategory | "all">(
@@ -45,38 +45,38 @@ export default function BusinessRulesTab() {
     item: BusinessRule | RulePrompt;
     newStatus: RuleStatus;
   } | null>(null);
-
   const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set());
-
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showAddPromptModal, setShowAddPromptModal] = useState(false);
   const [showEditPromptModal, setShowEditPromptModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
   const [selectedRule, setSelectedRule] = useState<BusinessRule | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<RulePrompt | null>(null);
-  
-
   const loadRules = useCallback(async () => {
     setLoading(true);
     try {
       const params: any = {};
-
       if (categoryFilter !== "all") {
         params.category = categoryFilter;
       }
-
       if (statusFilter !== "all") {
         params.status = statusFilter;
       }
-
       if (searchQuery.trim()) {
         params.search = searchQuery.trim();
       }
-
-      const data = await businessRulesService.getAllRules(params);
-      setRules(data.rules);
+      const data = await businessRulesService.getAllRules({
+        category: categoryFilter !== "all" ? categoryFilter : undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        search: searchQuery.trim() || undefined,
+      });
+      const allPrompts = data.rules.flatMap((rule) => rule.prompts);
+      const promptNames = [
+        ...new Set(allPrompts.map((p) => p.prompt_name)),
+      ].sort();
+      setUniquePromptNames(promptNames);
+      setAllRules(data.rules);
     } catch (error) {
       console.error("Failed to load rules:", error);
       notify.error("Failed to load business rules");
@@ -84,11 +84,18 @@ export default function BusinessRulesTab() {
       setLoading(false);
     }
   }, [categoryFilter, statusFilter, searchQuery]);
-
+  useEffect(() => {
+    let filteredRules = [...allRules];
+    if (promptNameFilter) {
+      filteredRules = filteredRules.filter((rule) =>
+          rule.prompts.some((p: RulePrompt) => p.prompt_name === promptNameFilter)
+      );
+    }
+    setRules(filteredRules);
+  }, [allRules, promptNameFilter]);
   useEffect(() => {
     loadRules();
   }, [loadRules]);
-
   const toggleRule = (ruleId: string) => {
     setExpandedRules((prev) => {
       const newSet = new Set(prev);
@@ -100,32 +107,34 @@ export default function BusinessRulesTab() {
       return newSet;
     });
   };
-
-  const handleUpdateRuleStatus = async (rule: BusinessRule, status: RuleStatus) => {
-  try {
-    await businessRulesService.updateRuleStatus(rule.id, status);
-    notify.success(`Rule status updated to ${status}`);
-    setShowStatusModal(false); 
-    setStatusChangeTarget(null);
-    await loadRules();
-  } catch (error: any) {
-    notify.error("Failed to update rule status", error.message);
-  }
-};
-
-
-  const handleUpdatePromptStatus = async (prompt: RulePrompt, status: RuleStatus) => {
-  try {
-    await businessRulesService.updatePromptStatus(prompt.id, status);
-    notify.success(`Prompt status updated to ${status}`);
-    setShowStatusModal(false); 
-    setStatusChangeTarget(null);
-    await loadRules();
-  } catch (error: any) {
-    notify.error("Failed to update prompt status", error.message);
-  }
-};
-
+  const handleUpdateRuleStatus = async (
+    rule: BusinessRule,
+    status: RuleStatus,
+  ) => {
+    try {
+      await businessRulesService.updateRuleStatus(rule.id, status);
+      notify.success(`Rule status updated to ${status}`);
+      setShowStatusModal(false);
+      setStatusChangeTarget(null);
+      await loadRules();
+    } catch (error: any) {
+      notify.error("Failed to update rule status", error.message);
+    }
+  };
+  const handleUpdatePromptStatus = async (
+    prompt: RulePrompt,
+    status: RuleStatus,
+  ) => {
+    try {
+      await businessRulesService.updatePromptStatus(prompt.id, status);
+      notify.success(`Prompt status updated to ${status}`);
+      setShowStatusModal(false);
+      setStatusChangeTarget(null);
+      await loadRules();
+    } catch (error: any) {
+      notify.error("Failed to update prompt status", error.message);
+    }
+  };
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -138,31 +147,35 @@ export default function BusinessRulesTab() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-        
-
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as any)}
-          className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Select Rule</option>
-          <option value="enrichment">Enrichment</option>
-          <option value="aggregation">Aggregation</option>
-          <option value="standardization">Standarization</option>
-          <option value="extraction">Extraction</option>
-        </select>
-
-        <select
-          className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled
-        >
-          <option>Select Prompt</option>
-        </select>
-
-        {/* <div className="ml-auto text-sm text-slate-600">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as any)}
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Select Rule</option>
+            <option value="enrichment">Enrichment</option>
+            <option value="aggregation">Aggregation</option>
+            <option value="standardization">Standarization</option>
+            <option value="extraction">Extraction</option>
+          </select>
+          
+          <select
+            value={promptNameFilter}
+            onChange={(e) => setPromptNameFilter(e.target.value)}
+            disabled={uniquePromptNames.length === 0}
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <option value="">Select Prompt</option>
+            {uniquePromptNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          {/* <div className="ml-auto text-sm text-slate-600">
           <span className="font-semibold">{rules.length}</span> rules
         </div> */}
-      </div>
+        </div>
         <button
           onClick={() => setShowAddRuleModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -171,7 +184,6 @@ export default function BusinessRulesTab() {
           Add Rule
         </button>
       </div>
-
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[250px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -183,7 +195,6 @@ export default function BusinessRulesTab() {
             className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
-
         {/* <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as any)}
@@ -195,19 +206,16 @@ export default function BusinessRulesTab() {
           <option value="validation">Validation</option>
           <option value="cleansing">Cleansing</option>
         </select>
-
         <select
           className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled
         >
           <option>Select Prompt</option>
         </select> */}
-
         {/* <div className="ml-auto text-sm text-slate-600">
           <span className="font-semibold">{rules.length}</span> rules
         </div> */}
       </div>
-
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -226,7 +234,6 @@ export default function BusinessRulesTab() {
         <div className="space-y-4">
           {rules.map((rule) => {
             const isExpanded = expandedRules.has(rule.id);
-
             return (
               <div
                 key={rule.id}
@@ -245,7 +252,6 @@ export default function BusinessRulesTab() {
                           <ChevronDown className="w-5 h-5 text-slate-600" />
                         )}
                       </button>
-
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="text-lg font-semibold text-slate-900">
@@ -269,7 +275,6 @@ export default function BusinessRulesTab() {
                         )}
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -312,7 +317,6 @@ export default function BusinessRulesTab() {
                     </div>
                   </div>
                 </div>
-
                 {isExpanded && (
                   <div className="p-4 space-y-3">
                     {rule.prompts.length === 0 ? (
@@ -347,7 +351,6 @@ export default function BusinessRulesTab() {
                                 </p>
                               )}
                             </div>
-
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => {
@@ -361,8 +364,12 @@ export default function BusinessRulesTab() {
                               </button>
                               <button
                                 onClick={() => {
-                                    setStatusChangeTarget({ type: "prompt", item: prompt, newStatus: RuleStatus.INACTIVE });
-    setShowStatusModal(true);
+                                  setStatusChangeTarget({
+                                    type: "prompt",
+                                    item: prompt,
+                                    newStatus: RuleStatus.INACTIVE,
+                                  });
+                                  setShowStatusModal(true);
                                 }}
                                 disabled={prompt.status === RuleStatus.INACTIVE}
                                 className="p-1.5 text-slate-600 hover:bg-amber-50 hover:text-amber-700 rounded transition-colors disabled:opacity-50"
@@ -376,13 +383,11 @@ export default function BusinessRulesTab() {
                               </button>
                             </div>
                           </div>
-
                           <div className="bg-slate-900 text-slate-100 rounded-md p-3 mt-3 max-h-48 overflow-y-auto">
                             <pre className="text-xs font-mono whitespace-pre-wrap">
                               {prompt.prompt_text}
                             </pre>
                           </div>
-
                           {prompt.variables && prompt.variables.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {prompt.variables.map((variable) => (
@@ -405,7 +410,6 @@ export default function BusinessRulesTab() {
           })}
         </div>
       )}
-
       {showAddRuleModal && (
         <AddRuleModal
           onClose={() => setShowAddRuleModal(false)}
@@ -415,7 +419,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showEditRuleModal && selectedRule && (
         <EditRuleModal
           rule={selectedRule}
@@ -430,7 +433,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showAddPromptModal && selectedRule && (
         <AddPromptModal
           rule={selectedRule}
@@ -445,7 +447,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showEditPromptModal && selectedPrompt && (
         <EditPromptModal
           prompt={selectedPrompt}
@@ -460,7 +461,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showStatusModal && statusChangeTarget && (
         <StatusConfirmModal
           target={statusChangeTarget}

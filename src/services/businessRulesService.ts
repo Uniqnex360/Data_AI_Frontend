@@ -10,9 +10,7 @@ export const businessRulesService = {
       return data;
     } catch (error: any) {
       console.error("Failed to create rule:", error);
-      throw new Error(
-        error.response?.data?.detail || "Failed to create rule"
-      );
+       throw error;
     }
   },
 

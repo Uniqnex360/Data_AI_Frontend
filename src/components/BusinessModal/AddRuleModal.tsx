@@ -31,8 +31,28 @@ export default function AddRuleModal({ onClose, onSuccess }: Props) {
       notify.success("Rule created successfully!");
       onSuccess();
     } catch (error: any) {
+      let message='An error occured'
+      if (error.response?.status === 422 && Array.isArray(error.response?.data?.detail)) {
+      const firstError = error.response.data.detail[0];
+     if (firstError?.msg) {
+      let msg = String(firstError.msg);
+      if (msg.startsWith("Value error, ")) {
+        msg = msg.substring("Value error, ".length);
+      }
+      message = msg;
+    }
+    else if (typeof error.response?.data?.detail=='string')
+    {
+      message=error.response.data.detail;
+    }
+    else if(error.message)
+    {
+      message=error.message
+
+    }
+  } 
       console.error("Create rule error:", error);
-      notify.error("Failed to create rule", error.message);
+      notify.error("Failed to create rule",message);
     } finally {
       setLoading(false);
     }
