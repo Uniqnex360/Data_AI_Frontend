@@ -280,21 +280,73 @@ useEffect(() => {
   setIsDrawerOpen(false);
   setTimeout(() => setSelectedProduct(null), 300);
 };
+const safeParseValue = (value: any): any => {
+  if (typeof value !== 'string') {
+    return value; // It's already an object, array, or primitive
+  }
+  const str = value.trim();
+
+  // Check if it looks like a JSON object or array
+  if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
+    try {
+      // First, try a standard JSON.parse
+      return JSON.parse(str);
+    } catch {
+      try {
+        // If that fails, it might be Python's dict representation.
+        // Replace single quotes and Python literals, then try again.
+        const pythonLikeStr = str
+          .replace(/'/g, '"')
+          .replace(/None/g, 'null')
+          .replace(/True/g, 'true')
+          .replace(/False/g, 'false');
+        return JSON.parse(pythonLikeStr);
+      } catch (e) {
+        // If all parsing fails, return the original string
+        return str;
+      }
+    }
+  }
+  return str; // It's just a regular string
+};
+
 const formatValue = (value: any): JSX.Element | string => {
-  if (value === null || value === undefined || value === "" || value === "-") {
+  if (value === null || value === undefined || value === "") {
     return <span className="text-slate-400">-</span>;
   }
 
-  if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-slate-400">-</span>;
-    return <span className="text-slate-700">{value.join(", ")}</span>;
+  // 1. Recursively parse the value until it's not a stringified JSON anymore
+  let parsedValue = safeParseValue(value);
+  while (typeof parsedValue === 'string' && parsedValue !== value) {
+    value = parsedValue;
+    parsedValue = safeParseValue(value);
   }
 
-  if (typeof value === "object" && value !== null) {
-    return <span className="text-slate-700">{JSON.stringify(value)}</span>;
+  // 2. Now handle the parsed data structure
+  if (typeof parsedValue === 'object' && parsedValue !== null) {
+    if (Array.isArray(parsedValue)) {
+      // It's an array
+      if (parsedValue.length === 0) return <span className="text-slate-400">-</span>;
+      return parsedValue.join(', ');
+    } else {
+      // It's an object, check for value/uom structure
+      if ('standard_value' in parsedValue || 'value' in parsedValue) {
+        const displayValue = parsedValue.standard_value ?? parsedValue.value;
+        const uom = parsedValue.uom ?? parsedValue.unit;
+        return (
+          <span>
+            {String(displayValue)}
+            {uom && <span className="ml-1 text-slate-500">{uom}</span>}
+          </span>
+        );
+      }
+      // Fallback for generic objects
+      return JSON.stringify(parsedValue);
+    }
   }
 
-  return String(value);
+  // 3. It's a primitive value (string, number, etc.)
+  return String(parsedValue);
 };
 
 const selectedProductData = products.find((p) => p.id === selectedProduct);
