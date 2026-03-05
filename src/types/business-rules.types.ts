@@ -2,8 +2,8 @@
 export enum RuleCategory{
     ENRICHMENT='enrichment',
     AGGREGATION='aggregation',
-    VALIDATION='validation',
-    CLEANSING='cleansing',
+    EXTRACTION='extraction',
+    STANDARDIZATION='standardization'
 
 }
 export type AttributeValue = string | number | boolean | {
