@@ -27,8 +27,8 @@ import StatusConfirmModal from "./BusinessModal/StatusConfirmModal";
 const CATEGORY_COLORS: Record<RuleCategory, string> = {
   enrichment: "bg-emerald-100 text-emerald-700 border-emerald-200",
   aggregation: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  validation: "bg-amber-100 text-amber-700 border-amber-200",
-  cleansing: "bg-purple-100 text-purple-700 border-purple-200",
+  standardization: "bg-amber-100 text-amber-700 border-amber-200",
+  extraction: "bg-purple-100 text-purple-700 border-purple-200",
 };
 
 export default function BusinessRulesTab() {
@@ -148,8 +148,8 @@ export default function BusinessRulesTab() {
           <option value="all">Select Rule</option>
           <option value="enrichment">Enrichment</option>
           <option value="aggregation">Aggregation</option>
-          <option value="validation">Validation</option>
-          <option value="cleansing">Cleansing</option>
+          <option value="standardization">Standarization</option>
+          <option value="extraction">Extraction</option>
         </select>
 
         <select
