@@ -61,7 +61,7 @@ export default function AggregationTab({
     new Set(),
   );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [searchQuery, setSearchQuery] = useState("");
   const [attributesLoading, setAttributesLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
@@ -143,7 +143,17 @@ export default function AggregationTab({
 
   useEffect(() => {
     let filtered = [...allProducts];
-
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(
+        (p) =>
+          p.product_name?.toLowerCase().includes(query) ||
+          p.product_code?.toLowerCase().includes(query) ||
+          p.sku?.toLowerCase().includes(query) ||
+          p.brand_name?.toLowerCase().includes(query) ||
+          p.mpn?.toLowerCase().includes(query),
+      );
+    }
     if (statusFilter.size > 0) {
       filtered = filtered.filter((p) => statusFilter.has(p.enrichment_status));
     }
@@ -388,6 +398,7 @@ export default function AggregationTab({
     }
   }, [selectedProduct, loadAttributes]);
   const resetFilters = useCallback(() => {
+    setSearchQuery("");
     setStatusFilter(new Set());
     setCategoryFilter("");
     setBrandFilter("");
@@ -536,7 +547,7 @@ export default function AggregationTab({
               </option>
             ))}
           </select>
-
+            
           <select
             value={
               statusFilter.size === 1 ? Array.from(statusFilter)[0] : "all"
@@ -595,7 +606,10 @@ export default function AggregationTab({
             ))}
           </select>
 
-          {(statusFilter.size > 0 || categoryFilter || brandFilter) && (
+          {(statusFilter.size > 0 ||
+            categoryFilter ||
+            brandFilter ||
+            searchQuery) && (
             <button
               onClick={resetFilters}
               className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-md bg-white text-sm hover:bg-slate-50 transition-colors"
