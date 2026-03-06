@@ -201,14 +201,16 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   };
 
   const useCaseOptions = [
-    "E-commerce",
-    "Manufacturing",
-    "Distribution",
-    "Retail",
-    "B2B",
-    "Inventory",
-    "Catalog",
-    "Other",
+    "Case1",
+    "Case2",
+
+    "Case3",
+
+    "Case4",
+
+    "Case5",
+
+    
   ];
 
   const toggleUseCase = (useCase: string) => {

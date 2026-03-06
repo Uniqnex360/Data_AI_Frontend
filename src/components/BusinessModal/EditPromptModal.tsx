@@ -134,7 +134,7 @@ export default function EditPromptModal({ prompt, onClose, onSuccess }: Props) {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          {/* <div>
             <label htmlFor="edit-prompt-priority" className="block text-sm font-medium text-slate-700 mb-1">
               Priority
             </label>
@@ -146,7 +146,7 @@ export default function EditPromptModal({ prompt, onClose, onSuccess }: Props) {
               min="1"
               className="w-24 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </div>
+          </div> */}
           <div>
             <label htmlFor="edit-prompt-status" className="block text-sm font-medium text-slate-700 mb-1">
               Status

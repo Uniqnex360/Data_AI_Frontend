@@ -79,7 +79,7 @@ export interface BusinessRule {
   title: string;
   category: RuleCategory;
   description?: string;
-  prompts: string[];
+  prompts: RulePrompt[]; 
   variables?: string[];
   status: RuleStatus;
   priority: number;

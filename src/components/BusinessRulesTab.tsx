@@ -8,6 +8,7 @@ import {
   Loader2,
   Edit,
   Archive,
+  X,
 } from "lucide-react";
 import { businessRulesService } from "../services/businessRulesService";
 import { notify } from "../lib/notifications";
@@ -50,9 +51,10 @@ export default function BusinessRulesTab() {
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showAddPromptModal, setShowAddPromptModal] = useState(false);
   const [showEditPromptModal, setShowEditPromptModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedRule, setSelectedRule] = useState<BusinessRule | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<RulePrompt | null>(null);
+  const filterInputStyle =
+    "h-10 px-3 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50";
   const loadRules = useCallback(async () => {
     setLoading(true);
     try {
@@ -87,9 +89,14 @@ export default function BusinessRulesTab() {
   useEffect(() => {
     let filteredRules = [...allRules];
     if (promptNameFilter) {
-      filteredRules = filteredRules.filter((rule) =>
-          rule.prompts.some((p: RulePrompt) => p.prompt_name === promptNameFilter)
-      );
+      filteredRules = filteredRules
+        .map((rule) => ({
+          ...rule,
+          prompts: rule.prompts.filter(
+            (p) => p.prompt_name === promptNameFilter,
+          ),
+        }))
+        .filter((rule) => rule.prompts.length > 0);
     }
     setRules(filteredRules);
   }, [allRules, promptNameFilter]);
@@ -107,6 +114,11 @@ export default function BusinessRulesTab() {
       return newSet;
     });
   };
+  const resetFilters = useCallback(() => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setPromptNameFilter("");
+  }, []);
   const handleUpdateRuleStatus = async (
     rule: BusinessRule,
     status: RuleStatus,
@@ -150,7 +162,7 @@ export default function BusinessRulesTab() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as any)}
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={filterInputStyle}
           >
             <option value="all">Select Rule</option>
             <option value="enrichment">Enrichment</option>
@@ -158,12 +170,11 @@ export default function BusinessRulesTab() {
             <option value="standardization">Standarization</option>
             <option value="extraction">Extraction</option>
           </select>
-          
           <select
             value={promptNameFilter}
             onChange={(e) => setPromptNameFilter(e.target.value)}
             disabled={uniquePromptNames.length === 0}
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className={filterInputStyle}
           >
             <option value="">Select Prompt</option>
             {uniquePromptNames.map((name) => (
@@ -172,7 +183,15 @@ export default function BusinessRulesTab() {
               </option>
             ))}
           </select>
-          
+          {(searchQuery || categoryFilter !== "all" || promptNameFilter) && (
+            <button
+              onClick={resetFilters}
+              className={`${filterInputStyle} flex items-center gap-2 `}
+            >
+              <X className="w-4 h-4" />
+              <span>Reset Filters</span>
+            </button>
+          )}
         </div>
         <button
           onClick={() => setShowAddRuleModal(true)}
@@ -193,7 +212,6 @@ export default function BusinessRulesTab() {
             className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
-        
       </div>
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -266,16 +284,15 @@ export default function BusinessRulesTab() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      
                       <button
                         onClick={() => {
                           setSelectedRule(rule);
                           setShowAddPromptModal(true);
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                       >
                         <Plus className="w-4 h-4" />
-                        Add Prompt
+                        <span>Add Prompt</span>
                       </button>
                     </div>
                   </div>
@@ -346,7 +363,7 @@ export default function BusinessRulesTab() {
                               </button>
                             </div>
                           </div>
-                          <div className="bg-slate-900 text-slate-100 rounded-md p-3 mt-3 max-h-48 overflow-y-auto">
+                          <div className="bg-slate-100 border border-slate-200 text-slate-800 rounded-md p-3 mt-3 max-h-48 overflow-y-auto">
                             <pre className="text-xs font-mono whitespace-pre-wrap">
                               {prompt.prompt_text}
                             </pre>
