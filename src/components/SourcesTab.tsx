@@ -677,6 +677,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                 </label>
                 <input
                   type="file"
+                  disabled={!projectId}
                   ref={fileInputRef}
                   accept=".csv, .xlsx, .xls"
                   onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
