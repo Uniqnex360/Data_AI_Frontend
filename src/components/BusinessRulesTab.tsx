@@ -172,9 +172,7 @@ export default function BusinessRulesTab() {
               </option>
             ))}
           </select>
-          {/* <div className="ml-auto text-sm text-slate-600">
-          <span className="font-semibold">{rules.length}</span> rules
-        </div> */}
+          
         </div>
         <button
           onClick={() => setShowAddRuleModal(true)}
@@ -195,26 +193,7 @@ export default function BusinessRulesTab() {
             className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
-        {/* <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as any)}
-          className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Select Rule</option>
-          <option value="enrichment">Enrichment</option>
-          <option value="aggregation">Aggregation</option>
-          <option value="validation">Validation</option>
-          <option value="cleansing">Cleansing</option>
-        </select>
-        <select
-          className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled
-        >
-          <option>Select Prompt</option>
-        </select> */}
-        {/* <div className="ml-auto text-sm text-slate-600">
-          <span className="font-semibold">{rules.length}</span> rules
-        </div> */}
+        
       </div>
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -287,23 +266,7 @@ export default function BusinessRulesTab() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      {/* <button
-                        onClick={() => {
-                          setStatusChangeTarget({ type: "rule", item: rule, newStatus: RuleStatus.INACTIVE });
-                          setShowStatusModal(true);
-                        }}
-                        disabled={
-                          rule.is_system || rule.status === RuleStatus.INACTIVE
-                        }
-                        className="p-2 text-slate-600 hover:bg-amber-50 hover:text-amber-700 rounded-md transition-colors disabled:opacity-50"
-                        title={
-                          rule.status === RuleStatus.INACTIVE
-                            ? "Rule is already inactive"
-                            : "Deactivate Rule"
-                        }
-                      >
-                        <Archive className="w-4 h-4" />
-                      </button> */}
+                      
                       <button
                         onClick={() => {
                           setSelectedRule(rule);

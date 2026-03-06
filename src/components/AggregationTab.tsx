@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   FileText,
   Play,
@@ -15,12 +15,11 @@ import {
   List,
 } from "lucide-react";
 import { productService } from "../services/productService";
-import { extractionService } from "../services/extractionService";
 import { projectService } from "../services/projectService";
 import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
-import { aggregationService } from '../services/aggregationService';
-import { GitMerge } from 'lucide-react';
+import { aggregationService } from "../services/aggregationService";
+import { GitMerge } from "lucide-react";
 
 interface AggregationTabProps {
   projectId?: string;
@@ -51,17 +50,23 @@ export default function AggregationTab({
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
     new Set(),
   );
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
+  const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const [attributesLoading, setAttributesLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
 
-  const [statusFilter, setStatusFilter] = useState(initialFilter);
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
@@ -98,7 +103,7 @@ export default function AggregationTab({
   }, [projectId]);
 
   useEffect(() => {
-    setStatusFilter(initialFilter);
+    setStatusFilter(new Set());
     setCurrentPage(1);
   }, [initialFilter]);
 
@@ -135,12 +140,12 @@ export default function AggregationTab({
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
-  
+
   useEffect(() => {
     let filtered = [...allProducts];
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((p) => p.enrichment_status === statusFilter);
+    if (statusFilter.size > 0) {
+      filtered = filtered.filter((p) => statusFilter.has(p.enrichment_status));
     }
 
     if (categoryFilter) {
@@ -163,8 +168,14 @@ export default function AggregationTab({
             p.id === productId ? { ...p, enrichment_status: "processing" } : p,
           ),
         );
+        setAllProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+          ),
+        );
 
         await aggregationService.aggregateProduct(productId);
+        setPollingProductIds((prev) => new Set(prev).add(productId));
         notify.success("Aggregation started");
         await loadProducts();
       } catch (error: any) {
@@ -172,6 +183,11 @@ export default function AggregationTab({
         const errorMessage =
           error.response?.data?.detail || error.message || "Aggregation failed";
         notify.error("Aggregation Failed", errorMessage);
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(productId);
+          return updated;
+        });
 
         await loadProducts();
       }
@@ -191,12 +207,33 @@ export default function AggregationTab({
 
     setLoading(true);
     try {
-      await Promise.allSettled(
-        pendingProducts.map((product) => handleAggregate(product.id)),
+      const results = await Promise.allSettled(
+        pendingProducts.map((product) =>
+          aggregationService.aggregateProduct(product.id),
+        ),
       );
+
+      const successfulIds = pendingProducts
+        .filter((_, index) => results[index].status === "fulfilled")
+        .map((p) => p.id);
+
+      setPollingProductIds((prev) => {
+        const updated = new Set(prev);
+        successfulIds.forEach((id) => updated.add(id));
+        return updated;
+      });
+
+      setAllProducts((prev) =>
+        prev.map((p) =>
+          successfulIds.includes(p.id)
+            ? { ...p, enrichment_status: "processing" }
+            : p,
+        ),
+      );
+
       notify.success(
         "Batch Aggregation Started",
-        `Processing ${pendingProducts.length} products`,
+        `Processing ${successfulIds.length} products`,
       );
     } catch (error) {
       console.error("Batch aggregation failed:", error);
@@ -204,7 +241,19 @@ export default function AggregationTab({
     } finally {
       setLoading(false);
     }
-  }, [allProducts, handleAggregate]);
+  }, [allProducts]);
+  const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
+    setStatusFilter((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(status)) {
+        newSet.delete(status);
+      } else {
+        newSet.add(status);
+      }
+      return newSet;
+    });
+    setCurrentPage(1);
+  };
 
   const handleAggregateSelected = useCallback(async () => {
     if (selectedProducts.size === 0) {
@@ -251,105 +300,166 @@ export default function AggregationTab({
   }, [products]);
 
   const loadAttributes = useCallback(async (productId: string) => {
-  try {
-    setAttributesLoading(true);
-    const data = await aggregationService.getAggregatedAttributes(productId);
-    setAttributes(data);
-  } catch (error) {
-    console.error("Failed to load attributes:", error);
-    notify.error("Failed to load attributes");
-  } finally {
-    setAttributesLoading(false);
-  }
-}, []);
-useEffect(() => {
-  if (selectedProduct) {
-    loadAttributes(selectedProduct);
-    setIsDrawerOpen(true);
-  } else {
-    setIsDrawerOpen(false);
-  }
-}, [selectedProduct, loadAttributes]);
+    try {
+      setAttributesLoading(true);
+      const data = await aggregationService.getAggregatedAttributes(productId);
+      setAttributes(data);
+    } catch (error) {
+      console.error("Failed to load attributes:", error);
+      notify.error("Failed to load attributes");
+    } finally {
+      setAttributesLoading(false);
+    }
+  }, []);
+  const pollProductStatuses = useCallback(async () => {
+    if (pollingProductIds.size === 0 || !selectedProjectId) {
+      return;
+    }
+
+    try {
+      const data = await productService.getProductsByProject(selectedProjectId);
+
+      const completedOrFailed: string[] = [];
+
+      pollingProductIds.forEach((productId) => {
+        const updatedProduct = data.find((p) => p.id === productId);
+
+        if (
+          updatedProduct &&
+          (updatedProduct.enrichment_status === "completed" ||
+            updatedProduct.enrichment_status === "failed")
+        ) {
+          completedOrFailed.push(productId);
+
+          if (updatedProduct.enrichment_status === "completed") {
+            notify.success("Aggregation Complete", updatedProduct.product_name);
+          } else {
+            notify.error("Aggregation Failed", updatedProduct.product_name);
+          }
+        }
+      });
+
+      setAllProducts(data);
+
+      setStats({
+        success: data.filter((p) => p.enrichment_status === "completed").length,
+        failed: data.filter((p) => p.enrichment_status === "failed").length,
+        pending: data.filter((p) => p.enrichment_status === "pending").length,
+      });
+
+      if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
+        await loadAttributes(selectedProduct);
+      }
+
+      if (completedOrFailed.length > 0) {
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          completedOrFailed.forEach((id) => updated.delete(id));
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+    }
+  }, [pollingProductIds, selectedProjectId, selectedProduct, loadAttributes]);
+  useEffect(() => {
+    if (pollingProductIds.size > 0 && selectedProjectId) {
+      pollingIntervalRef.current = setInterval(pollProductStatuses, 3000);
+    } else {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [pollingProductIds.size, selectedProjectId, pollProductStatuses]);
+  useEffect(() => {
+    if (selectedProduct) {
+      loadAttributes(selectedProduct);
+      setIsDrawerOpen(true);
+    } else {
+      setIsDrawerOpen(false);
+    }
+  }, [selectedProduct, loadAttributes]);
   const resetFilters = useCallback(() => {
-    setStatusFilter("all");
+    setStatusFilter(new Set());
     setCategoryFilter("");
     setBrandFilter("");
     setCurrentPage(1);
   }, []);
   const closeDrawer = () => {
-  setIsDrawerOpen(false);
-  setTimeout(() => setSelectedProduct(null), 300);
-};
-const safeParseValue = (value: any): any => {
-  if (typeof value !== 'string') {
-    return value; // It's already an object, array, or primitive
-  }
-  const str = value.trim();
+    setIsDrawerOpen(false);
+    setTimeout(() => setSelectedProduct(null), 300);
+  };
+  const safeParseValue = (value: any): any => {
+    if (typeof value !== "string") {
+      return value;
+    }
+    const str = value.trim();
 
-  // Check if it looks like a JSON object or array
-  if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
-    try {
-      // First, try a standard JSON.parse
-      return JSON.parse(str);
-    } catch {
+    if (
+      (str.startsWith("{") && str.endsWith("}")) ||
+      (str.startsWith("[") && str.endsWith("]"))
+    ) {
       try {
-        // If that fails, it might be Python's dict representation.
-        // Replace single quotes and Python literals, then try again.
-        const pythonLikeStr = str
-          .replace(/'/g, '"')
-          .replace(/None/g, 'null')
-          .replace(/True/g, 'true')
-          .replace(/False/g, 'false');
-        return JSON.parse(pythonLikeStr);
-      } catch (e) {
-        // If all parsing fails, return the original string
-        return str;
+        return JSON.parse(str);
+      } catch {
+        try {
+          const pythonLikeStr = str
+            .replace(/'/g, '"')
+            .replace(/None/g, "null")
+            .replace(/True/g, "true")
+            .replace(/False/g, "false");
+          return JSON.parse(pythonLikeStr);
+        } catch (e) {
+          return str;
+        }
       }
     }
-  }
-  return str; // It's just a regular string
-};
+    return str;
+  };
 
-const formatValue = (value: any): JSX.Element | string => {
-  if (value === null || value === undefined || value === "") {
-    return <span className="text-slate-400">-</span>;
-  }
-
-  // 1. Recursively parse the value until it's not a stringified JSON anymore
-  let parsedValue = safeParseValue(value);
-  while (typeof parsedValue === 'string' && parsedValue !== value) {
-    value = parsedValue;
-    parsedValue = safeParseValue(value);
-  }
-
-  // 2. Now handle the parsed data structure
-  if (typeof parsedValue === 'object' && parsedValue !== null) {
-    if (Array.isArray(parsedValue)) {
-      // It's an array
-      if (parsedValue.length === 0) return <span className="text-slate-400">-</span>;
-      return parsedValue.join(', ');
-    } else {
-      // It's an object, check for value/uom structure
-      if ('standard_value' in parsedValue || 'value' in parsedValue) {
-        const displayValue = parsedValue.standard_value ?? parsedValue.value;
-        const uom = parsedValue.uom ?? parsedValue.unit;
-        return (
-          <span>
-            {String(displayValue)}
-            {uom && <span className="ml-1 text-slate-500">{uom}</span>}
-          </span>
-        );
-      }
-      // Fallback for generic objects
-      return JSON.stringify(parsedValue);
+  const formatValue = (value: any): JSX.Element | string => {
+    if (value === null || value === undefined || value === "") {
+      return <span className="text-slate-400">-</span>;
     }
-  }
 
-  // 3. It's a primitive value (string, number, etc.)
-  return String(parsedValue);
-};
+    let parsedValue = safeParseValue(value);
+    while (typeof parsedValue === "string" && parsedValue !== value) {
+      value = parsedValue;
+      parsedValue = safeParseValue(value);
+    }
 
-const selectedProductData = products.find((p) => p.id === selectedProduct);
+    if (typeof parsedValue === "object" && parsedValue !== null) {
+      if (Array.isArray(parsedValue)) {
+        if (parsedValue.length === 0)
+          return <span className="text-slate-400">-</span>;
+        return parsedValue.join(", ");
+      } else {
+        if ("standard_value" in parsedValue || "value" in parsedValue) {
+          const displayValue = parsedValue.standard_value ?? parsedValue.value;
+          const uom = parsedValue.uom ?? parsedValue.unit;
+          return (
+            <span>
+              {String(displayValue)}
+              {uom && <span className="ml-1 text-slate-500">{uom}</span>}
+            </span>
+          );
+        }
+        return JSON.stringify(parsedValue);
+      }
+    }
+
+    return String(parsedValue);
+  };
+
+  const selectedProductData = products.find((p) => p.id === selectedProduct);
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentProducts = products.slice(
@@ -364,7 +474,7 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
       case "completed":
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-            <CheckCircle2 className="w-3 h-3" /> Success
+            <CheckCircle2 className="w-3 h-3" /> Completed
           </span>
         );
       case "pending":
@@ -396,95 +506,104 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-4 flex-wrap flex-1">
-          <div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-1">
-              Data Aggregation
-            </h3>
-            <p className="text-sm text-slate-600">
-              Select a project to manage aggregation
-            </p>
-          </div>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-semibold text-slate-900 mb-1">
+            Data Aggregation
+          </h3>
+          <p className="text-sm text-slate-600">
+            Select a project to manage aggregation
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Success</option>
-              <option value="failed">Failed</option>
-            </select>
-
-            <select
-              value={selectedProjectId}
-              onChange={(e) => {
-                setSelectedProjectId(e.target.value);
-                setCurrentPage(1);
-                resetFilters();
-              }}
-              disabled={projectsLoading}
-              className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <option value="">
-                {projectsLoading ? "Loading..." : "Select Project"}
+        <div className="flex items-center gap-2 flex-wrap flex-1">
+          <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setCurrentPage(1);
+              resetFilters();
+            }}
+            disabled={projectsLoading}
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <option value="">
+              {projectsLoading ? "Loading..." : "Select Project"}
+            </option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
               </option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+            ))}
+          </select>
 
-            <select
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              disabled={!selectedProjectId || categories.length === 0}
-              className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          <select
+            value={
+              statusFilter.size === 1 ? Array.from(statusFilter)[0] : "all"
+            }
+            disabled={!selectedProjectId}
+            onChange={(e) => {
+              const selectedValue = e.target.value;
+
+              if (selectedValue === "all") {
+                setStatusFilter(new Set());
+              } else {
+                setStatusFilter(new Set([selectedValue]));
+              }
+
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Status</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Success</option>
+            <option value="failed">Failed</option>
+          </select>
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            disabled={!selectedProjectId || categories.length === 0}
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <option value="">Categories</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={brandFilter}
+            onChange={(e) => {
+              setBrandFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            disabled={!selectedProjectId || brands.length === 0}
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <option value=""> Brands</option>
+            {brands.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
+            ))}
+          </select>
+
+          {(statusFilter.size > 0 || categoryFilter || brandFilter) && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-md bg-white text-sm hover:bg-slate-50 transition-colors"
             >
-              <option value="">Categories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={brandFilter}
-              onChange={(e) => {
-                setBrandFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              disabled={!selectedProjectId || brands.length === 0}
-              className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <option value=""> Brands</option>
-              {brands.map((brand) => (
-                <option key={brand} value={brand}>
-                  {brand}
-                </option>
-              ))}
-            </select>
-
-            {(statusFilter !== "all" || categoryFilter || brandFilter) && (
-              <button
-                onClick={resetFilters}
-                className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md border border-red-200 transition-colors"
-              >
-                Reset Filters
-              </button>
-            )}
-          </div>
+              <X className="w-4 h-4" />
+              <span>Reset Filters</span>
+            </button>
+          )}
         </div>
 
         {selectedProjectId && (
@@ -514,20 +633,28 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
 
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setStatusFilter("completed")}
-                className="flex-1 flex flex-col items-center justify-center p-1 rounded-md bg-emerald-50/50 border border-emerald-100 hover:bg-emerald-50 transition-colors"
+                onClick={() => toggleStatusFilter("completed")}
+                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                  statusFilter.has("completed")
+                    ? "bg-emerald-100 border-emerald-300"
+                    : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100   "
+                }`}
               >
                 <span className="text-sm font-bold text-emerald-600">
                   {stats.success}
                 </span>
                 <span className="text-[10px] font-medium text-emerald-700">
-                  Success
+                  Completed
                 </span>
               </button>
 
               <button
-                onClick={() => setStatusFilter("failed")}
-                className="flex-1 flex flex-col items-center justify-center p-1 rounded-md bg-rose-50/50 border border-rose-100 hover:bg-rose-50 transition-colors"
+                onClick={() => toggleStatusFilter("failed")}
+                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                  statusFilter.has("failed")
+                    ? "bg-rose-100 border-rose-300"
+                    : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
+                }`}
               >
                 <span className="text-sm font-bold text-rose-600">
                   {stats.failed}
@@ -538,8 +665,12 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
               </button>
 
               <button
-                onClick={() => setStatusFilter("pending")}
-                className="flex-1 flex flex-col items-center justify-center p-1 rounded-md bg-amber-50/50 border border-blue-500/30 hover:bg-amber-50 transition-colors"
+                onClick={() => toggleStatusFilter("pending")}
+                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                  statusFilter.has("pending")
+                    ? "bg-amber-100 border-amber-300"
+                    : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
+                }`}
               >
                 <span className="text-sm font-bold text-amber-500">
                   {stats.pending}
@@ -569,10 +700,52 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
               <span className="text-sm font-semibold text-slate-900">
                 {products.length} Products
               </span>
-              {statusFilter !== "all" && (
-                <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded">
-                  Filter:{" "}
-                  {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+
+              {Array.from(statusFilter).map((status) => (
+                <span
+                  key={status}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-full border border-slate-200"
+                >
+                  <span>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </span>
+                  <button
+                    onClick={() =>
+                      toggleStatusFilter(
+                        status as "completed" | "failed" | "pending",
+                      )
+                    }
+                    className="p-0.5 rounded-full hover:bg-slate-300"
+                    title={`Remove ${status} filter`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
+              {categoryFilter && (
+                <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+                  <span>{categoryFilter}</span>
+                  <button
+                    onClick={() => setCategoryFilter("")}
+                    className="p-0.5 rounded-full hover:bg-blue-200"
+                    title="Remove category filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {brandFilter && (
+                <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-purple-50 text-purple-700 rounded-full border border-purple-200">
+                  <span>{brandFilter}</span>
+                  <button
+                    onClick={() => setBrandFilter("")}
+                    className="p-0.5 rounded-full hover:bg-purple-200"
+                    title="Remove brand filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
               {categoryFilter && (
@@ -585,7 +758,7 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
                   Brand: {brandFilter}
                 </span>
               )}
-              {selectedProducts.size > 0 && (
+              {/* {selectedProducts.size > 0 && (
                 <button
                   onClick={handleAggregateSelected}
                   disabled={loading}
@@ -594,7 +767,7 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
                   <Play className="w-3 h-3" />
                   Run Selected ({selectedProducts.size})
                 </button>
-              )}
+              )} */}
             </div>
 
             <div className="flex items-center gap-3">
@@ -619,19 +792,33 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
-
-              <button
-                onClick={handleAggregateAll}
-                disabled={loading || stats.pending === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-                Aggregate All
-              </button>
+              {selectedProducts.size > 0 ? (
+                <button
+                  onClick={handleAggregateSelected}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Aggregate Selected
+                </button>
+              ) : (
+                <button
+                  onClick={handleAggregateAll}
+                  disabled={loading || stats.pending === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Aggregate All
+                </button>
+              )}
             </div>
           </div>
 
@@ -639,7 +826,10 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
             <table className="w-full border-separate border-spacing-0">
               <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
                 <tr>
-                  <th  onClick={(e) => e.stopPropagation()} className="px-4 py-3 text-left bg-slate-50 first:rounded-tl-lg">
+                  <th
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-4 py-3 text-left bg-slate-50 first:rounded-tl-lg"
+                  >
                     <input
                       type="checkbox"
                       checked={
@@ -686,13 +876,16 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
                 ) : (
                   currentProducts.map((product) => (
                     <tr
-  key={product.id}
-  onClick={() => setSelectedProduct(product.id)}  
-  className={`hover:bg-slate-50 cursor-pointer ${  
-    selectedProducts.has(product.id) ? "bg-blue-50" : ""
-  } ${selectedProduct === product.id ? "bg-blue-100" : ""}`}  
->
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      key={product.id}
+                      onClick={() => setSelectedProduct(product.id)}
+                      className={`hover:bg-slate-50 cursor-pointer ${
+                        selectedProducts.has(product.id) ? "bg-blue-50" : ""
+                      } ${selectedProduct === product.id ? "bg-blue-100" : ""}`}
+                    >
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={selectedProducts.has(product.id)}
@@ -754,7 +947,10 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
                       <td className="px-4 py-3">
                         {getStatusBadge(product.enrichment_status || "pending")}
                       </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {product.enrichment_status !== "processing" && (
                           <button
                             onClick={() => handleAggregate(product.id)}
@@ -795,222 +991,222 @@ const selectedProductData = products.find((p) => p.id === selectedProduct);
           )}
         </div>
       )}
-      {/* ✅ ADD DRAWER COMPONENT */}
-{isDrawerOpen && selectedProductData && (
-  <div className="fixed inset-0 z-50 flex justify-end">
-    <div
-      className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
-      onClick={closeDrawer}
-    />
-    <div className="relative w-full max-w-2xl bg-white shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
-      {/* DRAWER HEADER */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-start justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 leading-tight">
-            {selectedProductData.product_name}
-          </h2>
-          <div className="flex items-center gap-3 mt-1 text-sm text-slate-600">
-            <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
-              {selectedProductData.product_code}
-            </span>
-            <span>{selectedProductData.brand_name}</span>
-          </div>
-        </div>
-        <button
-          onClick={closeDrawer}
-          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* DRAWER CONTENT */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* COMPLETENESS BAR */}
-        <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-          <div className="flex-1">
-            <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">
-              Data Completeness
-            </p>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-blue-200 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full rounded-full"
-                  style={{
-                    width: `${selectedProductData.completeness_score}%`,
-                  }}
-                />
+      {isDrawerOpen && selectedProductData && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+            onClick={closeDrawer}
+          />
+          <div className="relative w-full max-w-2xl bg-white shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 leading-tight">
+                  {selectedProductData.product_name}
+                </h2>
+                <div className="flex items-center gap-3 mt-1 text-sm text-slate-600">
+                  <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                    {selectedProductData.product_code}
+                  </span>
+                  <span>{selectedProductData.brand_name}</span>
+                </div>
               </div>
-              <span className="font-bold text-blue-700">
-                {selectedProductData.completeness_score}%
-              </span>
+              <button
+                onClick={closeDrawer}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </div>
-          <div className="px-4 border-l border-blue-200">
-            <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">
-              Status
-            </p>
-            {getStatusBadge(selectedProductData.enrichment_status || "pending")}
-          </div>
-        </div>
 
-        {attributesLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
-            <p>Loading attributes...</p>
-          </div>
-        ) :selectedProductData.enrichment_status==='processing'?(
-          <div className="flex  items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <Loader2 className="w-5 h-5 text-blue-600 animate-spin"/>
-            <div>
-              <p className="text-sm font-semibold text-blue-900">
-              Aggregation In Progress
-              </p>
-              <p className="text-xs text-blue-700">
-                Please wait while the aggregation is done
-              </p>
-            </div>
-          </div>
-        ):
-         attributes.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
-            <GitMerge className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-            <p>No attributes found for this product.</p>
-            <button
-              onClick={() => handleAggregate(selectedProductData.id)}
-              className="mt-3 text-blue-600 hover:underline text-sm font-medium"
-            >
-              Run Aggregation Now
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* PRODUCT IMAGE */}
-            {selectedProductData.image_url_1 && (
-              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm aspect-video flex items-center justify-center p-4">
-                <img
-                  src={selectedProductData.image_url_1}
-                  alt={selectedProductData.product_name}
-                  className="max-h-full max-w-full object-contain"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </div>
-            )}
-
-            {/* SPECIFICATIONS GRID */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                <Box className="w-4 h-4" /> Specifications
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {attributes.map((attr) => (
-                  <div
-                    key={attr.id}
-                    className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-semibold text-slate-500 uppercase truncate">
-                        {attr.attribute_name}
-                      </span>
-                      {attr.has_conflict && (
-                        <AlertTriangle
-                          className="w-3 h-3 text-amber-500"
-                          title="Source Conflict"
-                        />
-                      )}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">
+                    Data Completeness
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-blue-200 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-blue-600 h-full rounded-full"
+                        style={{
+                          width: `${selectedProductData.completeness_score}%`,
+                        }}
+                      />
                     </div>
-                    <div className="text-sm text-slate-900 font-medium">
-                      {formatValue(attr.values[0]?.value)}
+                    <span className="font-bold text-blue-700">
+                      {selectedProductData.completeness_score}%
+                    </span>
+                  </div>
+                </div>
+                <div className="px-4 border-l border-blue-200">
+                  <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">
+                    Status
+                  </p>
+                  {getStatusBadge(
+                    selectedProductData.enrichment_status || "pending",
+                  )}
+                </div>
+              </div>
+
+              {attributesLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
+                  <p>Loading attributes...</p>
+                </div>
+              ) : selectedProductData.enrichment_status === "processing" ? (
+                <div className="flex  items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900">
+                      Aggregation In Progress
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      Please wait while the aggregation is done
+                    </p>
+                  </div>
+                </div>
+              ) : attributes.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
+                  <GitMerge className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                  <p>No attributes found for this product.</p>
+                  <button
+                    onClick={() => handleAggregate(selectedProductData.id)}
+                    className="mt-3 text-blue-600 hover:underline text-sm font-medium"
+                  >
+                    Run Aggregation Now
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {selectedProductData.image_url_1 && (
+                    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm aspect-video flex items-center justify-center p-4">
+                      <img
+                        src={selectedProductData.image_url_1}
+                        alt={selectedProductData.product_name}
+                        className="max-h-full max-w-full object-contain"
+                        onError={(e) =>
+                          (e.currentTarget.style.display = "none")
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <Box className="w-4 h-4" /> Specifications
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {attributes.map((attr) => (
+                        <div
+                          key={attr.id}
+                          className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow"
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-xs font-semibold text-slate-500 uppercase truncate">
+                              {attr.attribute_name}
+                            </span>
+                            {attr.has_conflict && (
+                              <AlertTriangle
+                                className="w-3 h-3 text-amber-500"
+                                title="Source Conflict"
+                              />
+                            )}
+                          </div>
+                          <div className="text-sm text-slate-900 font-medium">
+                            {formatValue(attr.values[0]?.value)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <List className="w-4 h-4" /> Technical Data Source
+                    </h3>
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase">
+                          <tr>
+                            <th className="px-4 py-2 font-semibold text-left">
+                              Attribute
+                            </th>
+                            <th className="px-4 py-2 font-semibold text-left">
+                              Value
+                            </th>
+                            <th className="px-4 py-2 font-semibold text-right">
+                              Confidence
+                            </th>
+                            <th className="px-4 py-2 font-semibold text-right">
+                              Source
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {attributes.map((attr) => (
+                            <tr key={attr.id} className="hover:bg-slate-50">
+                              <td className="px-4 py-2 font-medium text-slate-700">
+                                {attr.attribute_name}
+                              </td>
+                              <td className="px-4 py-2 text-slate-600 max-w-[200px] truncate">
+                                {formatValue(attr.values[0]?.value)}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                    attr.values[0]?.confidence > 0.8
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-yellow-100 text-yellow-700"
+                                  }`}
+                                >
+                                  {(attr.values[0]?.confidence * 100).toFixed(
+                                    0,
+                                  )}
+                                  %
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">
+                                {attr.values[0]?.source_id?.slice(0, 8)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* TECHNICAL DATA TABLE */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                <List className="w-4 h-4" /> Technical Data Source
-              </h3>
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase">
-                    <tr>
-                      <th className="px-4 py-2 font-semibold text-left">
-                        Attribute
-                      </th>
-                      <th className="px-4 py-2 font-semibold text-left">
-                        Value
-                      </th>
-                      <th className="px-4 py-2 font-semibold text-right">
-                        Confidence
-                      </th>
-                      <th className="px-4 py-2 font-semibold text-right">
-                        Source
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {attributes.map((attr) => (
-                      <tr key={attr.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 font-medium text-slate-700">
-                          {attr.attribute_name}
-                        </td>
-                        <td className="px-4 py-2 text-slate-600 max-w-[200px] truncate">
-                          {formatValue(attr.values[0]?.value)}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                              attr.values[0]?.confidence > 0.8
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {(attr.values[0]?.confidence * 100).toFixed(0)}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">
-                          {attr.values[0]?.source_id?.slice(0, 8)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+              <span className="text-xs text-slate-500">
+                Last updated: {new Date().toLocaleDateString()}
+              </span>
+              <button
+                onClick={() => handleAggregate(selectedProductData.id)}
+                disabled={
+                  selectedProductData.enrichment_status === "processing"
+                }
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {selectedProductData.enrichment_status === "processing" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                  </>
+                ) : selectedProductData.enrichment_status === "pending" ? (
+                  <>
+                    <Play className="w-4 h-4" /> Start Aggregation
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" /> Re-Aggregate
+                  </>
+                )}
+              </button>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* DRAWER FOOTER */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-        <span className="text-xs text-slate-500">
-          Last updated: {new Date().toLocaleDateString()}
-        </span>
-        <button
-          onClick={() => handleAggregate(selectedProductData.id)}
-          disabled={selectedProductData.enrichment_status === "processing"}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
-        >
-          {selectedProductData.enrichment_status === "processing" ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-            </>
-          ) : selectedProductData.enrichment_status === "pending" ? (
-            <>
-              <Play className="w-4 h-4" /> Start Aggregation
-            </>
-          ) : (
-            <>
-              <RefreshCw className="w-4 h-4" /> Re-Aggregate
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

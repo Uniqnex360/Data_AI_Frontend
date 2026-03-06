@@ -123,13 +123,13 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   };
 
   useEffect(() => {
-    if (!projectId) {
+    if ( bulkFile  && !projectId) {
       notify.error(
         "No Project Selected",
         "Please select a project from the Projects section"
       );
     }
-  }, [projectId]);
+  }, [projectId,bulkFile]);
 
   useEffect(() => {
     const handleClickOutSide = (e: MouseEvent) => {
