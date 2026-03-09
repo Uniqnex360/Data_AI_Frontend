@@ -30,7 +30,7 @@ export const extractionService={
       return data;
     } catch (error) {
       console.error("Batch upload failed", error);
-      throw new Error('Batch processing failed');
+      throw error; 
     }
   },
   async getBatchStatus(batchId:string){

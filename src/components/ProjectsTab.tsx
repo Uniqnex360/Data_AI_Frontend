@@ -279,7 +279,6 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
                               <span>{source.source_url}</span>
                             </div>
                             <div className="flex items-center gap-3">
-  {/* 1. Input Download Button (Always Visible) */}
   <button
     onClick={() => extractionService.download(source.id, "input")}
     className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
@@ -287,7 +286,6 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
     <Download className="w-3.5 h-3.5" /> Input
   </button>
 
-  {/* 2. Output / Status Button */}
   {isEnriched ? (
     <button
       onClick={() => extractionService.download(source.id, "output")}

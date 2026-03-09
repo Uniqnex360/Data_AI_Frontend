@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Upload,
-  FileText,
-  Globe,
   FileSpreadsheet,
-  Image,
   Download,
   Plus,
   Edit,
@@ -21,7 +18,6 @@ import { projectService } from "../services/projectService";
 import type { Source, Project } from "../types/database.types";
 import { notify } from "../lib/notifications.ts";
 import { getStatusIcon } from "../utils/statusIcon";
-
 interface ManualProductData {
   brand: string;
   title: string;
@@ -37,14 +33,12 @@ interface ManualProductData {
   price: string;
   stock: string;
 }
-
 export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: string,onProjectSelect?: (projectId: string) => void}) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMode, setActiveMode] = useState<"manual" | "bulk">("bulk");
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const [manualData, setManualData] = useState<ManualProductData>({
     brand: "",
     title: "",
@@ -62,7 +56,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState<string>("");
-  const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
+  const [selectedUseCase, setSelectedUseCase] = useState<string>('');
   const [showUseCaseDropdown, setShowUseCaseDropdown] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [importResults, setImportResults] = useState<{
@@ -70,19 +64,16 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
     failed: number;
     status: string;
   } | null>(null);
-
   // Projects state
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [projectSources, setProjectSources] = useState<Record<string, Source[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
-
   useEffect(() => {
     loadSources();
     loadProjects();
   }, []);
-
   const loadSources = async () => {
     try {
       const data = await extractionService.getAllSources();
@@ -91,7 +82,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       console.error("Failed to load sources:", error);
     }
   };
-
   const loadProjects = async () => {
     try {
       const data = await projectService.getAllProjects();
@@ -100,7 +90,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       console.error("Failed to load projects:", error);
     }
   };
-
   const loadSourcesForProject = async (id: string) => {
     if (!id) return;
     try {
@@ -110,7 +99,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       console.error("Failed to load sources:", error);
     }
   };
-
   const toggleProject = async (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
@@ -121,7 +109,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
     }
     setExpandedProjects(newExpanded);
   };
-
   useEffect(() => {
     if ( bulkFile  && !projectId) {
       notify.error(
@@ -130,7 +117,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       );
     }
   }, [projectId,bulkFile]);
-
   useEffect(() => {
     const handleClickOutSide = (e: MouseEvent) => {
       if (showUseCaseDropdown) {
@@ -140,16 +126,13 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
     document.addEventListener("click", handleClickOutSide);
     return () => document.removeEventListener("click", handleClickOutSide);
   }, [showUseCaseDropdown]);
-
   const pollBatchStatus = async (batchId: string) => {
     const maxAttempts = 60;
     let attempts = 0;
-
     const poll = async () => {
       try {
         const response = await extractionService.getBatchStatus(batchId);
         const { status, metadata } = response;
-
         if (status === "completed") {
           notify.success(
             "Import Finished",
@@ -164,7 +147,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           await loadProjects();
           return;
         }
-
         if (status === "failed") {
           notify.error(
             "Import Failed",
@@ -178,7 +160,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           await loadSources();
           return;
         }
-
         attempts++;
         if (attempts < maxAttempts) {
           setTimeout(poll, 5000);
@@ -196,31 +177,20 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         );
       }
     };
-
     poll();
   };
-
+  
   const useCaseOptions = [
-    "Case1",
-    "Case2",
-
-    "Case3",
-
-    "Case4",
-
-    "Case5",
-
-    
+    "With categories with attributes",
+    "With categories without attribute",
+    "Without categories",
+    "With Categories with attribute (back filling)", 
+    "With Categories with attribute (back filling) and existing attribute validation"
   ];
-
-  const toggleUseCase = (useCase: string) => {
-    setSelectedUseCases((prev) =>
-      prev.includes(useCase)
-        ? prev.filter((u) => u !== useCase)
-        : [...prev, useCase]
-    );
+  const handleSelectUseCase = (useCase: string) => {
+    setSelectedUseCase(useCase)
+    setShowUseCaseDropdown(false)
   };
-
   const handleManualSubmit = async () => {
     const newErrors: Record<string, string> = {};
     if (!manualData.mpn) newErrors.mpn = "MPN is required";
@@ -266,7 +236,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       setLoading(false);
     }
   };
-
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       notify.info("Please select a file");
@@ -282,7 +251,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
     const validExtensions = [".csv", ".xlsx", ".xls"];
-
     const fileExtension = bulkFile.name
       .substring(bulkFile.name.lastIndexOf("."))
       .toLowerCase();
@@ -304,7 +272,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         "Upload Successful",
         "File accepted. Processing in background..."
       );
-
       setImportResults({
         success: 0,
         failed: 0,
@@ -314,12 +281,12 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       await loadSources();
     } catch (error) {
       console.error("Bulk upload failed:", error);
-      notify.error("Bulk upload failed");
+      const errorMessage =error.response?.data?.detail || error.message || "Aggregation failed";
+      notify.error("Bulk upload failed",errorMessage);
     } finally {
       setLoading(false);
     }
   };
-
   const downloadTemplate = () => {
     const coreHeaders = [
       "Prod ID",
@@ -335,7 +302,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "MPN",
       "Discontinue_Status",
     ];
-
     const catHeaders = [
       "industry_name",
       "category 1",
@@ -348,7 +314,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "category 8",
       "Taxonomy",
     ];
-
     const physHeaders = [
       "Country_of_Origin",
       "Warranty",
@@ -360,7 +325,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "Dimension_Unit",
       "Variant_Status",
     ];
-
     const priceHeaders = [
       "Currency",
       "Base Price",
@@ -372,22 +336,19 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "Vendor_Name",
       "Vendor_SKU",
     ];
-
+    
     const imageHeaders: string[] = [];
     for (let i = 1; i <= 8; i++) {
       imageHeaders.push(`image_name_${i}`, `image_url_${i}`);
     }
-
     const videoHeaders: string[] = [];
     for (let i = 1; i <= 3; i++) {
       videoHeaders.push(`video_name_${i}`, `video_url_${i}`);
     }
-
     const docHeaders: string[] = [];
     for (let i = 1; i <= 5; i++) {
       docHeaders.push(`document_name_${i}`, `document_url_${i}`);
     }
-
     const contentHeaders = [
       "3D_Model_URL",
       "Short_Description",
@@ -410,7 +371,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "Hazardous_Material",
       "Prop65_Warning",
     ];
-
     const attrHeaders: string[] = [];
     for (let i = 1; i <= 20; i++) {
       attrHeaders.push(
@@ -421,7 +381,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         `validation_uom${i}`
       );
     }
-
     const headers = [
       ...coreHeaders,
       ...catHeaders,
@@ -433,14 +392,11 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       ...contentHeaders,
       ...attrHeaders,
     ];
-
     const sampleRow = new Array(headers.length).fill("");
-
     const setVal = (headerName: string, val: string) => {
       const idx = headers.indexOf(headerName);
       if (idx !== -1) sampleRow[idx] = val;
     };
-
     setVal("SKU", "DEMO-1001");
     setVal("Product_Name", "High Performance LED Light");
     setVal("Brand", "DemoBrand");
@@ -450,7 +406,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
     setVal("attribute_name1", "Lumens");
     setVal("attribute_value1", "15000");
     setVal("attribute_uom1", "lm");
-
     const csv = [headers.join(","), sampleRow.join(",")].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -460,29 +415,30 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
     a.click();
     window.URL.revokeObjectURL(url);
   };
-
   const handleCancel = () => {
     setProjectName("");
-    setSelectedUseCases([]);
+    setSelectedUseCase('');
   };
-
   const handleCreate = async () => {
     if (!projectName.trim()) {
       notify.error("Project name is required");
       return;
     }
-
+    if(!selectedUseCase)
+    {
+      notify.error("Usecase is  required");
+      return;
+    }
     setLoading(true);
     try {
       await projectService.createProject({
         name: projectName,
-        use_cases: selectedUseCases,
+        use_case: selectedUseCase,
         status: "draft",
       });
-
       notify.success("Project created successfully!");
       setProjectName("");
-      setSelectedUseCases([]);
+      setSelectedUseCase('');
       setShowUseCaseDropdown(false);
       setShowProjectModal(false);
       await loadProjects();
@@ -498,7 +454,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       setLoading(false);
     }
   };
-
   const filteredProjects = projects.filter((project) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -506,10 +461,8 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       project.client?.toLowerCase().includes(query)
     );
   });
-
   return (
     <div className="space-y-6">
-      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-slate-900 mb-1">
@@ -535,8 +488,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           Add Project
         </button>
       </div>
-
-      {/* PROJECT MODAL */}
       {showProjectModal && (
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <h4 className="text-lg font-semibold text-slate-900 mb-4">
@@ -568,9 +519,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                   className="w-full px-4 py-2 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
                 >
                   <span className="text-slate-500">
-                    {selectedUseCases.length > 0
-                      ? selectedUseCases.join(", ")
-                      : "Select Use Cases"}
+                    {selectedUseCase||"Select Use Case"}
                   </span>
                   <ChevronDown
                     className={`w-4 h-4 text-slate-400 transition-transform ${showUseCaseDropdown ? "rotate-180" : ""}`}
@@ -584,9 +533,10 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                         className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 cursor-pointer"
                       >
                         <input
-                          type="checkbox"
-                          checked={selectedUseCases.includes(useCase)}
-                          onChange={() => toggleUseCase(useCase)}
+                          type="radio"
+                          name='useCaseSelection'
+                          checked={selectedUseCase === useCase}
+                          onChange={() => handleSelectUseCase(useCase)}
                           className="rounded border-slate-300"
                         />
                         <span className="text-sm text-slate-700">{useCase}</span>
@@ -600,7 +550,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           <div className="flex gap-3">
             <button
               onClick={handleCreate}
-              disabled={!projectName.trim() || loading}
+              disabled={!projectName.trim() || loading ||!selectedUseCase}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create Project"}
@@ -617,8 +567,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           </div>
         </div>
       )}
-
-      {/* IMPORT CARD */}
       <div className="bg-white rounded-lg border border-slate-200">
         <div className="p-6 border-b border-slate-200">
           <div className="flex items-center justify-between">
@@ -653,7 +601,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
             </div>
           </div>
         </div>
-
         <div className="p-6">
           {activeMode === "bulk" ? (
             <div>
@@ -670,7 +617,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                   it below
                 </p>
               </div>
-
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Upload CSV or Excel File
@@ -689,7 +635,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                   </p>
                 )}
               </div>
-
               {projectId ? (
                 <button
                   onClick={handleBulkUpload}
@@ -863,10 +808,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                   />
                 </div>
               </div>
-
-              
             </div>
-
               {projectId ? (
                 <button
                   onClick={handleManualSubmit}
@@ -886,8 +828,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           )}
         </div>
       </div>
-
-      {/* PROJECTS SECTION */}
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-lg font-semibold text-slate-900">Projects</h4>
@@ -904,7 +844,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
             </div>
           </div>
         </div>
-
         <div className="space-y-3">
           {filteredProjects.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">
@@ -951,8 +890,13 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                         )}
                       </button>
                     </div>
-                    {project.client && (
-                      <p className="text-sm text-slate-600">{project.client}</p>
+                    {project.use_case && (
+                      <div className="mt-2 inline-block px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md">
+                        <p className="text-xs text-slate-600 font-medium">
+                          <span className="text-slate-400 mr-1">Workflow:</span>
+                          {project.use_case}
+                        </p>
+                      </div>
                     )}
                   </div>
                   <button
@@ -966,7 +910,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                     Select
                   </button>
                 </div>
-
                 {expandedProjects.has(project.id) && (
                   <div className="mt-4 border-t border-slate-100 pt-4">
                     <h6 className="text-sm font-medium text-slate-700 mb-3">
@@ -983,7 +926,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                           const isEnriched = aggStatus === "completed";
                           const isAggregating = aggStatus === "processing";
                           const isFailed = aggStatus === "failed";
-
                           return (
                             <div
                               key={source.id}
@@ -1004,7 +946,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                                 >
                                   <Download className="w-3.5 h-3.5" /> Input
                                 </button>
-
                                 {isEnriched ? (
                                   <button
                                     onClick={() =>
@@ -1035,7 +976,6 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                                     Aggregation
                                   </div>
                                 )}
-
                                 {getStatusIcon(source.status)}
                               </div>
                             </div>
