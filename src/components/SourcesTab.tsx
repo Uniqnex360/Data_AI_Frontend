@@ -136,7 +136,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         if (status === "completed") {
           notify.success(
             "Import Finished",
-            `Successfully processed ${metadata?.successful || 0} products.`
+            `Successfully processed ${metadata?.total || 0} products.`
           );
           setImportResults({
             success: metadata?.successful || 0,
@@ -181,8 +181,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   };
   
   const useCaseOptions = [
-    "With categories with attributes",
-    "With categories without attribute",
+    "With categories",
     "Without categories",
     "With Categories with attribute (back filling)", 
     "With Categories with attribute (back filling) and existing attribute validation"
@@ -269,8 +268,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         fileInputRef.current.value = "";
       }
       notify.success(
-        "Upload Successful",
-        "File accepted. Processing in background..."
+        "Upload Successful"
       );
       setImportResults({
         success: 0,
@@ -281,7 +279,13 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       await loadSources();
     } catch (error) {
       console.error("Bulk upload failed:", error);
-      const errorMessage =error.response?.data?.detail || error.message || "Aggregation failed";
+      const detail = error.response?.data?.detail;
+      const errorMessage =
+  (detail && typeof detail === "object" && "message" in detail && detail.message)
+    ? detail.message
+    : (detail && typeof detail === "string" ? detail : null)
+    || error.message
+    || "Aggregation failed";
       notify.error("Bulk upload failed",errorMessage);
     } finally {
       setLoading(false);
