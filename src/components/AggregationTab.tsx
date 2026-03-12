@@ -820,6 +820,8 @@ export default function AggregationTab({
                   Aggregate Selected
                 </button>
               ) : (
+                !(statusFilter.size===1 && statusFilter.has('completed')) && (
+
                 <button
                   onClick={handleAggregateAll}
                   disabled={loading || stats.pending === 0}
@@ -832,6 +834,8 @@ export default function AggregationTab({
                   )}
                   Aggregate All
                 </button>
+                )
+
               )}
             </div>
           </div>
