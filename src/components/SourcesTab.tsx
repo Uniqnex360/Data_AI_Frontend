@@ -176,7 +176,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           "Lost connection while checking import status."
         );
       }
-    };
+    };  
     poll();
   };
   
@@ -376,7 +376,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "Prop65_Warning",
     ];
     const attrHeaders: string[] = [];
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 40; i++) {
       attrHeaders.push(
         `attribute_name${i}`,
         `attribute_value${i}`,
