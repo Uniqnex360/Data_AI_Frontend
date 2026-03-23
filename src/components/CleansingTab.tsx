@@ -126,7 +126,7 @@ export default function CleansingTab() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-lg p-4">
+      {/* <div className="bg-white border border-slate-200 rounded-lg p-4">
         <div className="flex items-end gap-4">
           <div className="flex-1">
             <label
@@ -199,7 +199,7 @@ export default function CleansingTab() {
             </div>
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-4">
