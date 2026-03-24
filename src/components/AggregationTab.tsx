@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   FileText,
   Play,
@@ -13,136 +19,143 @@ import {
   Box,
   AlertTriangle,
   List,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
-import { GitMerge } from "lucide-react";
-
-interface AggregationTabProps {
-  projectId?: string;
-  initialFilter?: string;
-}
-
+import { GitMerge, Download } from "lucide-react";
+import { AggregatedAttribute } from "../types/business-rules.types.ts";
+import { AggregationTabProps } from "../types/business-rules.types";
 interface Project {
   id: string;
   name: string;
   client?: string;
+  use_case?: string;
+  product_count?: number;
+  aggregation_status?:
+    | "idle"
+    | "pending"
+    | "failed"
+    | "completed"
+    | "processing";
 }
-
-interface Stats {
-  success: number;
-  failed: number;
-  pending: number;
-}
-
 const ITEMS_PER_PAGE = 10;
-
 export default function AggregationTab({
   projectId,
   initialFilter = "all",
 }: AggregationTabProps) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
-    new Set(),
-  );
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
+  const [useCases, setUseCases] = useState<string[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
+  const [selectedUseCase, setSelectedUseCase] = useState("");
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
+    null,
+  );
+  const [expandedProjectProducts, setExpandedProjectProducts] = useState<
+    Product[]
+  >([]);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [downloading, setDownloading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [aggregatingProjects, setAggregatingProjects] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
     new Set(),
   );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
-
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
-  const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [brandFilter, setBrandFilter] = useState("");
-
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const [stats, setStats] = useState<Stats>({
-    success: 0,
-    failed: 0,
-    pending: 0,
-  });
-
-  const loadProjects = useCallback(async () => {
-    setProjectsLoading(true);
-    try {
-      const data = await projectService.getAllProjects();
-      setProjects(data);
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-      notify.error("Failed to load projects");
-    } finally {
-      setProjectsLoading(false);
+  const filteredProjects = useMemo(() => {
+    if (!selectedUseCase) return projects;
+    return projects.filter((p) => p.use_case === selectedUseCase);
+  }, [projects, selectedUseCase]);
+  useEffect(() => {
+    if (selectedProjectId && projects.length > 0) {
+      const project = projects.find((p) => p.id === selectedProjectId);
+      if (project && project.use_case) {
+        setSelectedUseCase(project.use_case);
+      }
     }
-  }, []);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  useEffect(() => {
-    if (projectId) {
-      setSelectedProjectId(projectId);
+  }, [selectedProjectId, projects]);
+  const expandedStats = useMemo(
+    () => ({
+      success: expandedProjectProducts.filter(
+        (p) => p.enrichment_status === "completed",
+      ).length,
+      failed: expandedProjectProducts.filter(
+        (p) => p.enrichment_status === "failed",
+      ).length,
+      pending: expandedProjectProducts.filter(
+        (p) => p.enrichment_status === "pending",
+      ).length,
+    }),
+    [expandedProjectProducts],
+  );
+  const pollProjectStatuses = useCallback(async () => {
+    if (aggregatingProjects.size === 0) return;
+    const newAggregatingProjects = new Set(aggregatingProjects);
+    const completedProjects: string[] = [];
+    for (const projectId of aggregatingProjects) {
+      try {
+        const job =
+          await aggregationService.getProjectAggregationStatus(projectId);
+        console.log(`Polling status for project ${projectId}:`, job.status);
+        if (job.status === "completed" || job.status === "failed") {
+          newAggregatingProjects.delete(projectId);
+          completedProjects.push(projectId);
+          const projectName =
+            projects.find((p) => p.id === projectId)?.name || projectId;
+          if (job.status === "completed") {
+            notify.success(`Aggregation completed for "${projectName}"`);
+          } else {
+            notify.error(`Aggregation failed for "${projectName}"`);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to poll project ${projectId}:`, error);
+      }
     }
-  }, [projectId]);
-
-  useEffect(() => {
-    setStatusFilter(new Set());
-    setCurrentPage(1);
-  }, [initialFilter]);
-
-  const loadProducts = useCallback(async () => {
-    if (!selectedProjectId) return;
-
-    setLoading(true);
-    try {
-      const data = await productService.getProductsByProject(selectedProjectId);
-      setAllProducts(data);
-
-      const uniqueCategories = [
-        ...new Set(data.map((p) => p.category_1).filter(Boolean) as string[]),
-      ];
-      const uniqueBrands = [
-        ...new Set(data.map((p) => p.brand_name).filter(Boolean) as string[]),
-      ];
-      setCategories(uniqueCategories);
-      setBrands(uniqueBrands);
-
-      setStats({
-        success: data.filter((p) => p.enrichment_status === "completed").length,
-        failed: data.filter((p) => p.enrichment_status === "failed").length,
-        pending: data.filter((p) => p.enrichment_status === "pending").length,
-      });
-    } catch (error) {
-      console.error("Failed to load products:", error);
-      notify.error("Failed to load products");
-    } finally {
-      setLoading(false);
+    if (completedProjects.length > 0) {
+      setAggregatingProjects(newAggregatingProjects);
+      if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
+        try {
+          const fresh =
+            await productService.getProductsByProject(expandedProjectId);
+          setExpandedProjectProducts(fresh);
+        } catch (error) {
+          console.error("Failed to refresh expanded project:", error);
+        }
+      }
     }
-  }, [selectedProjectId]);
-
+  }, [aggregatingProjects, expandedProjectId, projects]);
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
-
-  useEffect(() => {
-    let filtered = [...allProducts];
+    if (aggregatingProjects.size > 0) {
+      const interval = setInterval(pollProjectStatuses, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [aggregatingProjects, pollProjectStatuses]);
+  const filteredExpandedProducts = useMemo(() => {
+    let filtered = [...expandedProjectProducts];
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
@@ -157,158 +170,340 @@ export default function AggregationTab({
     if (statusFilter.size > 0) {
       filtered = filtered.filter((p) => statusFilter.has(p.enrichment_status));
     }
-
     if (categoryFilter) {
       filtered = filtered.filter((p) => p.category_1 === categoryFilter);
     }
-
     if (brandFilter) {
       filtered = filtered.filter((p) => p.brand_name === brandFilter);
     }
-
-    setProducts(filtered);
+    return filtered;
+  }, [
+    expandedProjectProducts,
+    searchQuery,
+    statusFilter,
+    categoryFilter,
+    brandFilter,
+  ]);
+  const totalPages = Math.ceil(
+    filteredExpandedProducts.length / ITEMS_PER_PAGE,
+  );
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedProducts = filteredExpandedProducts.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
+  const loadProjects = useCallback(async () => {
+    setProjectsLoading(true);
+    try {
+      const data = await projectService.getAllProjects();
+      setProjects(data);
+      const uniqueUseCases = [
+        ...new Set(
+          data.map((p: Project) => p.use_case).filter(Boolean) as string[],
+        ),
+      ];
+      setUseCases(uniqueUseCases);
+    } catch (error) {
+      console.error("Failed to load projects:", error);
+      notify.error("Failed to load projects");
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+  const resetFilters = useCallback(() => {
+    setSearchQuery("");
+    setStatusFilter(new Set());
+    setCategoryFilter("");
+    setBrandFilter("");
     setCurrentPage(1);
-  }, [statusFilter, categoryFilter, brandFilter, allProducts]);
-
-  const handleAggregate = useCallback(
-    async (productId: string) => {
+  }, []);
+  const toggleExpandProject = useCallback(
+    async (projectId: string) => {
+      if (expandedProjectId === projectId) {
+        setExpandedProjectId(null);
+        setExpandedProjectProducts([]);
+        setCurrentPage(1);
+        resetFilters();
+        return;
+      }
+      setExpandedProjectId(projectId);
+      setExpandedLoading(true);
       try {
-        setProducts((prev) =>
-          prev.map((p) =>
-            p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-          ),
-        );
-        setAllProducts((prev) =>
-          prev.map((p) =>
-            p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-          ),
-        );
-
-        await aggregationService.aggregateProduct(productId);
-        setPollingProductIds((prev) => new Set(prev).add(productId));
-        notify.success("Aggregation started");
-        await loadProducts();
-      } catch (error: any) {
-        console.error("Aggregation failed:", error);
-        const errorMessage =
-          error.response?.data?.detail || error.message || "Aggregation failed";
-        notify.error("Aggregation Failed", errorMessage);
-        setPollingProductIds((prev) => {
-          const updated = new Set(prev);
-          updated.delete(productId);
-          return updated;
-        });
-
-        await loadProducts();
+        const data = await productService.getProductsByProject(projectId);
+        setExpandedProjectProducts(data);
+        setCurrentPage(1);
+        resetFilters();
+        const processingProductIds = data
+          .filter((p) => p.enrichment_status === "processing")
+          .map((p) => p.id);
+        if (processingProductIds.length > 0) {
+          setPollingProductIds((prev) => {
+            const newSet = new Set(prev);
+            processingProductIds.forEach((id) => newSet.add(id));
+            return newSet;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load products for project", projectId, error);
+        notify.error("Failed to load products");
+      } finally {
+        setExpandedLoading(false);
+        setSelectedProductIds(new Set());
       }
     },
-    [loadProducts],
+    [expandedProjectId, resetFilters],
   );
-
-  const handleAggregateAll = useCallback(async () => {
-    const pendingProducts = allProducts.filter(
-      (p) => p.enrichment_status === "pending",
-    );
-
-    if (pendingProducts.length === 0) {
-      notify.info("No pending products to aggregate");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const results = await Promise.allSettled(
-        pendingProducts.map((product) =>
-          aggregationService.aggregateProduct(product.id),
-        ),
-      );
-
-      const successfulIds = pendingProducts
-        .filter((_, index) => results[index].status === "fulfilled")
-        .map((p) => p.id);
-
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        successfulIds.forEach((id) => updated.add(id));
-        return updated;
-      });
-
-      setAllProducts((prev) =>
-        prev.map((p) =>
-          successfulIds.includes(p.id)
-            ? { ...p, enrichment_status: "processing" }
-            : p,
-        ),
-      );
-
-      notify.success(
-        "Batch Aggregation Started",
-        `Processing ${successfulIds.length} products`,
-      );
-    } catch (error) {
-      console.error("Batch aggregation failed:", error);
-      notify.error("Batch aggregation failed");
-    } finally {
-      setLoading(false);
-    }
-  }, [allProducts]);
   const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
     setStatusFilter((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(status)) {
-        newSet.delete(status);
-      } else {
-        newSet.add(status);
-      }
+      if (newSet.has(status)) newSet.delete(status);
+      else newSet.add(status);
       return newSet;
     });
     setCurrentPage(1);
   };
+  const canDownloadSelected = useMemo(() => {
+    const downloadableStatuses = new Set(["completed", "failed"]);
 
-  const handleAggregateSelected = useCallback(async () => {
-    if (selectedProducts.size === 0) {
-      notify.info("No products selected");
+    const productOk =
+      selectedProductIds.size > 0 &&
+      expandedProjectProducts.some(
+        (p) =>
+          selectedProductIds.has(p.id) &&
+          downloadableStatuses.has(p.enrichment_status),
+      );
+
+    const projectOk =
+      selectedProjectIds.size > 0 &&
+      projects.some(
+        (pr) =>
+          selectedProjectIds.has(pr.id) &&
+          downloadableStatuses.has(pr.aggregation_status ?? ""),
+      );
+
+    return productOk || projectOk;
+  }, [
+    selectedProductIds,
+    expandedProjectProducts,
+    selectedProjectIds,
+    projects,
+  ]);
+  const isExpandedProjectSelected = expandedProjectId
+    ? selectedProjectIds.has(expandedProjectId)
+    : false;
+
+  const handleAggregate = useCallback(async (productId: string) => {
+    try {
+      setExpandedProjectProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+        ),
+      );
+      await aggregationService.aggregateProduct(productId);
+      setPollingProductIds((prev) => new Set(prev).add(productId));
+      notify.success("Aggregation started");
+    } catch (error: any) {
+      console.error("Aggregation failed:", error);
+      const errorMessage =
+        error.response?.data?.detail || error.message || "Aggregation failed";
+      notify.error("Aggregation Failed", errorMessage);
+      setPollingProductIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(productId);
+        return updated;
+      });
+      setExpandedProjectProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+        ),
+      );
+    }
+  }, []);
+  const handleAggregateAllInExpanded = useCallback(async () => {
+    if (!expandedProjectId) return;
+    const pending = expandedProjectProducts.filter(
+      (p) => p.enrichment_status === "pending",
+    );
+    if (pending.length === 0) {
+      notify.info("No pending products in this project");
       return;
     }
-
     setLoading(true);
     try {
       await Promise.allSettled(
-        Array.from(selectedProducts).map((id) => handleAggregate(id)),
+        pending.map((p) => aggregationService.aggregateProduct(p.id)),
       );
-      notify.success(
-        "Aggregation Started",
-        `Processing ${selectedProducts.size} selected products`,
+      const newPollingIds = pending.map((p) => p.id);
+      setPollingProductIds((prev) => {
+        const updated = new Set(prev);
+        newPollingIds.forEach((id) => updated.add(id));
+        return updated;
+      });
+      setExpandedProjectProducts((prev) =>
+        prev.map((p) =>
+          pending.some((pp) => pp.id === p.id)
+            ? { ...p, enrichment_status: "processing" }
+            : p,
+        ),
       );
-      setSelectedProducts(new Set());
+      notify.success(`Aggregation started for ${pending.length} products`);
     } catch (error) {
-      console.error("Selected aggregation failed:", error);
-      notify.error("Aggregation failed for selected products");
+      console.error("Batch aggregation failed", error);
+      notify.error("Batch aggregation failed");
     } finally {
       setLoading(false);
     }
-  }, [selectedProducts, handleAggregate]);
-
-  const toggleSelectProduct = useCallback((productId: string) => {
-    setSelectedProducts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
+  }, [expandedProjectId, expandedProjectProducts]);
+  const handleAggregateSelectedProjects = useCallback(async () => {
+    if (selectedProjectIds.size === 0) return;
+    const projectIdsToAggregate = Array.from(selectedProjectIds);
+    setLoading(true);
+    let successCount = 0;
+    const batchSize = 3;
+    try {
+      for (let i = 0; i < projectIdsToAggregate.length; i += batchSize) {
+        const batch = projectIdsToAggregate.slice(i, i + batchSize);
+        const promises = batch.map((projectId) =>
+          aggregationService
+            .aggregateProject(projectId)
+            .then((result) => ({
+              status: "fulfilled" as const,
+              projectId,
+              result,
+            }))
+            .catch((error) => ({
+              status: "rejected" as const,
+              projectId,
+              error,
+            })),
+        );
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            successCount++;
+            setAggregatingProjects((prev) =>
+              new Set(prev).add(result.projectId),
+            );
+          } else {
+            notify.error(`Failed to start aggregation for project`);
+          }
+        }
+        if (i + batchSize < projectIdsToAggregate.length) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
       }
-      return newSet;
-    });
-  }, []);
-
-  const toggleSelectAll = useCallback(() => {
-    setSelectedProducts((prev) =>
-      prev.size === currentProducts.length
-        ? new Set()
-        : new Set(currentProducts.map((p) => p.id)),
-    );
-  }, [products]);
-
+      if (
+        expandedProjectId &&
+        projectIdsToAggregate.includes(expandedProjectId)
+      ) {
+        const freshData =
+          await productService.getProductsByProject(expandedProjectId);
+        setExpandedProjectProducts(freshData);
+        const processingIds = freshData
+          .filter((p) => p.enrichment_status === "processing")
+          .map((p) => p.id);
+        if (processingIds.length > 0) {
+          setPollingProductIds((prev) => {
+            const newSet = new Set(prev);
+            processingIds.forEach((id) => newSet.add(id));
+            return newSet;
+          });
+        }
+      }
+      if (successCount > 0) {
+        notify.success(`Aggregation started for ${successCount} project(s)`);
+      }
+    } catch (error) {
+      console.error("Failed to aggregate:", error);
+      notify.error("Aggregation failed");
+    } finally {
+      setLoading(false);
+      setSelectedProjectIds(new Set());
+    }
+  }, [selectedProjectIds, expandedProjectId]);
+  const pollProductStatuses = useCallback(async () => {
+    if (pollingProductIds.size === 0 || !expandedProjectId) return;
+    try {
+      const data = await productService.getProductsByProject(expandedProjectId);
+      const completedOrFailed: string[] = [];
+      pollingProductIds.forEach((productId) => {
+        const updatedProduct = data.find((p) => p.id === productId);
+        if (
+          updatedProduct &&
+          (updatedProduct.enrichment_status === "completed" ||
+            updatedProduct.enrichment_status === "failed")
+        ) {
+          completedOrFailed.push(productId);
+          if (updatedProduct.enrichment_status === "completed") {
+            notify.success("Aggregation Complete", updatedProduct.product_name);
+          } else {
+            notify.error("Aggregation Failed", updatedProduct.product_name);
+          }
+        }
+      });
+      setExpandedProjectProducts(data);
+      if (completedOrFailed.length > 0) {
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          completedOrFailed.forEach((id) => updated.delete(id));
+          return updated;
+        });
+      }
+      if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
+        await loadAttributes(selectedProduct);
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+    }
+  }, [pollingProductIds, expandedProjectId, selectedProduct]);
+  const handleDownloadSelected = useCallback(async () => {
+    const selectedProjects = Array.from(selectedProjectIds);
+    const selectedProducts = Array.from(selectedProductIds);
+    if (selectedProjects.length === 0 && selectedProducts.length === 0) {
+      notify.info("No projects or products selected");
+      return;
+    }
+    setDownloading(true);
+    try {
+      const blob = await aggregationService.exportSelectedItems(
+        selectedProjects,
+        selectedProducts,
+      );
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `selected_export.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      notify.success("Export started");
+    } catch (error) {
+      console.error("Export failed:", error);
+      notify.error("Export failed");
+    } finally {
+      setDownloading(false);
+    }
+  }, [selectedProjectIds, selectedProductIds]);
+  useEffect(() => {
+    if (pollingProductIds.size > 0 && expandedProjectId) {
+      pollingIntervalRef.current = setInterval(pollProductStatuses, 3000);
+    } else {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [pollingProductIds.size, expandedProjectId, pollProductStatuses]);
   const loadAttributes = useCallback(async (productId: string) => {
     try {
       setAttributesLoading(true);
@@ -321,74 +516,6 @@ export default function AggregationTab({
       setAttributesLoading(false);
     }
   }, []);
-  const pollProductStatuses = useCallback(async () => {
-    if (pollingProductIds.size === 0 || !selectedProjectId) {
-      return;
-    }
-
-    try {
-      const data = await productService.getProductsByProject(selectedProjectId);
-
-      const completedOrFailed: string[] = [];
-
-      pollingProductIds.forEach((productId) => {
-        const updatedProduct = data.find((p) => p.id === productId);
-
-        if (
-          updatedProduct &&
-          (updatedProduct.enrichment_status === "completed" ||
-            updatedProduct.enrichment_status === "failed")
-        ) {
-          completedOrFailed.push(productId);
-
-          if (updatedProduct.enrichment_status === "completed") {
-            notify.success("Aggregation Complete", updatedProduct.product_name);
-          } else {
-            notify.error("Aggregation Failed", updatedProduct.product_name);
-          }
-        }
-      });
-
-      setAllProducts(data);
-
-      setStats({
-        success: data.filter((p) => p.enrichment_status === "completed").length,
-        failed: data.filter((p) => p.enrichment_status === "failed").length,
-        pending: data.filter((p) => p.enrichment_status === "pending").length,
-      });
-
-      if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
-        await loadAttributes(selectedProduct);
-      }
-
-      if (completedOrFailed.length > 0) {
-        setPollingProductIds((prev) => {
-          const updated = new Set(prev);
-          completedOrFailed.forEach((id) => updated.delete(id));
-          return updated;
-        });
-      }
-    } catch (error) {
-      console.error("Polling error:", error);
-    }
-  }, [pollingProductIds, selectedProjectId, selectedProduct, loadAttributes]);
-  useEffect(() => {
-    if (pollingProductIds.size > 0 && selectedProjectId) {
-      pollingIntervalRef.current = setInterval(pollProductStatuses, 3000);
-    } else {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [pollingProductIds.size, selectedProjectId, pollProductStatuses]);
   useEffect(() => {
     if (selectedProduct) {
       loadAttributes(selectedProduct);
@@ -397,89 +524,35 @@ export default function AggregationTab({
       setIsDrawerOpen(false);
     }
   }, [selectedProduct, loadAttributes]);
-  const resetFilters = useCallback(() => {
-    setSearchQuery("");
-    setStatusFilter(new Set());
-    setCategoryFilter("");
-    setBrandFilter("");
-    setCurrentPage(1);
-  }, []);
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
   };
-  const safeParseValue = (value: any): any => {
-    if (typeof value !== "string") {
-      return value;
-    }
-    const str = value.trim();
-
-    if (
-      (str.startsWith("{") && str.endsWith("}")) ||
-      (str.startsWith("[") && str.endsWith("]"))
-    ) {
-      try {
-        return JSON.parse(str);
-      } catch {
-        try {
-          const pythonLikeStr = str
-            .replace(/'/g, '"')
-            .replace(/None/g, "null")
-            .replace(/True/g, "true")
-            .replace(/False/g, "false");
-          return JSON.parse(pythonLikeStr);
-        } catch (e) {
-          return str;
-        }
-      }
-    }
-    return str;
-  };
-
-  const formatValue = (value: any): JSX.Element | string => {
-    if (value === null || value === undefined || value === "") {
-      return <span className="text-slate-400">-</span>;
-    }
-
-    let parsedValue = safeParseValue(value);
-    while (typeof parsedValue === "string" && parsedValue !== value) {
-      value = parsedValue;
-      parsedValue = safeParseValue(value);
-    }
-
-    if (typeof parsedValue === "object" && parsedValue !== null) {
-      if (Array.isArray(parsedValue)) {
-        if (parsedValue.length === 0)
-          return <span className="text-slate-400">-</span>;
-        return parsedValue.join(", ");
+  const toggleSelectAllProjects = useCallback(() => {
+    setSelectedProjectIds((prev) =>
+      prev.size === filteredProjects.length
+        ? new Set()
+        : new Set(filteredProjects.map((p) => p.id)),
+    );
+  }, [filteredProjects]);
+  const toggleProjectSelection = useCallback(
+  (projectId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedProjectIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
       } else {
-        if ("standard_value" in parsedValue || "value" in parsedValue) {
-          const displayValue = parsedValue.standard_value ?? parsedValue.value;
-          const uom = parsedValue.uom ?? parsedValue.unit;
-          return (
-            <span>
-              {String(displayValue)}
-              {uom && <span className="ml-1 text-slate-500">{uom}</span>}
-            </span>
-          );
+        newSet.add(projectId);
+        if (expandedProjectId === projectId) {
+          setSelectedProductIds(new Set());
         }
-        return JSON.stringify(parsedValue);
       }
-    }
-
-    return String(parsedValue);
-  };
-
-  const selectedProductData = products.find((p) => p.id === selectedProduct);
-  const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentProducts = products.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE,
-  );
-
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
-
+      return newSet;
+    });
+  },
+  [expandedProjectId],
+);
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -514,7 +587,63 @@ export default function AggregationTab({
         );
     }
   };
-
+  const safeParseValue = (value: any): any => {
+    if (typeof value !== "string") return value;
+    const str = value.trim();
+    if (
+      (str.startsWith("{") && str.endsWith("}")) ||
+      (str.startsWith("[") && str.endsWith("]"))
+    ) {
+      try {
+        return JSON.parse(str);
+      } catch {
+        try {
+          const pythonLikeStr = str
+            .replace(/'/g, '"')
+            .replace(/None/g, "null")
+            .replace(/True/g, "true")
+            .replace(/False/g, "false");
+          return JSON.parse(pythonLikeStr);
+        } catch (e) {
+          return str;
+        }
+      }
+    }
+    return str;
+  };
+  const formatValue = (value: any): JSX.Element | string => {
+    if (value === null || value === undefined || value === "") {
+      return <span className="text-slate-400">-</span>;
+    }
+    let parsedValue = safeParseValue(value);
+    while (typeof parsedValue === "string" && parsedValue !== value) {
+      value = parsedValue;
+      parsedValue = safeParseValue(value);
+    }
+    if (typeof parsedValue === "object" && parsedValue !== null) {
+      if (Array.isArray(parsedValue)) {
+        if (parsedValue.length === 0)
+          return <span className="text-slate-400">-</span>;
+        return parsedValue.join(", ");
+      } else {
+        if ("standard_value" in parsedValue || "value" in parsedValue) {
+          const displayValue = parsedValue.standard_value ?? parsedValue.value;
+          const uom = parsedValue.uom ?? parsedValue.unit;
+          return (
+            <span>
+              {String(displayValue)}
+              {uom && <span className="ml-1 text-slate-500">{uom}</span>}
+            </span>
+          );
+        }
+        return JSON.stringify(parsedValue);
+      }
+    }
+    return String(parsedValue);
+  };
+  const selectedProductData = expandedProjectProducts.find(
+    (p) => p.id === selectedProduct,
+  );
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -523,45 +652,54 @@ export default function AggregationTab({
             Data Aggregation
           </h3>
           <p className="text-sm text-slate-600">
-            Select a project to manage aggregation
+            Select projects to manage aggregation
           </p>
         </div>
-
         <div className="flex items-center gap-2 flex-wrap flex-1">
           <select
-            value={selectedProjectId}
+            value={selectedUseCase}
             onChange={(e) => {
-              setSelectedProjectId(e.target.value);
-              setCurrentPage(1);
-              resetFilters();
+              setSelectedUseCase(e.target.value);
+              setExpandedProjectId(null);
+              setExpandedProjectProducts([]);
             }}
             disabled={projectsLoading}
             className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="">
-              {projectsLoading ? "Loading..." : "Select Project"}
-            </option>
-            {projects.map((project) => (
+            <option value="">All Use Cases</option>
+            {useCases.map((useCase) => (
+              <option key={useCase} value={useCase}>
+                {useCase}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+            }}
+            disabled={
+              projectsLoading ||
+              (selectedUseCase && filteredProjects.length === 0)
+            }
+            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <option value="">Select Project</option>
+            {filteredProjects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>
             ))}
           </select>
-            
           <select
             value={
               statusFilter.size === 1 ? Array.from(statusFilter)[0] : "all"
             }
-            disabled={!selectedProjectId}
+            disabled={!expandedProjectId}
             onChange={(e) => {
-              const selectedValue = e.target.value;
-
-              if (selectedValue === "all") {
-                setStatusFilter(new Set());
-              } else {
-                setStatusFilter(new Set([selectedValue]));
-              }
-
+              const val = e.target.value;
+              if (val === "all") setStatusFilter(new Set());
+              else setStatusFilter(new Set([val]));
               setCurrentPage(1);
             }}
             className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -571,41 +709,68 @@ export default function AggregationTab({
             <option value="completed">Success</option>
             <option value="failed">Failed</option>
           </select>
-
           <select
             value={categoryFilter}
             onChange={(e) => {
               setCategoryFilter(e.target.value);
               setCurrentPage(1);
             }}
-            disabled={!selectedProjectId || categories.length === 0}
+            disabled={
+              !expandedProjectId ||
+              [
+                ...new Set(
+                  expandedProjectProducts
+                    .map((p) => p.category_1)
+                    .filter(Boolean),
+                ),
+              ].length === 0
+            }
             className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
             <option value="">Categories</option>
-            {categories.map((cat) => (
+            {[
+              ...new Set(
+                expandedProjectProducts
+                  .map((p) => p.category_1)
+                  .filter(Boolean),
+              ),
+            ].map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
             ))}
           </select>
-
           <select
             value={brandFilter}
             onChange={(e) => {
               setBrandFilter(e.target.value);
               setCurrentPage(1);
             }}
-            disabled={!selectedProjectId || brands.length === 0}
+            disabled={
+              !expandedProjectId ||
+              [
+                ...new Set(
+                  expandedProjectProducts
+                    .map((p) => p.brand_name)
+                    .filter(Boolean),
+                ),
+              ].length === 0
+            }
             className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value=""> Brands</option>
-            {brands.map((brand) => (
+            <option value="">Brands</option>
+            {[
+              ...new Set(
+                expandedProjectProducts
+                  .map((p) => p.brand_name)
+                  .filter(Boolean),
+              ),
+            ].map((brand) => (
               <option key={brand} value={brand}>
                 {brand}
               </option>
             ))}
           </select>
-
           {(statusFilter.size > 0 ||
             categoryFilter ||
             brandFilter ||
@@ -619,396 +784,473 @@ export default function AggregationTab({
             </button>
           )}
         </div>
-
-        {selectedProjectId && (
-          <div className="bg-white border border-slate-200 rounded-[12px] p-2 min-w-[400px] shadow-xs">
-            <div className="flex items-center justify-between gap-1 mb-1.5">
-              <div className="flex flex-col gap-0.5">
-                <h4 className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">
-                  {selectedProject?.name || "Project 01"}
-                </h4>
-                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full w-fit">
-                  <Clock className="w-2.5 h-2.5" />
-                  <span className="text-xs font-medium">Active</span>
-                </div>
-              </div>
-
-              <div className="w-[60px] ml-auto">
-                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                    style={{
-                      width: `${(stats.success / (allProducts.length || 1)) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => toggleStatusFilter("completed")}
-                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
-                  statusFilter.has("completed")
-                    ? "bg-emerald-100 border-emerald-300"
-                    : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100   "
-                }`}
-              >
-                <span className="text-sm font-bold text-emerald-600">
-                  {stats.success}
-                </span>
-                <span className="text-[10px] font-medium text-emerald-700">
-                  Completed
-                </span>
-              </button>
-
-              <button
-                onClick={() => toggleStatusFilter("failed")}
-                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
-                  statusFilter.has("failed")
-                    ? "bg-rose-100 border-rose-300"
-                    : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
-                }`}
-              >
-                <span className="text-sm font-bold text-rose-600">
-                  {stats.failed}
-                </span>
-                <span className="text-[10px] font-medium text-rose-700">
-                  Failed
-                </span>
-              </button>
-
-              <button
-                onClick={() => toggleStatusFilter("pending")}
-                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
-                  statusFilter.has("pending")
-                    ? "bg-amber-100 border-amber-300"
-                    : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
-                }`}
-              >
-                <span className="text-sm font-bold text-amber-500">
-                  {stats.pending}
-                </span>
-                <span className="text-[10px] font-medium text-amber-600">
-                  Pending
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {!selectedProjectId && (
-        <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-          <p className="text-slate-500 font-medium">No project selected</p>
-          <p className="text-sm text-slate-400 mt-1">
-            Select a project from the dropdown above to manage aggregation
-          </p>
-        </div>
-      )}
-
-      {selectedProjectId && (
-        <div className="bg-white border border-slate-200 rounded-lg">
-          <div className="flex items-center justify-between p-4 border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-slate-900">
-                {products.length} Products
-              </span>
-
-              {Array.from(statusFilter).map((status) => (
-                <span
-                  key={status}
-                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-full border border-slate-200"
-                >
-                  <span>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </span>
-                  <button
-                    onClick={() =>
-                      toggleStatusFilter(
-                        status as "completed" | "failed" | "pending",
-                      )
-                    }
-                    className="p-0.5 rounded-full hover:bg-slate-300"
-                    title={`Remove ${status} filter`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-
-              {categoryFilter && (
-                <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-                  <span>{categoryFilter}</span>
-                  <button
-                    onClick={() => setCategoryFilter("")}
-                    className="p-0.5 rounded-full hover:bg-blue-200"
-                    title="Remove category filter"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {brandFilter && (
-                <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-purple-50 text-purple-700 rounded-full border border-purple-200">
-                  <span>{brandFilter}</span>
-                  <button
-                    onClick={() => setBrandFilter("")}
-                    className="p-0.5 rounded-full hover:bg-purple-200"
-                    title="Remove brand filter"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {categoryFilter && (
-                <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
-                  Category: {categoryFilter}
-                </span>
-              )}
-              {brandFilter && (
-                <span className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded">
-                  Brand: {brandFilter}
-                </span>
-              )}
-              {/* {selectedProducts.size > 0 && (
-                <button
-                  onClick={handleAggregateSelected}
-                  disabled={loading}
-                  className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs rounded-md hover:bg-purple-700 disabled:opacity-50"
-                >
-                  <Play className="w-3 h-3" />
-                  Run Selected ({selectedProducts.size})
-                </button>
-              )} */}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span>
-                  Page {currentPage}/{totalPages || 1}
-                </span>
-                <button
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-              {selectedProducts.size > 0 ? (
-                <button
-                  onClick={handleAggregateSelected}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  Aggregate Selected
-                </button>
+        <div className="flex items-center gap-3">
+          {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
+            <button
+              onClick={handleDownloadSelected}
+              disabled={downloading || !canDownloadSelected}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {downloading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                !(statusFilter.size===1 && statusFilter.has('completed')) && (
-
-                <button
-                  onClick={handleAggregateAll}
-                  disabled={loading || stats.pending === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  Aggregate All
-                </button>
-                )
-
+                <Download className="w-4 h-4" />
               )}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto max-h-[600px]">
-            <table className="w-full border-separate border-spacing-0">
-              <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                <tr>
-                  <th
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-4 py-3 text-left bg-slate-50 first:rounded-tl-lg"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        currentProducts.length > 0 &&
-                        selectedProducts.size === currentProducts.length
-                      }
-                      onChange={toggleSelectAll}
-                      className="rounded border-slate-300"
+              Download Selected
+            </button>
+          )}
+          {selectedProjectIds.size > 0 && (
+            <button
+              onClick={handleAggregateSelectedProjects}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              Aggregate {selectedProjectIds.size} Projects
+            </button>
+          )}
+          {expandedProjectId && (
+            <div className="bg-white border border-slate-200 rounded-[12px] p-2 min-w-[400px] shadow-xs">
+              <div className="flex items-center justify-between gap-1 mb-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <h4 className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">
+                    {projects.find((p) => p.id === expandedProjectId)?.name ||
+                      "Project"}
+                  </h4>
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full w-fit">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span className="text-xs font-medium">Active</span>
+                  </div>
+                </div>
+                <div className="w-[60px] ml-auto">
+                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${(expandedStats.success / (expandedProjectProducts.length || 1)) * 100}%`,
+                      }}
                     />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                    Product Info
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                    Import Source
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                    Completeness
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 last:rounded-tr-lg">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-                    </td>
-                  </tr>
-                ) : currentProducts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-8 text-center text-slate-500"
-                    >
-                      No products found
-                    </td>
-                  </tr>
-                ) : (
-                  currentProducts.map((product) => (
-                    <tr
-                      key={product.id}
-                      onClick={() => setSelectedProduct(product.id)}
-                      className={`hover:bg-slate-50 cursor-pointer ${
-                        selectedProducts.has(product.id) ? "bg-blue-50" : ""
-                      } ${selectedProduct === product.id ? "bg-blue-100" : ""}`}
-                    >
-                      <td
-                        className="px-4 py-3"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedProducts.has(product.id)}
-                          onChange={() => toggleSelectProduct(product.id)}
-                          className="rounded border-slate-300"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <div className="font-semibold text-slate-900 text-sm">
-                            {product.product_name ||
-                              product.product_code ||
-                              "N/A"}
-                          </div>
-                          <div className="text-xs text-slate-500 font-mono">
-                            {product.product_code || product.sku || "No SKU"}
-                          </div>
-                          {product.brand_name && (
-                            <div className="text-xs text-slate-400">
-                              {product.brand_name}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                          <span
-                            className="text-xs truncate max-w-[150px]"
-                            title={product.source_url || "Unknown source"}
-                          >
-                            {product.source_url
-                              ? product.source_url.replace(/^Manual_\d+_/, "")
-                              : "Manual Entry"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden max-w-[120px]">
-                            <div
-                              className={`h-full rounded-full ${
-                                (product.completeness_score || 0) > 80
-                                  ? "bg-green-500"
-                                  : (product.completeness_score || 0) > 50
-                                    ? "bg-amber-500"
-                                    : "bg-red-400"
-                              }`}
-                              style={{
-                                width: `${product.completeness_score || 10}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-600">
-                            {product.completeness_score || 10}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {getStatusBadge(product.enrichment_status || "pending")}
-                      </td>
-                      <td
-                        className="px-4 py-3"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {product.enrichment_status !== "processing" && (
-                          <button
-                            onClick={() => handleAggregate(product.id)}
-                            disabled={
-                              loading ||
-                              product.enrichment_status === "processing"
-                            }
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
-                          >
-                            {product.enrichment_status === "completed"
-                              ? "Re-run"
-                              : "Run"}
-                          </button>
-                        )}
-                        {product.enrichment_status === "processing" && (
-                          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {products.length > 0 && (
-            <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-              <span>
-                Showing {startIndex + 1} -{" "}
-                {Math.min(startIndex + ITEMS_PER_PAGE, products.length)} of{" "}
-                {products.length} products
-              </span>
-              <span>
-                {selectedProducts.size > 0 &&
-                  `${selectedProducts.size} selected`}
-              </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => toggleStatusFilter("completed")}
+                  className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                    statusFilter.has("completed")
+                      ? "bg-emerald-100 border-emerald-300"
+                      : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100"
+                  }`}
+                >
+                  <span className="text-sm font-bold text-emerald-600">
+                    {expandedStats.success}
+                  </span>
+                  <span className="text-[10px] font-medium text-emerald-700">
+                    Completed
+                  </span>
+                </button>
+                <button
+                  onClick={() => toggleStatusFilter("failed")}
+                  className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                    statusFilter.has("failed")
+                      ? "bg-rose-100 border-rose-300"
+                      : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
+                  }`}
+                >
+                  <span className="text-sm font-bold text-rose-600">
+                    {expandedStats.failed}
+                  </span>
+                  <span className="text-[10px] font-medium text-rose-700">
+                    Failed
+                  </span>
+                </button>
+                <button
+                  onClick={() => toggleStatusFilter("pending")}
+                  className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                    statusFilter.has("pending")
+                      ? "bg-amber-100 border-amber-300"
+                      : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
+                  }`}
+                >
+                  <span className="text-sm font-bold text-amber-500">
+                    {expandedStats.pending}
+                  </span>
+                  <span className="text-[10px] font-medium text-amber-600">
+                    Pending
+                  </span>
+                </button>
+              </div>
             </div>
           )}
         </div>
-      )}
+      </div>
+      <div className="bg-white border border-slate-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={
+                filteredProjects.length > 0 &&
+                selectedProjectIds.size === filteredProjects.length
+              }
+              onChange={toggleSelectAllProjects}
+              className="rounded border-slate-300"
+            />
+            <span className="text-sm font-semibold text-slate-900">
+              {filteredProjects.length} Projects
+            </span>
+            {selectedProjectIds.size > 0 && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                {selectedProjectIds.size} selected
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="divide-y divide-slate-200">
+          {filteredProjects.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              No projects found
+            </div>
+          ) : (
+            filteredProjects.map((project) => (
+              <div key={project.id}>
+                {/* Project Row */}
+                <div
+                  className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
+                    expandedProjectId === project.id ? "bg-blue-50" : ""
+                  } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
+                    aggregatingProjects.has(project.id) ? "bg-blue-50/30" : ""
+                  }`}
+                  onClick={() => toggleExpandProject(project.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedProjectIds.has(project.id)}
+                    onChange={(e) =>
+                      toggleProjectSelection(project.id, e as any)
+                    }
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded border-slate-300"
+                    disabled={aggregatingProjects.has(project.id)}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-slate-900">
+                        {project.name}
+                      </h4>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
+                        {project.product_count ?? 0} products
+                      </span>
+                      {project.use_case && (
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                          {project.use_case}
+                        </span>
+                      )}
+                      {/* Show processing status on project row */}
+                      {aggregatingProjects.has(project.id) && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Aggregating...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {aggregatingProjects.has(project.id) ? (
+                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                    ) : expandedProjectId === project.id ? (
+                      <ChevronUp className="w-5 h-5 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                    )}
+                  </div>
+                </div>
+                {/* Expanded Products Section */}
+                {expandedProjectId === project.id && (
+                  <div className="border-t border-slate-200">
+                    <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
+                      {!(
+                        statusFilter.size === 1 && statusFilter.has("completed")
+                      ) && (
+                        <button
+                          onClick={handleAggregateAllInExpanded}
+                          disabled={
+                            loading ||
+                            expandedStats.pending === 0 ||
+                            aggregatingProjects.has(project.id)
+                          }
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                        >
+                          {loading || aggregatingProjects.has(project.id) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                          {aggregatingProjects.has(project.id)
+                            ? "Aggregating..."
+                            : "Aggregate All"}
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-x-auto max-h-[600px]">
+                      <table className="w-full border-separate border-spacing-0">
+                        <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 first:rounded-tl-lg">
+                              {!isExpandedProjectSelected && (
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    paginatedProducts.length > 0 &&
+                                    paginatedProducts.every((p) =>
+                                      selectedProductIds.has(p.id),
+                                    )
+                                  }
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedProductIds(
+                                        (prev) =>
+                                          new Set([
+                                            ...prev,
+                                            ...paginatedProducts.map(
+                                              (p) => p.id,
+                                            ),
+                                          ]),
+                                      );
+                                    } else {
+                                      setSelectedProductIds((prev) => {
+                                        const newSet = new Set(prev);
+                                        paginatedProducts.forEach((p) =>
+                                          newSet.delete(p.id),
+                                        );
+                                        return newSet;
+                                      });
+                                    }
+                                  }}
+                                  className="rounded border-slate-300"
+                                />
+                              )}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                              Product Info
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                              Import Source
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                              Completeness
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 last:rounded-tr-lg">
+                              Action
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {expandedLoading ? (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-8 text-center">
+                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+                              </td>
+                            </tr>
+                          ) : paginatedProducts.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={6}
+                                className="px-4 py-8 text-center text-slate-500"
+                              >
+                                No products found
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedProducts.map((product) => (
+                              <tr
+                                key={product.id}
+                                onClick={() => setSelectedProduct(product.id)}
+                                className={`hover:bg-slate-50 cursor-pointer ${
+                                  selectedProduct === product.id
+                                    ? "bg-blue-100"
+                                    : ""
+                                }`}
+                              >
+                                <td className="px-4 py-3"></td>
+                                <td
+                                  className="px-4 py-3"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {!isExpandedProjectSelected && (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedProductIds.has(
+                                        product.id,
+                                      )}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedProductIds((prev) =>
+                                            new Set(prev).add(product.id),
+                                          );
+                                        } else {
+                                          setSelectedProductIds((prev) => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(product.id);
+                                            return newSet;
+                                          });
+                                        }
+                                      }}
+                                      className="rounded border-slate-300"
+                                    />
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div>
+                                    <div className="font-semibold text-slate-900 text-sm">
+                                      {product.product_name ||
+                                        product.product_code ||
+                                        "N/A"}
+                                    </div>
+                                    <div className="text-xs text-slate-500 font-mono">
+                                      {product.product_code ||
+                                        product.sku ||
+                                        "No SKU"}
+                                    </div>
+                                    {product.brand_name && (
+                                      <div className="text-xs text-slate-400">
+                                        {product.brand_name}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                                    <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                    <span
+                                      className="text-xs truncate max-w-[150px]"
+                                      title={
+                                        product.source_url || "Unknown source"
+                                      }
+                                    >
+                                      {product.source_url
+                                        ? product.source_url.replace(
+                                            /^Manual_\d+_/,
+                                            "",
+                                          )
+                                        : "Manual Entry"}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden max-w-[120px]">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          (product.completeness_score || 0) > 80
+                                            ? "bg-green-500"
+                                            : (product.completeness_score ||
+                                                  0) > 50
+                                              ? "bg-amber-500"
+                                              : "bg-red-400"
+                                        }`}
+                                        style={{
+                                          width: `${product.completeness_score || 10}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-slate-600">
+                                      {product.completeness_score || 10}%
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  {getStatusBadge(
+                                    product.enrichment_status || "pending",
+                                  )}
+                                </td>
+                                <td
+                                  className="px-4 py-3"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {product.enrichment_status !==
+                                    "processing" && (
+                                    <button
+                                      onClick={() =>
+                                        handleAggregate(product.id)
+                                      }
+                                      disabled={
+                                        loading ||
+                                        product.enrichment_status ===
+                                          "processing" ||
+                                        aggregatingProjects.has(project.id)
+                                      }
+                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
+                                    >
+                                      {product.enrichment_status === "completed"
+                                        ? "Re-run"
+                                        : "Run"}
+                                    </button>
+                                  )}
+                                  {product.enrichment_status ===
+                                    "processing" && (
+                                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {filteredExpandedProducts.length > 0 && (
+                      <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+                        <span>
+                          Showing {startIndex + 1} -{" "}
+                          {Math.min(
+                            startIndex + ITEMS_PER_PAGE,
+                            filteredExpandedProducts.length,
+                          )}{" "}
+                          of {filteredExpandedProducts.length} products
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() =>
+                              setCurrentPage(Math.max(1, currentPage - 1))
+                            }
+                            disabled={currentPage === 1}
+                            className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <span>
+                            Page {currentPage} / {totalPages || 1}
+                          </span>
+                          <button
+                            onClick={() =>
+                              setCurrentPage(
+                                Math.min(totalPages, currentPage + 1),
+                              )
+                            }
+                            disabled={
+                              currentPage === totalPages || totalPages === 0
+                            }
+                            className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
@@ -1035,7 +1277,6 @@ export default function AggregationTab({
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
                 <div className="flex-1">
@@ -1065,14 +1306,13 @@ export default function AggregationTab({
                   )}
                 </div>
               </div>
-
               {attributesLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-500">
                   <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
                   <p>Loading attributes...</p>
                 </div>
               ) : selectedProductData.enrichment_status === "processing" ? (
-                <div className="flex  items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   <div>
                     <p className="text-sm font-semibold text-blue-900">
@@ -1108,7 +1348,6 @@ export default function AggregationTab({
                       />
                     </div>
                   )}
-
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                       <Box className="w-4 h-4" /> Specifications
@@ -1137,7 +1376,6 @@ export default function AggregationTab({
                       ))}
                     </div>
                   </div>
-
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                       <List className="w-4 h-4" /> Technical Data Source
@@ -1195,7 +1433,6 @@ export default function AggregationTab({
                 </>
               )}
             </div>
-
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
               <span className="text-xs text-slate-500">
                 Last updated: {new Date().toLocaleDateString()}

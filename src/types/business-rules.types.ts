@@ -122,3 +122,20 @@ export interface RuleExecuteRequest{
     context:RuleExecutionContext
 }
 
+export interface AggregatedAttributeValue{
+  value:string
+  confidence:number
+  source_id:string
+
+}
+export interface AggregatedAttribute{
+  id:string
+  product_id:string
+  attribute_name:string
+  has_conflict:boolean
+  values:AggregatedAttributeValue[]
+}
+export interface AggregationTabProps {
+  projectId?: string;
+  initialFilter?: string;
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, Sparkles, Play } from "lucide-react";
 import { cleansingService } from "../services/cleansingService";
-import { projectService } from "../services/projectService"; // assume exists
+import { projectService } from "../services/projectService"; 
 import type { CleansingIssue, Project } from "../types/database.types";
 
 export default function CleansingTab() {
@@ -23,7 +23,6 @@ export default function CleansingTab() {
     loadProjects();
   }, []);
 
-  // Optional: poll task status if taskId exists
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (taskId && (taskStatus === "pending" || taskStatus === "running")) {
@@ -34,7 +33,7 @@ export default function CleansingTab() {
         } catch (error) {
           console.error("Failed to fetch logs:", error);
         }
-      }, 2000); // every 2 seconds
+      }, 2000);
     }
     return () => clearInterval(interval);
   }, [taskId, taskStatus]);

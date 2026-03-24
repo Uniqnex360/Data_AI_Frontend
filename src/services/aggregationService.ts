@@ -5,7 +5,6 @@ import {
   ProductsResponse,
   AggregationResponse,
   ProductAggregationResponse,
-  AggregationStatus,
   AggregationJob,
 } from "../types/database.types";
 
@@ -93,6 +92,20 @@ export const aggregationService = {
       throw new Error("Project aggregation failed");
     }
   },
+  async exportSelectedItems(projectIds: string[], productIds: string[]): Promise<Blob> {
+  try {
+    const response = await api.post('/aggregation/export/batch', {
+      project_ids: projectIds,
+      product_ids: productIds
+    }, {
+      responseType: 'blob'
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Failed to export selected items:", error);
+    throw new Error("Export failed");
+  }
+},
   async aggregateProduct(
     productId: string,
   ): Promise<ProductAggregationResponse> {
