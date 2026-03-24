@@ -139,3 +139,16 @@ export interface AggregationTabProps {
   projectId?: string;
   initialFilter?: string;
 }
+export interface Project {
+  id: string;
+  name: string;
+  client?: string;
+  use_case?: string;
+  product_count?: number;
+  aggregation_status?:
+    | "idle"
+    | "pending"
+    | "failed"
+    | "completed"
+    | "processing";
+}

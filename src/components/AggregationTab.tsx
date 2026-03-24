@@ -28,21 +28,9 @@ import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
 import { GitMerge, Download } from "lucide-react";
-import { AggregatedAttribute } from "../types/business-rules.types.ts";
+import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
 import { AggregationTabProps } from "../types/business-rules.types";
-interface Project {
-  id: string;
-  name: string;
-  client?: string;
-  use_case?: string;
-  product_count?: number;
-  aggregation_status?:
-    | "idle"
-    | "pending"
-    | "failed"
-    | "completed"
-    | "processing";
-}
+
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
   projectId,
@@ -85,10 +73,19 @@ export default function AggregationTab({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
+  
   const filteredProjects = useMemo(() => {
-    if (!selectedUseCase) return projects;
-    return projects.filter((p) => p.use_case === selectedUseCase);
-  }, [projects, selectedUseCase]);
+    let filtered=projects
+    if(selectedUseCase)
+    {
+      filtered=filtered.filter((p)=>p.use_case===selectedUseCase)
+    }
+    if(selectedProjectId)
+    {
+      filtered=filtered.filter((p)=>p.id===selectedProjectId)
+    }
+    return filtered
+  }, [projects, selectedUseCase,selectedProjectId]);
   useEffect(() => {
     if (selectedProjectId && projects.length > 0) {
       const project = projects.find((p) => p.id === selectedProjectId);
@@ -536,23 +533,23 @@ export default function AggregationTab({
     );
   }, [filteredProjects]);
   const toggleProjectSelection = useCallback(
-  (projectId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setSelectedProjectIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectId)) {
-        newSet.delete(projectId);
-      } else {
-        newSet.add(projectId);
-        if (expandedProjectId === projectId) {
-          setSelectedProductIds(new Set());
+    (projectId: string, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      setSelectedProjectIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(projectId)) {
+          newSet.delete(projectId);
+        } else {
+          newSet.add(projectId);
+          if (expandedProjectId === projectId) {
+            setSelectedProductIds(new Set());
+          }
         }
-      }
-      return newSet;
-    });
-  },
-  [expandedProjectId],
-);
+        return newSet;
+      });
+    },
+    [expandedProjectId],
+  );
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -1323,6 +1320,7 @@ export default function AggregationTab({
                     </p>
                   </div>
                 </div>
+                
               ) : attributes.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
                   <GitMerge className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -1465,3 +1463,4 @@ export default function AggregationTab({
     </div>
   );
 }
+
