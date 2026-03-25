@@ -268,7 +268,7 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
                         console.log("aggregation_status", aggStatus);
                         const isEnriched = aggStatus === "completed";
                         const isAggregating = aggStatus === "processing";
-                        const isFailed = aggStatus === 'failed';
+                        const isFailed = aggStatus === "failed";
                         return (
                           <div
                             key={source.id}
@@ -279,36 +279,48 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
                               <span>{source.source_url}</span>
                             </div>
                             <div className="flex items-center gap-3">
-  <button
-    onClick={() => extractionService.download(source.id, "input")}
-    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
-  >
-    <Download className="w-3.5 h-3.5" /> Input
-  </button>
+                              <button
+                                onClick={() =>
+                                  extractionService.download(source.id, "input")
+                                }
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
+                              >
+                                <Download className="w-3.5 h-3.5" /> Input
+                              </button>
 
-  {isEnriched ? (
-    <button
-      onClick={() => extractionService.download(source.id, "output")}
-      className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
-    >
-      <Download className="w-3.5 h-3.5" /> Output
-    </button>
-  ) : isAggregating ? (
-    <div className="flex items-center gap-2 px-3 py-1zz.5 text-xs font-medium text-purple-600 italic">
-      <Clock className="w-3.5 h-3.5 animate-spin" /> Aggregating...
-    </div>
-  ) : isFailed ? (
-    <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg border border-red-100 cursor-help" title="Some products failed to process. Check Aggregation tab for details.">
-      <XCircle className="w-3.5 h-3.5" /> Failed
-    </div>
-  ) : (
-    <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
-      <AlertCircle className="w-3.5 h-3.5" /> Needs Aggregation
-    </div>
-  )}
+                              {isEnriched ? (
+                                <button
+                                  onClick={() =>
+                                    extractionService.download(
+                                      source.id,
+                                      "output",
+                                    )
+                                  }
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Output
+                                </button>
+                              ) : isAggregating ? (
+                                <div className="flex items-center gap-2 px-3 py-1zz.5 text-xs font-medium text-purple-600 italic">
+                                  <Clock className="w-3.5 h-3.5 animate-spin" />{" "}
+                                  Aggregating...
+                                </div>
+                              ) : isFailed ? (
+                                <div
+                                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg border border-red-100 cursor-help"
+                                  title="Some products failed to process. Check Aggregation tab for details."
+                                >
+                                  <XCircle className="w-3.5 h-3.5" /> Failed
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
+                                  <AlertCircle className="w-3.5 h-3.5" /> Needs
+                                  Aggregation
+                                </div>
+                              )}
 
-  {getStatusIcon(source.status)}
-</div>
+                              {getStatusIcon(source.status)}
+                            </div>
                           </div>
                         );
                       })

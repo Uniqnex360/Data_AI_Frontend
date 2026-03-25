@@ -199,7 +199,7 @@ export class EnrichmentService{
       return data
     } catch (error) {
       console.error("Enrichment Service Error",error)
-      throw new Error("AI encrichment failed to process")
+      throw new Error("AI enrichment failed to process")
     }
   }
   async getEnrichment(productId:string):Promise<Enrichment|null>{

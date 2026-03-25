@@ -30,6 +30,7 @@ import UserManagementTab from "./components/UserManagementTab";
 import { seedBusinessRules } from "./utils/seedData";
 import { Toaster } from "sonner";
 import logo from "./logo/logo.png";
+import DataCleaningTab from "./components/DataCleaningTab.tsx";
 type TabId =
   | "dashboard"
   | "projects"
@@ -42,6 +43,7 @@ type TabId =
   | "enrichment"
   | "validation"
   | "golden"
+  | "datacleaning"
   | "publishing"
   | "audit"
   | "users";
@@ -73,30 +75,36 @@ const tabs: Tab[] = [
     icon: Shield,
     component: BusinessRulesTab,
   },
-  {
-    id: "validation",
-    label: "Validation",
-    icon: Eye,
-    component: ValidationTab,
-  },
-  {
-    id: "priority",
-    label: "Source Priority",
-    icon: TrendingUp,
-    component: SourcePriorityTab,
-  },
+  // {
+  //   id: "validation",
+  //   label: "Validation",
+  //   icon: Eye,
+  //   component: ValidationTab,
+  // },
+  // {
+  //   id: "priority",
+  //   label: "Source Priority",
+  //   icon: TrendingUp,
+  //   component: SourcePriorityTab,
+  // },
   {
     id: "aggregation",
     label: "Aggregation",
     icon: GitMerge,
     component: AggregationTab,
   },
-  {
-    id: "cleansing",
-    label: "Cleansing",
+   {
+    id: "datacleaning",
+    label: "Data Cleaning",
     icon: Sparkles,
-    component: CleansingTab,
+    component: DataCleaningTab,
   },
+  // {
+  //   id: "cleansing",
+  //   label: "Cleansing",
+  //   icon: Sparkles,
+  //   component: CleansingTab,
+  // },
   {
     id: "standardization",
     label: "Standardization",
@@ -115,19 +123,19 @@ const tabs: Tab[] = [
     icon: Database,
     component: GoldenRecordsTab,
   },
-  {
-    id: "publishing",
-    label: "Publishing",
-    icon: Send,
-    component: PublishingTab,
-  },
-  {
-    id: "audit",
-    label: "Audit Trail",
-    icon: FileSearch,
-    component: AuditTrailTab,
-  },
-  { id: "users", label: "Users", icon: Users, component: UserManagementTab },
+  // {
+  //   id: "publishing",
+  //   label: "Publishing",
+  //   icon: Send,
+  //   component: PublishingTab,
+  // },
+  // {
+  //   id: "audit",
+  //   label: "Audit Trail",
+  //   icon: FileSearch,
+  //   component: AuditTrailTab,
+  // },
+  // { id: "users", label: "Users", icon: Users, component: UserManagementTab },
 ];
 
 function App() {

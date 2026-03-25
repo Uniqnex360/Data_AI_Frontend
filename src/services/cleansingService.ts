@@ -10,15 +10,15 @@ export const cleansingService = {
       return [];
     }
   },
-  async runProjectCleaning(projectId: string): Promise<{ task_id: string }> {
-  try {
-    const response = await api.post(`/cleansing/projects/${projectId}/clean`);
-    return response.data;
-  } catch (error) {
-    console.error('Failed to run project cleaning', error);
-    throw new Error('Could not start cleaning process.');
-  }
-},
+//   async runProjectCleaning(projectId: string,llm_provider:string): Promise<{ task_id: string }> {
+//   try {
+//     const response = await api.post(`/cleansing/projects/${projectId}/clean`,{llm_provider:llm_provider});
+//     return response.data;
+//   } catch (error) {
+//     console.error('Failed to run project cleaning', error);
+//     throw new Error('Could not start cleaning process.');
+//   }
+// },
 
 async getTaskStatus(taskId: string): Promise<{ status: "pending" | "running" | "completed" | "failed" }> {
   const response = await api.get(`/cleansing/tasks/${taskId}`);
@@ -33,6 +33,42 @@ async downloadCleanedProject(projectId: string): Promise<Blob> {
     responseType: 'blob',
   });
   return response.data;
+},
+// async cleanSingleProduct(productId: string, llmProvider: string): Promise<{ task_id: string }> {
+//   try {
+//     const response = await api.post(`/cleansing/products/${productId}/clean`, {
+//       llm_provider: llmProvider
+//     });
+//     return response.data;
+//   } catch (error) {
+//     console.error('Failed to clean product', error);
+//     throw new Error('Could not start cleaning process.');
+//   }
+// },
+async runCleaning(projectId: string, llmProvider: string, productIds?: string[]) {
+  try {
+    const response = await api.post("/cleansing/run", {
+    project_id: projectId,
+    llm_provider: llmProvider,
+    product_ids: productIds || []
+  });
+  return response.data;
+  } catch (error) {
+     console.error("Failed to clean", error);
+    throw new Error("Failed to clean attributes");
+  }
+  
+},
+async updateProductAttributes(productId: string, attributes: Record<string, string>): Promise<any> {
+  try {
+    const { data } = await api.put(`/cleansing/products/${productId}/attributes`, {
+      attributes: attributes
+    });
+    return data;
+  } catch (error) {
+    console.error("Failed to update product attributes:", error);
+    throw new Error("Failed to update attributes");
+  }
 },
   async resolveIssue(issueId: string): Promise<void> {
     try {

@@ -144,6 +144,7 @@ export interface Project {
   name: string;
   client?: string;
   use_case?: string;
+  operation_mode?:string;
   product_count?: number;
   aggregation_status?:
     | "idle"
@@ -152,3 +153,35 @@ export interface Project {
     | "completed"
     | "processing";
 }
+export  interface Product {
+  id: string;
+  product_name: string;
+  product_code: string;
+  brand_name: string;
+  category_1: string;
+  description?: string;
+  enrichment_status: string;
+  dynamic_attributes: Array<{
+    name: string;
+    value: string;
+    unit?: string;
+  }>;
+  validation_conflicts?: Record<string, string>;
+}
+
+export interface ManualProductData {
+  brand: string;
+  title: string;
+  manufacturer: string;
+  sku: string;
+  mpn: string;
+  model: string;
+  upc_ean_gtin: string;
+  variant_sku: string;
+  variant_mpn: string;
+  variant_model: string;
+  taxonomy: string;
+  price: string;
+  stock: string;
+}
+export type OperationMode='aggregation'|'cleaning'|'enrichment'

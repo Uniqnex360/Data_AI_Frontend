@@ -81,10 +81,10 @@ export const aggregationService = {
       return [];
     }
   },
-  async aggregateProject(projectId: string): Promise<AggregationResponse> {
+  async aggregateProject(projectId: string,llmProvider:string): Promise<AggregationResponse> {
     try {
       const { data } = await api.post<AggregationResponse>(
-        `/aggregation/project/${projectId}`,
+        `/aggregation/project/${projectId}`,{llm_provider:llmProvider}
       );
       return data;
     } catch (error) {
@@ -106,13 +106,9 @@ export const aggregationService = {
     throw new Error("Export failed");
   }
 },
-  async aggregateProduct(
-    productId: string,
-  ): Promise<ProductAggregationResponse> {
+  async aggregateProduct(productId: string,llmProvider:string): Promise<ProductAggregationResponse> {
     try {
-      const { data } = await api.post<ProductAggregationResponse>(
-        `/aggregation/run/${productId}`,
-      );
+      const { data } = await api.post<ProductAggregationResponse>(`/aggregation/run/${productId}`,{ llm_provider: llmProvider }  );
       return data;
     } catch (error) {
       console.error("Failed to aggregate product:", error);
@@ -148,6 +144,7 @@ export const aggregationService = {
     );
     return data;
   },
+  
   async cleanupOldJobs(days: number = 7): Promise<{ deleted_count: number }> {
     const { data } = await api.delete<{ deleted_count: number }>(
       "/aggregation/jobs/cleanup",

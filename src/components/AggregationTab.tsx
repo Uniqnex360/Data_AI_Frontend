@@ -52,6 +52,11 @@ export default function AggregationTab({
     new Set(),
   );
   const [downloading, setDownloading] = useState(false);
+  const [selectedLLM, setSelectedLLM] = useState<string>("openai");
+  const [llmOptions] = useState([
+    { value: "openai", label: "OpenAI" },
+    { value: "gemini", label: "Google Gemini" },
+  ]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -73,19 +78,17 @@ export default function AggregationTab({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
-  
+
   const filteredProjects = useMemo(() => {
-    let filtered=projects
-    if(selectedUseCase)
-    {
-      filtered=filtered.filter((p)=>p.use_case===selectedUseCase)
+    let filtered = projects;
+    if (selectedUseCase) {
+      filtered = filtered.filter((p) => p.use_case === selectedUseCase);
     }
-    if(selectedProjectId)
-    {
-      filtered=filtered.filter((p)=>p.id===selectedProjectId)
+    if (selectedProjectId) {
+      filtered = filtered.filter((p) => p.id === selectedProjectId);
     }
-    return filtered
-  }, [projects, selectedUseCase,selectedProjectId]);
+    return filtered;
+  }, [projects, selectedUseCase, selectedProjectId]);
   useEffect(() => {
     if (selectedProjectId && projects.length > 0) {
       const project = projects.find((p) => p.id === selectedProjectId);
@@ -190,23 +193,25 @@ export default function AggregationTab({
     startIndex + ITEMS_PER_PAGE,
   );
   const loadProjects = useCallback(async () => {
-    setProjectsLoading(true);
-    try {
-      const data = await projectService.getAllProjects();
-      setProjects(data);
-      const uniqueUseCases = [
-        ...new Set(
-          data.map((p: Project) => p.use_case).filter(Boolean) as string[],
-        ),
-      ];
-      setUseCases(uniqueUseCases);
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-      notify.error("Failed to load projects");
-    } finally {
-      setProjectsLoading(false);
-    }
-  }, []);
+  setProjectsLoading(true);
+  try {
+    const data = await projectService.getAllProjects();
+    setProjects(data);
+    
+    const aggregationData = data.filter((p: Project) => p.operation_mode === 'aggregation');
+    const uniqueUseCases = [
+      ...new Set(
+        aggregationData.map((p: Project) => p.use_case).filter(Boolean) as string[],
+      ),
+    ];
+    setUseCases(uniqueUseCases);
+  } catch (error) {
+    console.error("Failed to load projects:", error);
+    notify.error("Failed to load projects");
+  } finally {
+    setProjectsLoading(false);
+  }
+}, []);
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -215,6 +220,8 @@ export default function AggregationTab({
     setStatusFilter(new Set());
     setCategoryFilter("");
     setBrandFilter("");
+    setSelectedUseCase("");
+    setSelectedProjectId("");
     setCurrentPage(1);
   }, []);
   const toggleExpandProject = useCallback(
@@ -292,33 +299,36 @@ export default function AggregationTab({
     ? selectedProjectIds.has(expandedProjectId)
     : false;
 
-  const handleAggregate = useCallback(async (productId: string) => {
-    try {
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-        ),
-      );
-      await aggregationService.aggregateProduct(productId);
-      setPollingProductIds((prev) => new Set(prev).add(productId));
-      notify.success("Aggregation started");
-    } catch (error: any) {
-      console.error("Aggregation failed:", error);
-      const errorMessage =
-        error.response?.data?.detail || error.message || "Aggregation failed";
-      notify.error("Aggregation Failed", errorMessage);
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        updated.delete(productId);
-        return updated;
-      });
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-        ),
-      );
-    }
-  }, []);
+  const handleAggregate = useCallback(
+    async (productId: string) => {
+      try {
+        setExpandedProjectProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+          ),
+        );
+        await aggregationService.aggregateProduct(productId, selectedLLM);
+        setPollingProductIds((prev) => new Set(prev).add(productId));
+        notify.success("Aggregation started");
+      } catch (error: any) {
+        console.error("Aggregation failed:", error);
+        const errorMessage =
+          error.response?.data?.detail || error.message || "Aggregation failed";
+        notify.error("Aggregation Failed", errorMessage);
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(productId);
+          return updated;
+        });
+        setExpandedProjectProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+          ),
+        );
+      }
+    },
+    [selectedLLM],
+  );
   const handleAggregateAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
     const pending = expandedProjectProducts.filter(
@@ -331,7 +341,9 @@ export default function AggregationTab({
     setLoading(true);
     try {
       await Promise.allSettled(
-        pending.map((p) => aggregationService.aggregateProduct(p.id)),
+        pending.map((p) =>
+          aggregationService.aggregateProduct(p.id, selectedLLM),
+        ),
       );
       const newPollingIds = pending.map((p) => p.id);
       setPollingProductIds((prev) => {
@@ -353,7 +365,7 @@ export default function AggregationTab({
     } finally {
       setLoading(false);
     }
-  }, [expandedProjectId, expandedProjectProducts]);
+  }, [expandedProjectId, expandedProjectProducts, selectedLLM]);
   const handleAggregateSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToAggregate = Array.from(selectedProjectIds);
@@ -365,7 +377,7 @@ export default function AggregationTab({
         const batch = projectIdsToAggregate.slice(i, i + batchSize);
         const promises = batch.map((projectId) =>
           aggregationService
-            .aggregateProject(projectId)
+            .aggregateProject(projectId, selectedLLM)
             .then((result) => ({
               status: "fulfilled" as const,
               projectId,
@@ -420,7 +432,7 @@ export default function AggregationTab({
       setLoading(false);
       setSelectedProjectIds(new Set());
     }
-  }, [selectedProjectIds, expandedProjectId]);
+  }, [selectedProjectIds, expandedProjectId, selectedLLM]);
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
     try {
@@ -642,26 +654,167 @@ export default function AggregationTab({
     (p) => p.id === selectedProduct,
   );
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-1">
-            Data Aggregation
-          </h3>
-          <p className="text-sm text-slate-600">
-            Select projects to manage aggregation
-          </p>
+    <div className="space-y-4">
+      <div className="relative">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-1">
+              Data Aggregation
+            </h3>
+            <p className="text-sm text-slate-600">
+              Select projects to manage aggregation
+            </p>
+          </div>
+
+          <div
+            className={`flex items-center gap-3 transition-all duration-200 ${
+              expandedProjectId ? "mr-[380px]" : ""
+            }`}
+          >
+            {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
+              <button
+                onClick={handleDownloadSelected}
+                disabled={downloading || !canDownloadSelected}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {downloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Download Selected
+              </button>
+            )}
+            {selectedProjectIds.size > 0 && (
+              <button
+                onClick={handleAggregateSelectedProjects}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                Aggregate {selectedProjectIds.size} Projects
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap flex-1">
+
+        {/* Stats card — absolutely positioned, never affects layout */}
+        <div
+          className={`absolute right-0 top-1/2 -translate-y-1/2 w-[360px] z-10 transition-all duration-200 ${
+            expandedProjectId
+              ? "opacity-100 translate-x-0"
+              : "opacity-0 translate-x-4 pointer-events-none"
+          }`}
+        >
+          <div className="bg-white border border-slate-200 rounded-[12px] p-2 shadow-xs mt-11">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <div className="flex flex-col gap-0.5">
+                <h4 className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">
+                  {projects.find((p) => p.id === expandedProjectId)?.name ||
+                    "Project"}
+                </h4>
+                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full w-fit">
+                  <Clock className="w-2.5 h-2.5" />
+                  <span className="text-xs font-medium">Active</span>
+                </div>
+              </div>
+              <div className="w-[60px] ml-auto">
+                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${(expandedStats.success / (expandedProjectProducts.length || 1)) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => toggleStatusFilter("completed")}
+                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                  statusFilter.has("completed")
+                    ? "bg-emerald-100 border-emerald-300"
+                    : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100"
+                }`}
+              >
+                <span className="text-sm font-bold text-emerald-600">
+                  {expandedStats.success}
+                </span>
+                <span className="text-[10px] font-medium text-emerald-700">
+                  Completed
+                </span>
+              </button>
+              <button
+                onClick={() => toggleStatusFilter("failed")}
+                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                  statusFilter.has("failed")
+                    ? "bg-rose-100 border-rose-300"
+                    : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
+                }`}
+              >
+                <span className="text-sm font-bold text-rose-600">
+                  {expandedStats.failed}
+                </span>
+                <span className="text-[10px] font-medium text-rose-700">
+                  Failed
+                </span>
+              </button>
+              <button
+                onClick={() => toggleStatusFilter("pending")}
+                className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
+                  statusFilter.has("pending")
+                    ? "bg-amber-100 border-amber-300"
+                    : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
+                }`}
+              >
+                <span className="text-sm font-bold text-amber-500">
+                  {expandedStats.pending}
+                </span>
+                <span className="text-[10px] font-medium text-amber-600">
+                  Pending
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="pt-16">
+        <div className="flex items-center gap-2 flex-wrap w-full">
+          <select
+            value={selectedLLM}
+            onChange={(e) => setSelectedLLM(e.target.value)}
+            disabled={
+              projectsLoading ||
+              (selectedProjectIds.size === 0 &&
+                selectedProductIds.size === 0 &&
+                (!expandedProjectId ||
+                  expandedProjectProducts.filter(
+                    (p) => p.enrichment_status === "pending",
+                  ).length === 0))
+            }
+            className="flex-1 min-w-[180px] px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {llmOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <select
             value={selectedUseCase}
             onChange={(e) => {
               setSelectedUseCase(e.target.value);
+              setSelectedProjectId("");
               setExpandedProjectId(null);
               setExpandedProjectProducts([]);
             }}
             disabled={projectsLoading}
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 min-w-[180px] px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
             <option value="">All Use Cases</option>
             {useCases.map((useCase) => (
@@ -670,6 +823,7 @@ export default function AggregationTab({
               </option>
             ))}
           </select>
+
           <select
             value={selectedProjectId}
             onChange={(e) => {
@@ -677,17 +831,21 @@ export default function AggregationTab({
             }}
             disabled={
               projectsLoading ||
-              (selectedUseCase && filteredProjects.length === 0)
+              (!!selectedUseCase && filteredProjects.length === 0)
             }
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 min-w-[180px] px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="">Select Project</option>
-            {filteredProjects.map((project) => (
+            <option value="">All Projects</option>
+            {(selectedUseCase
+              ? projects.filter((p) => p.use_case === selectedUseCase)
+              : projects
+            ).map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>
             ))}
           </select>
+
           <select
             value={
               statusFilter.size === 1 ? Array.from(statusFilter)[0] : "all"
@@ -699,13 +857,14 @@ export default function AggregationTab({
               else setStatusFilter(new Set([val]));
               setCurrentPage(1);
             }}
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 min-w-[180px] px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="all">Status</option>
+            <option value="all">All Status</option>
             <option value="pending">Pending</option>
-            <option value="completed">Success</option>
+            <option value="completed">Completed</option>
             <option value="failed">Failed</option>
           </select>
+
           <select
             value={categoryFilter}
             onChange={(e) => {
@@ -722,9 +881,9 @@ export default function AggregationTab({
                 ),
               ].length === 0
             }
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 min-w-[180px] px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="">Categories</option>
+            <option value="">All Categories</option>
             {[
               ...new Set(
                 expandedProjectProducts
@@ -737,6 +896,7 @@ export default function AggregationTab({
               </option>
             ))}
           </select>
+
           <select
             value={brandFilter}
             onChange={(e) => {
@@ -753,9 +913,9 @@ export default function AggregationTab({
                 ),
               ].length === 0
             }
-            className="px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 min-w-[180px] px-4 py-2 border border-slate-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="">Brands</option>
+            <option value="">All Brands</option>
             {[
               ...new Set(
                 expandedProjectProducts
@@ -768,120 +928,20 @@ export default function AggregationTab({
               </option>
             ))}
           </select>
+
           {(statusFilter.size > 0 ||
             categoryFilter ||
             brandFilter ||
+            selectedUseCase ||
+            selectedProjectId ||
             searchQuery) && (
             <button
               onClick={resetFilters}
               className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-md bg-white text-sm hover:bg-slate-50 transition-colors"
             >
               <X className="w-4 h-4" />
-              <span>Reset Filters</span>
+              <span>Reset</span>
             </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
-            <button
-              onClick={handleDownloadSelected}
-              disabled={downloading || !canDownloadSelected}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-            >
-              {downloading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              Download Selected
-            </button>
-          )}
-          {selectedProjectIds.size > 0 && (
-            <button
-              onClick={handleAggregateSelectedProjects}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-              Aggregate {selectedProjectIds.size} Projects
-            </button>
-          )}
-          {expandedProjectId && (
-            <div className="bg-white border border-slate-200 rounded-[12px] p-2 min-w-[400px] shadow-xs">
-              <div className="flex items-center justify-between gap-1 mb-1.5">
-                <div className="flex flex-col gap-0.5">
-                  <h4 className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">
-                    {projects.find((p) => p.id === expandedProjectId)?.name ||
-                      "Project"}
-                  </h4>
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full w-fit">
-                    <Clock className="w-2.5 h-2.5" />
-                    <span className="text-xs font-medium">Active</span>
-                  </div>
-                </div>
-                <div className="w-[60px] ml-auto">
-                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                      style={{
-                        width: `${(expandedStats.success / (expandedProjectProducts.length || 1)) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => toggleStatusFilter("completed")}
-                  className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
-                    statusFilter.has("completed")
-                      ? "bg-emerald-100 border-emerald-300"
-                      : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100"
-                  }`}
-                >
-                  <span className="text-sm font-bold text-emerald-600">
-                    {expandedStats.success}
-                  </span>
-                  <span className="text-[10px] font-medium text-emerald-700">
-                    Completed
-                  </span>
-                </button>
-                <button
-                  onClick={() => toggleStatusFilter("failed")}
-                  className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
-                    statusFilter.has("failed")
-                      ? "bg-rose-100 border-rose-300"
-                      : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
-                  }`}
-                >
-                  <span className="text-sm font-bold text-rose-600">
-                    {expandedStats.failed}
-                  </span>
-                  <span className="text-[10px] font-medium text-rose-700">
-                    Failed
-                  </span>
-                </button>
-                <button
-                  onClick={() => toggleStatusFilter("pending")}
-                  className={`flex-1 flex flex-col items-center justify-center p-1 rounded-md border transition-colors ${
-                    statusFilter.has("pending")
-                      ? "bg-amber-100 border-amber-300"
-                      : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
-                  }`}
-                >
-                  <span className="text-sm font-bold text-amber-500">
-                    {expandedStats.pending}
-                  </span>
-                  <span className="text-[10px] font-medium text-amber-600">
-                    Pending
-                  </span>
-                </button>
-              </div>
-            </div>
           )}
         </div>
       </div>
@@ -915,7 +975,6 @@ export default function AggregationTab({
           ) : (
             filteredProjects.map((project) => (
               <div key={project.id}>
-                {/* Project Row */}
                 <div
                   className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
                     expandedProjectId === project.id ? "bg-blue-50" : ""
@@ -947,7 +1006,6 @@ export default function AggregationTab({
                           {project.use_case}
                         </span>
                       )}
-                      {/* Show processing status on project row */}
                       {aggregatingProjects.has(project.id) && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -966,7 +1024,6 @@ export default function AggregationTab({
                     )}
                   </div>
                 </div>
-                {/* Expanded Products Section */}
                 {expandedProjectId === project.id && (
                   <div className="border-t border-slate-200">
                     <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
@@ -1320,7 +1377,6 @@ export default function AggregationTab({
                     </p>
                   </div>
                 </div>
-                
               ) : attributes.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
                   <GitMerge className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -1463,4 +1519,3 @@ export default function AggregationTab({
     </div>
   );
 }
-

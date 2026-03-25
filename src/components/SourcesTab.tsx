@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Upload,
   FileSpreadsheet,
@@ -18,24 +18,22 @@ import { projectService } from "../services/projectService";
 import type { Source, Project } from "../types/database.types";
 import { notify } from "../lib/notifications.ts";
 import { getStatusIcon } from "../utils/statusIcon";
-interface ManualProductData {
-  brand: string;
-  title: string;
-  manufacturer: string;
-  sku: string;
-  mpn: string;
-  model: string;
-  upc_ean_gtin: string;
-  variant_sku: string;
-  variant_mpn: string;
-  variant_model: string;
-  taxonomy: string;
-  price: string;
-  stock: string;
-}
-export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: string,onProjectSelect?: (projectId: string) => void}) {
+import {
+  ManualProductData,
+  OperationMode,
+} from "../types/business-rules.types.ts";
+
+export default function SourcesTab({
+  projectId,
+  onProjectSelect,
+}: {
+  projectId?: string;
+  onProjectSelect?: (projectId: string) => void;
+}) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
+  const [operationMode, setOperationMode] =
+    useState<OperationMode>("aggregation");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMode, setActiveMode] = useState<"manual" | "bulk">("bulk");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -56,7 +54,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState<string>("");
-  const [selectedUseCase, setSelectedUseCase] = useState<string>('');
+  const [selectedUseCase, setSelectedUseCase] = useState<string>("");
   const [showUseCaseDropdown, setShowUseCaseDropdown] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [importResults, setImportResults] = useState<{
@@ -67,8 +65,12 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   // Projects state
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [projectSources, setProjectSources] = useState<Record<string, Source[]>>({});
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    new Set(),
+  );
+  const [projectSources, setProjectSources] = useState<
+    Record<string, Source[]>
+  >({});
   const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => {
     loadSources();
@@ -110,13 +112,13 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
     setExpandedProjects(newExpanded);
   };
   useEffect(() => {
-    if ( bulkFile  && !projectId) {
+    if (bulkFile && !projectId) {
       notify.error(
         "No Project Selected",
-        "Please select a project from the Projects section"
+        "Please select a project from the Projects section",
       );
     }
-  }, [projectId,bulkFile]);
+  }, [projectId, bulkFile]);
   useEffect(() => {
     const handleClickOutSide = (e: MouseEvent) => {
       if (showUseCaseDropdown) {
@@ -136,7 +138,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         if (status === "completed") {
           notify.success(
             "Import Finished",
-            `Successfully processed ${metadata?.total || 0} products.`
+            `Successfully processed ${metadata?.total || 0} products.`,
           );
           setImportResults({
             success: metadata?.successful || 0,
@@ -150,7 +152,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         if (status === "failed") {
           notify.error(
             "Import Failed",
-            metadata?.error_message || "An error occurred during processing."
+            metadata?.error_message || "An error occurred during processing.",
           );
           setImportResults({
             success: metadata?.successful || 0,
@@ -166,29 +168,35 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         } else {
           notify.error(
             "Polling Timeout",
-            "The import is taking longer than expected. Please check back later."
+            "The import is taking longer than expected. Please check back later.",
           );
         }
       } catch (error) {
         console.error("Failed to poll batch status:", error);
         notify.error(
           "Connection Error",
-          "Lost connection while checking import status."
+          "Lost connection while checking import status.",
         );
       }
-    };  
+    };
     poll();
   };
-  
-  const useCaseOptions = [
-    "With categories",
-    "Without categories",
-    "With Categories with attribute (back filling)", 
-    "With Categories with attribute (back filling) and existing attribute validation"
+
+  const aggregationUseCases = ["With categories", "Without categories"];
+  const enrichmentUseCases = [
+    "With Categories with attribute (back filling)",
+    "With Categories with attribute (back filling) and existing attribute validation",
   ];
+  const cleaningUseCases = ["Data cleaning and Standardization"];
+  const useCaseOptions =
+    operationMode === "aggregation"
+      ? aggregationUseCases
+      : operationMode === "enrichment"
+        ? enrichmentUseCases
+        : cleaningUseCases;
   const handleSelectUseCase = (useCase: string) => {
-    setSelectedUseCase(useCase)
-    setShowUseCaseDropdown(false)
+    setSelectedUseCase(useCase);
+    setShowUseCaseDropdown(false);
   };
   const handleManualSubmit = async () => {
     const newErrors: Record<string, string> = {};
@@ -257,19 +265,23 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       !validTypes.includes(bulkFile.type) &&
       !validExtensions.includes(fileExtension)
     ) {
-      notify.error("Invalid file type", "Please upload CSV or Excel files only");
+      notify.error(
+        "Invalid file type",
+        "Please upload CSV or Excel files only",
+      );
       return;
     }
     setLoading(true);
     try {
-      const result = await extractionService.batchAggregate(bulkFile, projectId);
+      const result = await extractionService.batchAggregate(
+        bulkFile,
+        projectId,
+      );
       setBulkFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      notify.success(
-        "Upload Successful"
-      );
+      notify.success("Upload Successful");
       setImportResults({
         success: 0,
         failed: 0,
@@ -281,12 +293,15 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       console.error("Bulk upload failed:", error);
       const detail = error.response?.data?.detail;
       const errorMessage =
-  (detail && typeof detail === "object" && "message" in detail && detail.message)
-    ? detail.message
-    : (detail && typeof detail === "string" ? detail : null)
-    || error.message
-    || "Aggregation failed";
-      notify.error("Bulk upload failed",errorMessage);
+        detail &&
+        typeof detail === "object" &&
+        "message" in detail &&
+        detail.message
+          ? detail.message
+          : (detail && typeof detail === "string" ? detail : null) ||
+            error.message ||
+            "Aggregation failed";
+      notify.error("Bulk upload failed", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -340,7 +355,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       "Vendor_Name",
       "Vendor_SKU",
     ];
-    
+
     const imageHeaders: string[] = [];
     for (let i = 1; i <= 8; i++) {
       imageHeaders.push(`image_name_${i}`, `image_url_${i}`);
@@ -382,7 +397,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
         `attribute_value${i}`,
         `attribute_uom${i}`,
         `validation_value${i}`,
-        `validation_uom${i}`
+        `validation_uom${i}`,
       );
     }
     const headers = [
@@ -421,15 +436,14 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
   };
   const handleCancel = () => {
     setProjectName("");
-    setSelectedUseCase('');
+    setSelectedUseCase("");
   };
   const handleCreate = async () => {
     if (!projectName.trim()) {
       notify.error("Project name is required");
       return;
     }
-    if(!selectedUseCase)
-    {
+    if (!selectedUseCase) {
       notify.error("Usecase is  required");
       return;
     }
@@ -438,11 +452,12 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
       await projectService.createProject({
         name: projectName,
         use_case: selectedUseCase,
+        operation_mode:operationMode,
         status: "draft",
       });
       notify.success("Project created successfully!");
       setProjectName("");
-      setSelectedUseCase('');
+      setSelectedUseCase("");
       setShowUseCaseDropdown(false);
       setShowProjectModal(false);
       await loadProjects();
@@ -476,13 +491,14 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
             Import in bulk via CSV or add products manually
           </p>
           {projectId && (
-      <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md">
-        <FolderOpen className="w-4 h-4 text-blue-600" />
-        <span className="text-sm font-medium text-blue-900">
-          Active Project: {projects.find(p => p.id === projectId)?.name || 'Unknown'}
-        </span>
-      </div>
-    )}
+            <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md">
+              <FolderOpen className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">
+                Active Project:{" "}
+                {projects.find((p) => p.id === projectId)?.name || "Unknown"}
+              </span>
+            </div>
+          )}
         </div>
         <button
           onClick={() => setShowProjectModal(true)}
@@ -497,8 +513,8 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           <h4 className="text-lg font-semibold text-slate-900 mb-4">
             Create New Project
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-start">
+            <div className="w-full">
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Project Name
               </label>
@@ -510,7 +526,32 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div>
+
+            <div className="w-full">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Operation Mode
+              </label>
+              <select
+                value={operationMode}
+                onChange={(e) =>
+                  setOperationMode(e.target.value as OperationMode)
+                }
+                className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
+              >
+                <option value="aggregation"> Aggregation</option>
+                <option value="cleaning"> Cleaning</option>
+                <option value="enrichment"> Enrichment</option>
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                {operationMode === "aggregation"
+                  ? "Discover, extract, and enrich from external sources"
+                  : operationMode === "enrichment"
+                    ? "Backfill missing attributes and validate existing data"
+                    : "Clean and standardize existing product data"}
+              </p>
+            </div>
+
+            <div className="w-full">
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Select Use Cases
               </label>
@@ -522,8 +563,13 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                   }}
                   className="w-full px-4 py-2 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
                 >
-                  <span className="text-slate-500">
-                    {selectedUseCase||"Select Use Case"}
+                  <span
+                    className={
+                      selectedUseCase ? "text-slate-700" : "text-slate-500"
+                    }
+                  >
+                    {selectedUseCase ||
+                      `Select ${operationMode === "aggregation" ? "Aggregation" : operationMode === "enrichment" ? "Enrichment" : "Cleaning"} Use Case`}
                   </span>
                   <ChevronDown
                     className={`w-4 h-4 text-slate-400 transition-transform ${showUseCaseDropdown ? "rotate-180" : ""}`}
@@ -531,6 +577,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                 </button>
                 {showUseCaseDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                   
                     {useCaseOptions.map((useCase) => (
                       <label
                         key={useCase}
@@ -538,12 +585,14 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                       >
                         <input
                           type="radio"
-                          name='useCaseSelection'
+                          name="useCaseSelection"
                           checked={selectedUseCase === useCase}
                           onChange={() => handleSelectUseCase(useCase)}
                           className="rounded border-slate-300"
                         />
-                        <span className="text-sm text-slate-700">{useCase}</span>
+                        <span className="text-sm text-slate-700">
+                          {useCase}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -554,7 +603,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           <div className="flex gap-3">
             <button
               onClick={handleCreate}
-              disabled={!projectName.trim() || loading ||!selectedUseCase}
+              disabled={!projectName.trim() || loading || !selectedUseCase}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create Project"}
@@ -617,8 +666,8 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                   Download CSV Template
                 </button>
                 <p className="text-xs text-slate-500 mt-2">
-                  Download the template, fill it with your product data, and upload
-                  it below
+                  Download the template, fill it with your product data, and
+                  upload it below
                 </p>
               </div>
               <div className="mb-4">
@@ -658,161 +707,161 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
           ) : (
             <div>
               <div>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.title}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, title: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., iPhone 16 pro"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Brand
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.brand}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, brand: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Apple"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Manufacturer
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.manufacturer}
-                    onChange={(e) =>
-                      setManualData({
-                        ...manualData,
-                        manufacturer: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Foxconn"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    SKU
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.sku}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, sku: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., IPHN14-BLK-128"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    MPN<span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.mpn}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, mpn: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., MPN123456"
-                  />
-                  {errors.mpn && (
-                    <p className="text-red-500 text-sm mt-1">{errors.mpn}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Model
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.model}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, model: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., iPhone 14"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    UPC/EAN/GTIN
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.upc_ean_gtin}
-                    onChange={(e) =>
-                      setManualData({
-                        ...manualData,
-                        upc_ean_gtin: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., 123456789012"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Taxonomy
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.taxonomy}
-                    onChange={(e) =>
-                      setManualData({
-                        ...manualData,
-                        taxonomy: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Electronics > Mobile Phones"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Price
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.price}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, price: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., 999.99"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Stock
-                  </label>
-                  <input
-                    type="text"
-                    value={manualData.stock}
-                    onChange={(e) =>
-                      setManualData({ ...manualData, stock: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., 100"
-                  />
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.title}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, title: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., iPhone 16 pro"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Brand
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.brand}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, brand: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Apple"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Manufacturer
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.manufacturer}
+                      onChange={(e) =>
+                        setManualData({
+                          ...manualData,
+                          manufacturer: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Foxconn"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      SKU
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.sku}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, sku: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., IPHN14-BLK-128"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      MPN<span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.mpn}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, mpn: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., MPN123456"
+                    />
+                    {errors.mpn && (
+                      <p className="text-red-500 text-sm mt-1">{errors.mpn}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Model
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.model}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, model: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., iPhone 14"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      UPC/EAN/GTIN
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.upc_ean_gtin}
+                      onChange={(e) =>
+                        setManualData({
+                          ...manualData,
+                          upc_ean_gtin: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 123456789012"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Taxonomy
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.taxonomy}
+                      onChange={(e) =>
+                        setManualData({
+                          ...manualData,
+                          taxonomy: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Electronics > Mobile Phones"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Price
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.price}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, price: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 999.99"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Stock
+                    </label>
+                    <input
+                      type="text"
+                      value={manualData.stock}
+                      onChange={(e) =>
+                        setManualData({ ...manualData, stock: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 100"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
               {projectId ? (
                 <button
                   onClick={handleManualSubmit}
@@ -907,7 +956,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                     onClick={() => {
                       setSelectedProject(project);
                       loadSourcesForProject(project.id);
-                       onProjectSelect?.(project.id);
+                      onProjectSelect?.(project.id);
                     }}
                     className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
                   >
@@ -944,7 +993,10 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                               <div className="flex items-center gap-3">
                                 <button
                                   onClick={() =>
-                                    extractionService.download(source.id, "input")
+                                    extractionService.download(
+                                      source.id,
+                                      "input",
+                                    )
                                   }
                                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
                                 >
@@ -955,7 +1007,7 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                                     onClick={() =>
                                       extractionService.download(
                                         source.id,
-                                        "output"
+                                        "output",
                                       )
                                     }
                                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
@@ -976,8 +1028,8 @@ export default function SourcesTab({ projectId,onProjectSelect }: { projectId?: 
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
-                                    <AlertCircle className="w-3.5 h-3.5" /> Needs
-                                    Aggregation
+                                    <AlertCircle className="w-3.5 h-3.5" />{" "}
+                                    Needs Aggregation
                                   </div>
                                 )}
                                 {getStatusIcon(source.status)}
