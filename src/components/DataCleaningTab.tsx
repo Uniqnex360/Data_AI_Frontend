@@ -24,6 +24,10 @@ export default function DataCleaningTab() {
   const [attributeFilter, setAttributeFilter] = useState<string>("");
   const [bulkAttributeName, setBulkAttributeName] = useState<string>("");
   const [bulkAttributeValue, setBulkAttributeValue] = useState<string>("");
+  const [savingAttributes, setSavingAttributes] = useState<
+    Record<string, boolean>
+  >({});
+
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const isSyncingScroll = useRef(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -302,6 +306,7 @@ export default function DataCleaningTab() {
   const handleSaveAttributes = async (productId: string) => {
     const changes = editingAttributes[productId];
     if (!changes || Object.keys(changes).length === 0) return;
+    setSavingAttributes((prev) => ({ ...prev, [productId]: true }));
 
     const formattedChanges = Object.fromEntries(
       Object.entries(changes).map(([attrName, attrData]) => [
@@ -328,6 +333,12 @@ export default function DataCleaningTab() {
     } catch (error) {
       console.error("Failed to update attributes:", error);
       notify.error("Failed to update attributes");
+    } finally {
+      setSavingAttributes((prev) => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
     }
   };
 
@@ -754,7 +765,8 @@ export default function DataCleaningTab() {
                                 editingAttributes[product.id]?.[attr.name];
                               const currentValue =
                                 editedAttr?.value ?? attr.value ?? "";
-                              const currentUom = editedAttr?.uom ?? attr.unit ?? attr.uom ?? "";
+                              const currentUom =
+                                editedAttr?.uom ?? attr.unit ?? attr.uom ?? "";
 
                               const hasConflict =
                                 product.validation_conflicts?.[attr.name];
@@ -780,8 +792,9 @@ export default function DataCleaningTab() {
                                     }
                                     className={`px-3 py-2 text-xs outline-none min-w-[140px] bg-white ${
                                       hasConflict ? "bg-amber-50" : ""
-                                    }`}
+                                    } ${savingAttributes[product.id] ? "opacity-50" : ""}`}
                                     placeholder="Value"
+                                    disabled={savingAttributes[product.id]}
                                   />
                                   <input
                                     type="text"
@@ -836,9 +849,17 @@ export default function DataCleaningTab() {
                         0 && (
                         <button
                           onClick={() => handleSaveAttributes(product.id)}
-                          className="ml-2 text-green-600 hover:text-green-700 text-sm font-medium"
+                          disabled={savingAttributes[product.id]}
+                          className="ml-2 text-green-600 hover:text-green-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                         >
-                          Save
+                          {savingAttributes[product.id] ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            "Save"
+                          )}
                         </button>
                       )}
                     </td>
