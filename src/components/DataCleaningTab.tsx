@@ -444,12 +444,16 @@ export default function DataCleaningTab() {
   const hasActiveFilters =
     !!statusFilter || !!brandFilter || !!categoryFilter || !!attributeFilter;
   return (
-    <div className="p-5 bg-slate-50 min-h-screen">
+    <div className="p-1 bg-slate-50 min-h-screen">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">
+        <h3 className="text-xl font-semibold text-slate-900 mb-1">
           Data Cleaning & Validation
-        </h2>
-        <p className="text-sm text-slate-600 mt-1"></p>
+        </h3>
+        <p className="text-sm text-slate-600 mt-1">
+          Select projects to manage cleaning and standarization
+
+
+        </p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
