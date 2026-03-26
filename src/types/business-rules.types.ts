@@ -146,7 +146,7 @@ export interface Project {
   use_case?: string;
   operation_mode?:string;
   product_count?: number;
-  aggregation_status?:
+  processing_status?:
     | "idle"
     | "pending"
     | "failed"

@@ -285,7 +285,7 @@ export default function AggregationTab({
       projects.some(
         (pr) =>
           selectedProjectIds.has(pr.id) &&
-          downloadableStatuses.has(pr.aggregation_status ?? ""),
+          downloadableStatuses.has(pr.processing_status ?? ""),
       );
 
     return productOk || projectOk;

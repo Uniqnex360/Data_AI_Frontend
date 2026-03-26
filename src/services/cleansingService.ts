@@ -19,7 +19,19 @@ export const cleansingService = {
 //     throw new Error('Could not start cleaning process.');
 //   }
 // },
-
+async bulkUpdateProductAttributes(payload: {
+  product_ids: string[];
+  attribute_name: string;
+  attribute_value: string;
+}): Promise<any> {
+  try {
+    const { data } = await api.put("/cleansing/products/bulk-attributes", payload);
+    return data;
+  } catch (error) {
+    console.error("Failed to bulk update attributes:", error);
+    throw new Error("Failed to bulk update attributes");
+  }
+},
 async getTaskStatus(taskId: string): Promise<{ status: "pending" | "running" | "completed" | "failed" }> {
   const response = await api.get(`/cleansing/tasks/${taskId}`);
   return response.data;

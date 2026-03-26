@@ -96,7 +96,7 @@ const tabs: Tab[] = [
    {
     id: "datacleaning",
     label: "Data Cleaning",
-    icon: Sparkles,
+    icon: Sparkles    ,
     component: DataCleaningTab,
   },
   // {

@@ -21,6 +21,10 @@ export default function DataCleaningTab() {
   const sharedScrollRef = useRef<HTMLDivElement | null>(null);
   const sharedScrollContentRef = useRef<HTMLDivElement | null>(null);
   const attributeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [attributeFilter, setAttributeFilter] = useState<string>("");
+const [bulkAttributeName, setBulkAttributeName] = useState<string>("");
+const [bulkAttributeValue, setBulkAttributeValue] = useState<string>("");
+const [bulkUpdating, setBulkUpdating] = useState(false);
   const isSyncingScroll = useRef(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -121,7 +125,6 @@ export default function DataCleaningTab() {
 const handleCleanProduct = async (productId: string) => {
   setCleaning(true);
 
-  // optimistic update
   setProducts((prev) =>
     prev.map((p) =>
       p.id === productId ? { ...p, enrichment_status: "processing" } : p
@@ -182,7 +185,6 @@ const handleCleanProduct = async (productId: string) => {
   } catch (error: any) {
     console.error("Cleaning failed:", error);
 
-    // revert optimistic update
     setProducts((prev) =>
       prev.map((p) =>
         p.id === productId ? { ...p, enrichment_status: "pending" } : p
@@ -204,7 +206,6 @@ const handleCleanProduct = async (productId: string) => {
 
   setCleaning(true);
 
-  // Optimistically mark selected products as processing
   setProducts((prev) =>
     prev.map((p) =>
       idsToClean.has(p.id) ? { ...p, enrichment_status: "processing" } : p,
@@ -234,7 +235,6 @@ const handleCleanProduct = async (productId: string) => {
         } else if (status.status === "failed") {
           clearInterval(pollStatus);
 
-          // Fallback local update in case refresh fails / is delayed
           setProducts((prev) =>
             prev.map((p) =>
               idsToClean.has(p.id)
@@ -258,7 +258,6 @@ const handleCleanProduct = async (productId: string) => {
   } catch (error: any) {
     console.error("Batch cleaning failed:", error);
 
-    // Revert optimistic update on request failure
     setProducts((prev) =>
       prev.map((p) =>
         idsToClean.has(p.id) ? { ...p, enrichment_status: "pending" } : p,
@@ -292,9 +291,7 @@ const handleCleanProduct = async (productId: string) => {
     try {
       await cleansingService.updateProductAttributes(productId, changes);
       notify.success("Attributes updated");
-      // Refresh products
       await loadProducts();
-      // Clear editing state
       setEditingAttributes((prev) => {
         const newState = { ...prev };
         delete newState[productId];
@@ -324,7 +321,6 @@ const handleCleanProduct = async (productId: string) => {
     }
   };
 
-  // Get unique values for filters
   const uniqueBrands = [
     ...new Set(products.map((p) => p.brand_name).filter(Boolean)),
   ];
@@ -332,14 +328,71 @@ const handleCleanProduct = async (productId: string) => {
     ...new Set(products.map((p) => p.category_1).filter(Boolean)),
   ];
 
-  // Filter products
+  const uniqueAttributes = [
+  ...new Set(
+    products.flatMap((p) =>
+      (p.dynamic_attributes || [])
+        .map((attr) => attr?.name)
+        .filter(Boolean)
+    )
+  ),
+].sort();
+const handleBulkUpdateAttributes = async () => {
+  if (selectedProductIds.size === 0) {
+    notify.info("No products selected");
+    return;
+  }
+
+  if (!bulkAttributeName) {
+    notify.info("Select an attribute");
+    return;
+  }
+
+  if (!bulkAttributeValue.trim()) {
+    notify.info("Enter a value");
+    return;
+  }
+
+  setBulkUpdating(true);
+
+  const productIds = Array.from(selectedProductIds);
+
+  try {
+    await cleansingService.bulkUpdateProductAttributes({
+      product_ids: productIds,
+      attribute_name: bulkAttributeName,
+      attribute_value: bulkAttributeValue.trim(),
+    });
+
+    notify.success(
+      "Bulk update completed",
+      `Updated ${bulkAttributeName} for ${productIds.length} product(s)`
+    );
+
+    await loadProducts();
+    setBulkAttributeValue("");
+    setSelectedProductIds(new Set());
+  } catch (error: any) {
+    console.error("Bulk update failed:", error);
+    notify.error("Bulk update failed", error.message || "Failed to update attributes");
+  } finally {
+    setBulkUpdating(false);
+  }
+};
   const filteredProducts = products.filter((product) => {
-    if (statusFilter && product.enrichment_status !== statusFilter)
-      return false;
-    if (brandFilter && product.brand_name !== brandFilter) return false;
-    if (categoryFilter && product.category_1 !== categoryFilter) return false;
-    return true;
-  });
+  if (statusFilter && product.enrichment_status !== statusFilter) return false;
+  if (brandFilter && product.brand_name !== brandFilter) return false;
+  if (categoryFilter && product.category_1 !== categoryFilter) return false;
+
+  if (attributeFilter) {
+    const hasAttribute = (product.dynamic_attributes || []).some(
+      (attr) => attr?.name === attributeFilter
+    );
+    if (!hasAttribute) return false;
+  }
+
+  return true;
+});
   const maxAttributeWidth = Math.max(
     ...filteredProducts.map(
       (product) => (product.dynamic_attributes?.length || 0) * 260,
@@ -353,12 +406,11 @@ const handleCleanProduct = async (productId: string) => {
           Data Cleaning & Validation
         </h2>
         <p className="text-sm text-slate-600 mt-1">
-          {/* Review and clean product attributes using AI */}
         </p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm text-slate-700 mb-2">Project</label>
             <select
@@ -379,10 +431,11 @@ const handleCleanProduct = async (productId: string) => {
               LLM Provider
             </label>
             <select
-              value={selectedLLM}
-              onChange={(e) => setSelectedLLM(e.target.value)}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            >
+  value={selectedLLM}
+  onChange={(e) => setSelectedLLM(e.target.value)}
+  disabled={cleaning}
+  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+>
               {llmOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -419,6 +472,21 @@ const handleCleanProduct = async (productId: string) => {
               ))}
             </select>
           </div>
+          <div>
+  <label className="block text-sm text-slate-700 mb-2">Attribute</label>
+  <select
+    value={attributeFilter}
+    onChange={(e) => setAttributeFilter(e.target.value)}
+    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+  >
+    <option value="">All</option>
+    {uniqueAttributes.map((attr) => (
+      <option key={attr} value={attr}>
+        {attr}
+      </option>
+    ))}
+  </select>
+</div>
           <div>
             <label className="block text-sm text-slate-700 mb-2">
               Category
@@ -471,7 +539,58 @@ const handleCleanProduct = async (productId: string) => {
           </div>
         </div>
       )}
+      {selectedProjectId && (
+<div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+  <div className="flex items-center gap-2 flex-wrap w-full">
+      <div className="flex-1">
+        <label className="block text-sm text-slate-700 mb-2">
+          Bulk Update Attribute
+        </label>
+        <select
+          value={bulkAttributeName}
+          onChange={(e) => setBulkAttributeName(e.target.value)}
+          className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
 
+        >
+          <option value="">Select attribute</option>
+          {uniqueAttributes.map((attr) => (
+            <option key={attr} value={attr}>
+              {attr}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex-1">
+        <label className="block text-sm text-slate-700 mb-2">
+          New Value
+        </label>
+        <input
+          type="text"
+          value={bulkAttributeValue}
+          onChange={(e) => setBulkAttributeValue(e.target.value)}
+          placeholder="Enter new value"
+          className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+        />
+      </div>
+
+      <div>
+        <button
+          onClick={handleBulkUpdateAttributes}
+          disabled={
+            bulkUpdating ||
+            selectedProductIds.size === 0 ||
+            !bulkAttributeName ||
+            !bulkAttributeValue.trim()
+          }
+          className="h-10 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+        >
+          {bulkUpdating ? "Updating..." : `Update ${selectedProductIds.size} Selected`}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {selectedProjectId ? (
         loading ? (
           <div className="flex justify-center py-12">

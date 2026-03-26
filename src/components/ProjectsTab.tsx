@@ -264,7 +264,7 @@ export default function ProjectsTab({ onProjectSelect }: Props) {
                       </div>
                     ) : (
                       projectSources[project.id]?.map((source) => {
-                        const aggStatus = source.metadata?.aggregation_status;
+                        const aggStatus = source.metadata?.processing_status;
                         console.log("aggregation_status", aggStatus);
                         const isEnriched = aggStatus === "completed";
                         const isAggregating = aggStatus === "processing";
