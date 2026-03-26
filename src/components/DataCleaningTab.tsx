@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Loader2, Play, AlertCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, ChevronDown, Loader2, Play } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { aggregationService } from "../services/aggregationService";
@@ -34,7 +34,7 @@ export default function DataCleaningTab() {
     new Set(),
   );
   const [editingAttributes, setEditingAttributes] = useState<
-    Record<string, Record<string, string>>
+    Record<string, Record<string, { value: string; uom: string }>>
   >({});
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
 
@@ -108,7 +108,17 @@ export default function DataCleaningTab() {
       notify.error("Failed to load projects");
     }
   };
-
+  const handleReset = () => {
+    setSelectedProjectId("");
+    setSelectedProductIds(new Set());
+    setStatusFilter("");
+    setBrandFilter("");
+    setCategoryFilter("");
+    setAttributeFilter("");
+    setBulkAttributeName("");
+    setBulkAttributeValue("");
+    setEditingAttributes({});
+  };
   const loadProducts = async () => {
     if (!selectedProjectId) return;
     setLoading(true);
@@ -269,23 +279,45 @@ export default function DataCleaningTab() {
   const handleAttributeChange = (
     productId: string,
     attrName: string,
+    field: "value" | "uom",
     newValue: string,
   ) => {
     setEditingAttributes((prev) => ({
       ...prev,
       [productId]: {
         ...(prev[productId] || {}),
-        [attrName]: newValue,
+        [attrName]: {
+          value:
+            field === "value"
+              ? newValue
+              : (prev[productId]?.[attrName]?.value ?? ""),
+          uom:
+            field === "uom"
+              ? newValue
+              : (prev[productId]?.[attrName]?.uom ?? ""),
+        },
       },
     }));
   };
-
   const handleSaveAttributes = async (productId: string) => {
     const changes = editingAttributes[productId];
     if (!changes || Object.keys(changes).length === 0) return;
 
+    const formattedChanges = Object.fromEntries(
+      Object.entries(changes).map(([attrName, attrData]) => [
+        attrName,
+        {
+          value: attrData.value,
+          uom: attrData.uom,
+        },
+      ]),
+    );
+
     try {
-      await cleansingService.updateProductAttributes(productId, changes);
+      await cleansingService.updateProductAttributes(
+        productId,
+        formattedChanges,
+      );
       notify.success("Attributes updated");
       await loadProducts();
       setEditingAttributes((prev) => {
@@ -377,8 +409,9 @@ export default function DataCleaningTab() {
     }
   };
   const filteredProducts = products.filter((product) => {
-    if (statusFilter && product.enrichment_status !== statusFilter)
+    if (statusFilter && product.enrichment_status !== statusFilter) {
       return false;
+    }
     if (brandFilter && product.brand_name !== brandFilter) return false;
     if (categoryFilter && product.category_1 !== categoryFilter) return false;
 
@@ -397,14 +430,8 @@ export default function DataCleaningTab() {
     ),
     800,
   );
-  const hasPendingProducts = products.some(
-    (p) => p.enrichment_status === "pending",
-  );
-
-  const isLLMSelectionEnabled =
-    !cleaning &&
-    !!selectedProjectId &&
-    (selectedProductIds.size > 0 || hasPendingProducts);
+  const hasActiveFilters =
+    !!statusFilter || !!brandFilter || !!categoryFilter || !!attributeFilter;
   return (
     <div className="p-5 bg-slate-50 min-h-screen">
       <div className="mb-6">
@@ -415,103 +442,122 @@ export default function DataCleaningTab() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div>
-            <label className="block text-sm text-slate-700 mb-2">
-              LLM Provider
-            </label>
-            <select
-              value={selectedLLM}
-              onChange={(e) => setSelectedLLM(e.target.value)}
-              disabled={cleaning || selectedProductIds.size === 0}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
-            >
-              {llmOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-700 mb-2">Project</label>
-            <select
-              value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            >
-              <option value="">Select Project</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 flex-1">
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                LLM Provider
+              </label>
+              <select
+                value={selectedLLM}
+                onChange={(e) => setSelectedLLM(e.target.value)}
+                disabled={cleaning || selectedProductIds.size === 0}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+              >
+                {llmOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Project
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">Select Project</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="processing">Processing</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">Brand</label>
+              <select
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All</option>
+                {uniqueBrands.map((brand) => (
+                  <option key={brand} value={brand}>
+                    {brand}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Attribute
+              </label>
+              <select
+                value={attributeFilter}
+                onChange={(e) => setAttributeFilter(e.target.value)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All</option>
+                {uniqueAttributes.map((attr) => (
+                  <option key={attr} value={attr}>
+                    {attr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Category
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All</option>
+                {uniqueCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm text-slate-700 mb-2">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+          {hasActiveFilters && (
+            <button
+              onClick={handleReset}
+              className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              <option value="">All</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="processing">Processing</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-700 mb-2">Brand</label>
-            <select
-              value={brandFilter}
-              onChange={(e) => setBrandFilter(e.target.value)}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            >
-              <option value="">All</option>
-              {uniqueBrands.map((brand) => (
-                <option key={brand} value={brand}>
-                  {brand}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-700 mb-2">
-              Attribute
-            </label>
-            <select
-              value={attributeFilter}
-              onChange={(e) => setAttributeFilter(e.target.value)}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            >
-              <option value="">All</option>
-              {uniqueAttributes.map((attr) => (
-                <option key={attr} value={attr}>
-                  {attr}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-700 mb-2">
-              Category
-            </label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            >
-              <option value="">All</option>
-              {uniqueCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
+              Reset
+            </button>
+          )}
         </div>
       </div>
 
@@ -549,7 +595,7 @@ export default function DataCleaningTab() {
       )}
       {selectedProjectId && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-          <div className="flex items-center gap-2 flex-wrap w-full">
+          <div className="flex items-end gap-2 flex-wrap w-full">
             <div className="flex-1">
               <label className="block text-sm text-slate-700 mb-2">
                 Bulk Update Attribute
@@ -669,7 +715,10 @@ export default function DataCleaningTab() {
                     </td>
                     <td className="px-6 py-5">
                       <span
-                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${statusStyles[product.enrichment_status] || "bg-slate-100 text-slate-700"}`}
+                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          statusStyles[product.enrichment_status] ||
+                          "bg-slate-100 text-slate-700"
+                        }`}
                       >
                         {product.enrichment_status}
                       </span>
@@ -701,9 +750,12 @@ export default function DataCleaningTab() {
                         <div className="flex items-center gap-2 min-w-max">
                           {product.dynamic_attributes?.length ? (
                             product.dynamic_attributes.map((attr, idx) => {
+                              const editedAttr =
+                                editingAttributes[product.id]?.[attr.name];
                               const currentValue =
-                                editingAttributes[product.id]?.[attr.name] ??
-                                attr.value;
+                                editedAttr?.value ?? attr.value ?? "";
+                              const currentUom = editedAttr?.uom ?? attr.unit ?? attr.uom ?? "";
+
                               const hasConflict =
                                 product.validation_conflicts?.[attr.name];
 
@@ -722,12 +774,28 @@ export default function DataCleaningTab() {
                                       handleAttributeChange(
                                         product.id,
                                         attr.name,
+                                        "value",
                                         e.target.value,
                                       )
                                     }
                                     className={`px-3 py-2 text-xs outline-none min-w-[140px] bg-white ${
                                       hasConflict ? "bg-amber-50" : ""
                                     }`}
+                                    placeholder="Value"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={currentUom}
+                                    onChange={(e) =>
+                                      handleAttributeChange(
+                                        product.id,
+                                        attr.name,
+                                        "uom",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="px-2 py-2 text-xs outline-none w-[70px] border-l border-slate-200 bg-slate-50"
+                                    placeholder="UOM"
                                   />
                                   {hasConflict && (
                                     <div className="px-2 border-l border-slate-200 flex items-center justify-center">
@@ -781,15 +849,72 @@ export default function DataCleaningTab() {
           </div>
         )
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-          <AlertCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-600">
-            Select a project to view and clean products
-          </p>
-          <p className="text-sm text-slate-500 mt-1">
-            Projects with use case "Data cleaning and Standardization" will
-            appear here
-          </p>
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Cleaning Projects
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Select a project to view and clean products
+            </p>
+          </div>
+
+          {projects.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-600">No cleaning projects found</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Projects with use case "Data cleaning and Standardization" will
+                appear here
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => setSelectedProjectId(project.id)}
+                  className={`w-full text-left p-4 border rounded-lg transition-colors ${
+                    selectedProjectId === project.id
+                      ? "border-blue-300 bg-blue-50"
+                      : "border-slate-200 hover:bg-slate-50 hover:border-blue-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-semibold text-slate-900">
+                          {project.name}
+                        </h4>
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
+                          {project.product_count ?? 0} products
+                        </span>
+                        {project.operation_mode && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full capitalize border border-blue-200">
+                            {project.operation_mode}
+                          </span>
+                        )}
+                        {project.use_case && (
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                            {project.use_case}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 ${
+                        selectedProjectId === project.id
+                          ? "text-blue-600"
+                          : "text-slate-400"
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

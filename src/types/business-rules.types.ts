@@ -165,6 +165,8 @@ export  interface Product {
     name: string;
     value: string;
     unit?: string;
+    uom?: string;
+
   }>;
   validation_conflicts?: Record<string, string>;
 }

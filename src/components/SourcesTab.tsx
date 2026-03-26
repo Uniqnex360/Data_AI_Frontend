@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Upload,
   FileSpreadsheet,
@@ -18,7 +18,7 @@ import { projectService } from "../services/projectService";
 import type { Source, Project } from "../types/database.types";
 import { notify } from "../lib/notifications.ts";
 import { getStatusIcon } from "../utils/statusIcon";
-import { cleansingService } from '../services/cleansingService';
+import { cleansingService } from "../services/cleansingService";
 import {
   ManualProductData,
   OperationMode,
@@ -183,18 +183,22 @@ export default function SourcesTab({
     poll();
   };
 
-  const aggregationUseCases = ["With categories", "Without categories"];
-  const enrichmentUseCases = [
+const useCaseMap: Record<OperationMode, string[]> = {
+  aggregation: ["With categories", "Without categories"],
+  enrichment: [
     "With Categories with attribute (back filling)",
     "With Categories with attribute (back filling) and existing attribute validation",
-  ];
-  const cleaningUseCases = ["Data cleaning and Standardization"];
-  const useCaseOptions =
-    operationMode === "aggregation"
-      ? aggregationUseCases
-      : operationMode === "enrichment"
-        ? enrichmentUseCases
-        : cleaningUseCases;
+  ],
+  cleaning: ["Data cleaning and Standardization"],
+};
+
+const useCaseOptions = useCaseMap[operationMode];
+
+useEffect(() => {
+  setSelectedUseCase((prev) =>
+    prev && useCaseMap[operationMode].includes(prev) ? prev : "",
+  );
+}, [operationMode]);
   const handleSelectUseCase = (useCase: string) => {
     setSelectedUseCase(useCase);
     setShowUseCaseDropdown(false);
@@ -453,7 +457,7 @@ export default function SourcesTab({
       await projectService.createProject({
         name: projectName,
         use_case: selectedUseCase,
-        operation_mode:operationMode,
+        operation_mode: operationMode,
         status: "draft",
       });
       notify.success("Project created successfully!");
@@ -475,22 +479,22 @@ export default function SourcesTab({
     }
   };
   const handleDownloadCleanedProject = async (projectId: string) => {
-  try {
-    const blob = await cleansingService.downloadCleanedProject(projectId);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cleaned_project_${projectId}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    notify.success("Download started");
-  } catch (error) {
-    console.error("Failed to download cleaned project:", error);
-    notify.error("Failed to download cleaned project");
-  }
-};
+    try {
+      const blob = await cleansingService.downloadCleanedProject(projectId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cleaned_project_${projectId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      notify.success("Download started");
+    } catch (error) {
+      console.error("Failed to download cleaned project:", error);
+      notify.error("Failed to download cleaned project");
+    }
+  };
   const filteredProjects = projects.filter((project) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -551,8 +555,10 @@ export default function SourcesTab({
               </label>
               <select
                 value={operationMode}
-                onChange={(e) =>
+                onChange={(e) =>{
                   setOperationMode(e.target.value as OperationMode)
+                   setShowUseCaseDropdown(false);
+                }
                 }
                 className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
               >
@@ -595,7 +601,6 @@ export default function SourcesTab({
                 </button>
                 {showUseCaseDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                   
                     {useCaseOptions.map((useCase) => (
                       <label
                         key={useCase}
@@ -961,14 +966,24 @@ export default function SourcesTab({
                         )}
                       </button>
                     </div>
-                    {project.use_case && (
-                      <div className="mt-2 inline-block px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md">
-                        <p className="text-xs text-slate-600 font-medium">
-                          <span className="text-slate-400 mr-1">Workflow:</span>
-                          {project.use_case}
-                        </p>
-                      </div>
-                    )}
+                    
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+  <div className="inline-block px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-md">
+    <p className="text-xs text-blue-700 font-medium capitalize">
+      <span className="text-blue-500 mr-1">Mode:</span>
+      {project.operation_mode}
+    </p>
+  </div>
+
+  {project.use_case && (
+    <div className="inline-block px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md">
+      <p className="text-xs text-slate-600 font-medium">
+        <span className="text-slate-400 mr-1">Workflow:</span>
+        {project.use_case}
+      </p>
+    </div>
+  )}
+</div>
                   </div>
                   <button
                     onClick={() => {
@@ -993,14 +1008,31 @@ export default function SourcesTab({
                         </div>
                       ) : (
                         projectSources[project.id]?.map((source) => {
-                          const isCleaningProject = project.operation_mode === "cleaning";
+                          const isCleaningProject =
+                            project.operation_mode === "cleaning";
+                          const isEnrichmentProject =
+                            project.operation_mode === "enrichment";
+
                           const processStatus = isCleaningProject
-                            ? source.metadata?.cleaning_status || source.metadata?.processing_status
+                            ? source.metadata?.cleaning_status ||
+                              source.metadata?.processing_status
                             : source.metadata?.processing_status;
 
                           const isCompleted = processStatus === "completed";
                           const isProcessing = processStatus === "processing";
                           const isFailed = processStatus === "failed";
+
+                          const pendingLabel = isCleaningProject
+                            ? "Needs Cleaning"
+                            : isEnrichmentProject
+                              ? "Needs Enrichment"
+                              : "Needs Aggregation";
+
+                          const processingLabel = isCleaningProject
+                            ? "Cleaning..."
+                            : isEnrichmentProject
+                              ? "Enriching..."
+                              : "Aggregating...";
                           // const aggStatus = source.metadata?.aggregation_status;
                           // const isEnriched = aggStatus === "completed";
                           // const isAggregating = aggStatus === "processing";
@@ -1030,19 +1062,24 @@ export default function SourcesTab({
                                 </button>
                                 {isCompleted ? (
                                   <button
-    onClick={() =>
-      isCleaningProject
-        ? handleDownloadCleanedProject(project.id)
-        : extractionService.download(source.id, "output")
-    }
-    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
-  >
+                                    onClick={() =>
+                                      isCleaningProject
+                                        ? handleDownloadCleanedProject(
+                                            project.id,
+                                          )
+                                        : extractionService.download(
+                                            source.id,
+                                            "output",
+                                          )
+                                    }
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
+                                  >
                                     <Download className="w-3.5 h-3.5" /> Output
                                   </button>
                                 ) : isProcessing ? (
                                   <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-purple-600 italic">
                                     <Clock className="w-3.5 h-3.5 animate-spin" />{" "}
-                                    Aggregating...
+                                    {processingLabel}
                                   </div>
                                 ) : isFailed ? (
                                   <div
@@ -1054,7 +1091,7 @@ export default function SourcesTab({
                                 ) : (
                                   <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
                                     <AlertCircle className="w-3.5 h-3.5" />{" "}
-                                    Needs Aggregation
+                                    {pendingLabel}
                                   </div>
                                 )}
                                 {getStatusIcon(source.status)}
