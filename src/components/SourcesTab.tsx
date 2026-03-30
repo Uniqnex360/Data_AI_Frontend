@@ -606,19 +606,19 @@ export default function SourcesTab({
                 {showUseCaseDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {useCaseOptions.map((useCase) => (
-  <button
-    key={useCase}
-    type="button"
-    onClick={() => handleSelectUseCase(useCase)}
-    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-      selectedUseCase === useCase
-        ? "bg-blue-50 text-blue-700 font-medium"
-        : "text-slate-700 hover:bg-slate-50"
-    }`}
-  >
-    {useCase}
-  </button>
-))}
+                      <button
+                        key={useCase}
+                        type="button"
+                        onClick={() => handleSelectUseCase(useCase)}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                          selectedUseCase === useCase
+                            ? "bg-blue-50 text-blue-700 font-medium"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {useCase}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

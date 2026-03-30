@@ -155,15 +155,15 @@ export default function AggregationTab({
       return () => clearInterval(interval);
     }
   }, [aggregatingProjects, pollProjectStatuses]);
- const {
-  availableBrands,
-  availableCategories,
-  loadProjectFilters,
-  resetProjectFilters,
-} = useProjectFilters();
+  const {
+    availableBrands,
+    availableCategories,
+    loadProjectFilters,
+    resetProjectFilters,
+  } = useProjectFilters();
   const loadDefaultFilters = useCallback(async () => {
-  await loadProjectFilters();
-}, [loadProjectFilters]);
+    await loadProjectFilters();
+  }, [loadProjectFilters]);
   useEffect(() => {
     loadDefaultFilters();
   }, [loadDefaultFilters]);
@@ -236,24 +236,24 @@ export default function AggregationTab({
     loadProjects();
   }, [loadProjects]);
   const resetFilters = useCallback(() => {
-  setSearchQuery("");
-  setStatusFilter(new Set());
-  setCategoryFilter("");
-  setBrandFilter("");
-  setSelectedUseCase("");
-  setSelectedProjectId("");
-  setExpandedProjectId(null);
-  setExpandedProjectProducts([]);
-  setCurrentPage(1);
-  loadDefaultFilters();
-}, [loadDefaultFilters]);
-const resetLocalFilters = useCallback(() => {
-  setSearchQuery("");
-  setStatusFilter(new Set());
-  setCategoryFilter("");
-  setBrandFilter("");
-  setCurrentPage(1);
-}, []);
+    setSearchQuery("");
+    setStatusFilter(new Set());
+    setCategoryFilter("");
+    setBrandFilter("");
+    setSelectedUseCase("");
+    setSelectedProjectId("");
+    setExpandedProjectId(null);
+    setExpandedProjectProducts([]);
+    setCurrentPage(1);
+    loadDefaultFilters();
+  }, [loadDefaultFilters]);
+  const resetLocalFilters = useCallback(() => {
+    setSearchQuery("");
+    setStatusFilter(new Set());
+    setCategoryFilter("");
+    setBrandFilter("");
+    setCurrentPage(1);
+  }, []);
   const toggleExpandProject = useCallback(
     async (projectId: string) => {
       if (expandedProjectId === projectId) {

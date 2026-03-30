@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ChevronDown, Loader2, Play } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AlertCircle,
+  ChevronDown,
+  Loader2,
+  Play,
+  Download,
+} from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { notify } from "../lib/notifications";
@@ -19,12 +25,13 @@ const statusStyles: Record<string, string> = {
 
 export default function DataCleaningTab() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const sharedScrollRef = useRef<HTMLDivElement | null>(null);
   const sharedScrollContentRef = useRef<HTMLDivElement | null>(null);
   const attributeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [attributeFilter, setAttributeFilter] = useState<string>("");
-  const [bulkAttributeName, setBulkAttributeName] = useState<string>("");
-  const [bulkAttributeValue, setBulkAttributeValue] = useState<string>("");
+  const [availableAttributes, setAvailableAttributes] = useState<string[]>([]);
   const [savingAttributes, setSavingAttributes] = useState<
     Record<string, boolean>
   >({});
@@ -35,6 +42,13 @@ export default function DataCleaningTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
+  const [selectedBulkAttributes, setSelectedBulkAttributes] = useState<
+    string[]
+  >([]);
+
+  const [bulkAttributeValues, setBulkAttributeValues] = useState<
+    Record<string, string>
+  >({});
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     new Set(),
   );
@@ -45,13 +59,17 @@ export default function DataCleaningTab() {
 
   const llmOptions = [
     { value: "openai", label: "Datavio Algo-1" },
-    { value: "gemini", label: "Datavio Algo-1" },
+    { value: "gemini", label: "Datavio Algo-2" },
   ];
 
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set(),
+  );
+
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-   const { availableBrands, availableCategories, loadProjectFilters } =
+  const { availableBrands, availableCategories, loadProjectFilters } =
     useProjectFilters();
   useEffect(() => {
     loadProjects();
@@ -88,7 +106,81 @@ export default function DataCleaningTab() {
     if (!sharedScrollRef.current || isSyncingScroll.current) return;
     syncAllAttributeRows(sharedScrollRef.current.scrollLeft);
   };
+  const loadProjectAttributes = useCallback(
+    async (projectId: string, category?: string) => {
+      if (!projectId) {
+        setAvailableAttributes([]);
+        return;
+      }
 
+      try {
+        const attributes = await productService.getProjectAttributes(
+          projectId,
+          category,
+        );
+        setAvailableAttributes(attributes);
+      } catch (error) {
+        console.error("Failed to load project attributes:", error);
+        setAvailableAttributes([]);
+        notify.error("Failed to load attributes");
+      }
+    },
+    [],
+  );
+  const toggleSelectProject = (projectId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+
+    setSelectedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllProjects = () => {
+    if (selectedProjectIds.size === projects.length) {
+      setSelectedProjectIds(new Set());
+    } else {
+      setSelectedProjectIds(new Set(projects.map((p) => p.id)));
+    }
+  };
+  const handleDownloadSelected = async () => {
+    const selectedProjects = Array.from(selectedProjectIds);
+    const selectedProducts = Array.from(selectedProductIds);
+
+    if (selectedProjects.length === 0 && selectedProducts.length === 0) {
+      notify.info("No projects or products selected");
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const blob = await cleansingService.downloadSelected({
+        project_ids: selectedProjects,
+        product_ids: selectedProducts,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "selected_cleaning_export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      notify.success("Download started");
+    } catch (error) {
+      console.error("Failed to download cleaned export:", error);
+      notify.error("Failed to download export");
+    } finally {
+      setDownloading(false);
+    }
+  };
   // const handleRowScroll = (productId: string) => {
   //   const rowEl = attributeRowRefs.current[productId];
   //   if (!rowEl || isSyncingScroll.current) return;
@@ -103,6 +195,8 @@ export default function DataCleaningTab() {
   //   }
   // };
   const loadProjects = async () => {
+    setProjectsLoading(true);
+
     try {
       const data = await projectService.getAllProjects();
       const cleaningProjects = data.filter(
@@ -112,19 +206,23 @@ export default function DataCleaningTab() {
     } catch (error) {
       console.error("Failed to load projects:", error);
       notify.error("Failed to load projects");
+    } finally {
+      setProjectsLoading(false);
     }
   };
   const handleReset = () => {
     setSelectedProjectId("");
+    setSelectedProjectIds(new Set());
     setSelectedProductIds(new Set());
     setStatusFilter("");
     setBrandFilter("");
     setCategoryFilter("");
     setAttributeFilter("");
-    setBulkAttributeName("");
-    setBulkAttributeValue("");
+    setAvailableAttributes([]);
+    setProducts([]);
+    setSelectedBulkAttributes([]);
+    setBulkAttributeValues({});
     loadProjectFilters();
-
     setEditingAttributes({});
   };
   const loadProducts = async () => {
@@ -364,49 +462,46 @@ export default function DataCleaningTab() {
     }
   };
 
- 
-
-  const uniqueAttributes = [
-    ...new Set(
-      products.flatMap((p) =>
-        (p.dynamic_attributes || []).map((attr) => attr?.name).filter(Boolean),
-      ),
-    ),
-  ].sort();
   const handleBulkUpdateAttributes = async () => {
     if (selectedProductIds.size === 0) {
       notify.info("No products selected");
       return;
     }
 
-    if (!bulkAttributeName) {
-      notify.info("Select an attribute");
+    if (selectedBulkAttributes.length === 0) {
+      notify.info("Select at least one attribute");
       return;
     }
 
-    if (!bulkAttributeValue.trim()) {
-      notify.info("Enter a value");
+    const attributesToUpdate = Object.fromEntries(
+      selectedBulkAttributes
+        .map((attr) => [attr, (bulkAttributeValues[attr] || "").trim()])
+        .filter(([_, value]) => value),
+    );
+
+    if (Object.keys(attributesToUpdate).length === 0) {
+      notify.info("Enter at least one value");
       return;
     }
 
     setBulkUpdating(true);
 
-    const productIds = Array.from(selectedProductIds);
-
     try {
       await cleansingService.bulkUpdateProductAttributes({
-        product_ids: productIds,
-        attribute_name: bulkAttributeName,
-        attribute_value: bulkAttributeValue.trim(),
+        product_ids: Array.from(selectedProductIds),
+        attributes: attributesToUpdate,
       });
 
       notify.success(
         "Bulk update completed",
-        `Updated ${bulkAttributeName} for ${productIds.length} product(s)`,
+        `Updated ${
+          Object.keys(attributesToUpdate).length
+        } attribute(s) for ${selectedProductIds.size} product(s)`,
       );
 
       await loadProducts();
-      setBulkAttributeValue("");
+      setBulkAttributeValues({});
+      setSelectedBulkAttributes([]);
       setSelectedProductIds(new Set());
     } catch (error: any) {
       console.error("Bulk update failed:", error);
@@ -418,10 +513,19 @@ export default function DataCleaningTab() {
       setBulkUpdating(false);
     }
   };
+  const filteredProjects = projects.filter((project) => {
+    if (statusFilter && project.source_status !== statusFilter) return false;
+    return true;
+  });
+ const canDownloadSelected =
+  selectedProjectIds.size > 0 ||
+  (selectedProductIds.size > 0 &&
+    products.some(
+      (p) =>
+        selectedProductIds.has(p.id) &&
+        p.enrichment_status !== "pending",
+    ));
   const filteredProducts = products.filter((product) => {
-    if (statusFilter && product.enrichment_status !== statusFilter) {
-      return false;
-    }
     if (brandFilter && product.brand_name !== brandFilter) return false;
     if (categoryFilter && product.category_1 !== categoryFilter) return false;
 
@@ -484,11 +588,12 @@ export default function DataCleaningTab() {
                   const projectId = e.target.value;
                   setSelectedProjectId(projectId);
                   await loadProjectFilters(projectId || undefined);
+                  await loadProjectAttributes(projectId);
                 }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
                 <option value="">Select Project</option>
-                {projects.map((project) => (
+                {filteredProjects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
@@ -505,29 +610,28 @@ export default function DataCleaningTab() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-                <option value="processing">Processing</option>
+                <option value="">All Status</option>
+                <option value="Yet to Start">Yet to Start</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
 
             <div>
               <label className="block text-sm text-slate-700 mb-2">Brand</label>
               <select
-  value={brandFilter}
-  onChange={(e) => setBrandFilter(e.target.value)}
-  disabled={availableBrands.length === 0}
-  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
->
-  <option value="">All</option>
-  {availableBrands.map((brand) => (
-    <option key={brand} value={brand}>
-      {brand}
-    </option>
-  ))}
-</select>
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                disabled={availableBrands.length === 0}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+              >
+                <option value="">All</option>
+                {availableBrands.map((brand) => (
+                  <option key={brand} value={brand}>
+                    {brand}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* <div>
@@ -553,18 +657,26 @@ export default function DataCleaningTab() {
                 Category
               </label>
               <select
-  value={categoryFilter}
-  onChange={(e) => setCategoryFilter(e.target.value)}
-  disabled={availableCategories.length === 0}
-  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
->
-  <option value="">All</option>
-  {availableCategories.map((cat) => (
-    <option key={cat} value={cat}>
-      {cat}
-    </option>
-  ))}
-</select>
+                value={categoryFilter}
+                onChange={async (e) => {
+                  const category = e.target.value;
+                  setCategoryFilter(category);
+                  setAttributeFilter("");
+                  await loadProjectAttributes(
+                    selectedProjectId,
+                    category || undefined,
+                  );
+                }}
+                disabled={availableCategories.length === 0}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+              >
+                <option value="">All</option>
+                {availableCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -578,8 +690,23 @@ export default function DataCleaningTab() {
           )}
         </div>
       </div>
-
-      {selectedProjectId && (
+      {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={handleDownloadSelected}
+            disabled={downloading}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {downloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Download Selected
+          </button>
+        </div>
+      )}
+      {/* {selectedProjectId && (
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <input
@@ -608,41 +735,85 @@ export default function DataCleaningTab() {
               )}
               Clean Selected ({selectedProductIds.size})
             </button>
+            <button
+              onClick={handleDownloadSelected}
+              disabled={downloading || !canDownloadSelected}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {downloading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Download Selected
+            </button>
           </div>
         </div>
-      )}
+      )} */}
       {selectedProjectId && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-          <div className="flex items-end gap-2 flex-wrap w-full">
-            <div className="flex-1">
+          <div className="flex items-end gap-4 flex-wrap w-full">
+            <div className="flex-1 min-w-[320px]">
               <label className="block text-sm text-slate-700 mb-2">
-                Bulk Update Attribute
+                Bulk Update Attributes
               </label>
-              <select
-                value={bulkAttributeName}
-                onChange={(e) => setBulkAttributeName(e.target.value)}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">Select attribute</option>
-                {uniqueAttributes.map((attr) => (
-                  <option key={attr} value={attr}>
-                    {attr}
-                  </option>
-                ))}
-              </select>
-            </div>
 
-            <div className="flex-1">
-              <label className="block text-sm text-slate-700 mb-2">
-                New Value
-              </label>
-              <input
-                type="text"
-                value={bulkAttributeValue}
-                onChange={(e) => setBulkAttributeValue(e.target.value)}
-                placeholder="Enter new value"
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              />
+              <div className="border border-slate-300 rounded-lg bg-white p-3 max-h-56 overflow-y-auto space-y-2">
+                {availableAttributes.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No attributes available
+                  </p>
+                ) : (
+                  availableAttributes.map((attr) => {
+                    const checked = selectedBulkAttributes.includes(attr);
+
+                    return (
+                      <div key={attr} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedBulkAttributes((prev) =>
+                                prev.includes(attr) ? prev : [...prev, attr],
+                              );
+                            } else {
+                              setSelectedBulkAttributes((prev) =>
+                                prev.filter((a) => a !== attr),
+                              );
+                              setBulkAttributeValues((prev) => {
+                                const next = { ...prev };
+                                delete next[attr];
+                                return next;
+                              });
+                            }
+                          }}
+                          className="rounded border-slate-300"
+                        />
+
+                        <span className="text-sm text-slate-700 w-[180px] truncate">
+                          {attr}
+                        </span>
+
+                        {checked && (
+                          <input
+                            type="text"
+                            value={bulkAttributeValues[attr] || ""}
+                            onChange={(e) =>
+                              setBulkAttributeValues((prev) => ({
+                                ...prev,
+                                [attr]: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter value"
+                            className="flex-1 h-9 px-3 border border-slate-300 rounded-md bg-white text-sm"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             <div>
@@ -651,8 +822,11 @@ export default function DataCleaningTab() {
                 disabled={
                   bulkUpdating ||
                   selectedProductIds.size === 0 ||
-                  !bulkAttributeName ||
-                  !bulkAttributeValue.trim()
+                  selectedBulkAttributes.length === 0 ||
+                  !selectedBulkAttributes.some(
+                    (attr) =>
+                      (bulkAttributeValues[attr] || "").trim().length > 0,
+                  )
                 }
                 className="h-10 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
               >
@@ -753,7 +927,7 @@ export default function DataCleaningTab() {
                           {product.product_name}
                         </span>
                         <p className="text-xs text-slate-500 mt-1">
-                          SKU: {product.product_code}
+                          MPN: {product.product_code}
                         </p>
                       </div>
                     </td>
@@ -799,7 +973,11 @@ export default function DataCleaningTab() {
                                     }
                                     className={`px-3 py-2 text-xs outline-none min-w-[140px] bg-white ${
                                       hasConflict ? "bg-amber-50" : ""
-                                    } ${savingAttributes[product.id] ? "opacity-50" : ""}`}
+                                    } ${
+                                      savingAttributes[product.id]
+                                        ? "opacity-50"
+                                        : ""
+                                    }`}
                                     placeholder="Value"
                                     disabled={savingAttributes[product.id]}
                                   />
@@ -839,7 +1017,9 @@ export default function DataCleaningTab() {
                     <td className="px-6 py-5">
                       <button
                         onClick={() => handleCleanProduct(product.id)}
-                        disabled={cleaning || product.enrichment_status === "processing"}
+                        disabled={
+                          cleaning || product.enrichment_status === "processing"
+                        }
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
                       >
                         {product.enrichment_status === "processing" ? (
@@ -885,7 +1065,7 @@ export default function DataCleaningTab() {
             </p>
           </div>
 
-          {loading ? (
+          {projectsLoading ? (
             <div className="p-8 text-center">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
               <p className="text-slate-500 text-sm">Loading projects...</p>
@@ -898,52 +1078,97 @@ export default function DataCleaningTab() {
                 Projects with use case "Data cleaning and Standardization" will
                 appear here
               </p>
+              {projects.length > 0 && (
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="checkbox"
+                    checked={
+                      projects.length > 0 &&
+                      selectedProjectIds.size === projects.length
+                    }
+                    onChange={toggleSelectAllProjects}
+                    className="rounded border-slate-300"
+                  />
+                  <span className="text-sm text-slate-600">
+                    {selectedProjectIds.size} of {projects.length} projects
+                    selected
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center gap-3 mb-4">
+                <input
+                  type="checkbox"
+                  checked={
+                    projects.length > 0 &&
+                    selectedProjectIds.size === filteredProjects.length
+                  }
+                  onChange={toggleSelectAllProjects}
+                  className="rounded border-slate-300"
+                />
+                <span className="text-sm text-slate-600">
+                  {selectedProjectIds.size} of {filteredProjects.length}{" "}
+                  projects selected
+                </span>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  onClick={async () => {
-                    setSelectedProjectId(project.id);
-                    await loadProjectFilters(project.id);
-                  }}
-                  className={`w-full text-left p-4 border rounded-lg transition-colors ${
-                    selectedProjectId === project.id
-                      ? "border-blue-300 bg-blue-50"
-                      : "border-slate-200 hover:bg-slate-50 hover:border-blue-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-semibold text-slate-900">
-                          {project.name}
-                        </h4>
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
-                          {project.product_count ?? 0} products
-                        </span>
-                        {project.use_case && (
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
-                            {project.use_case}
-                          </span>
-                        )}
-                        {project.source_status &&
-                          getStatusBadge(project.source_status)}
-                      </div>
-                    </div>
+              {filteredProjects.map((project) => (
+  <div
+    key={project.id}
+    className={`w-full p-4 border rounded-lg transition-colors ${
+      selectedProjectId === project.id
+        ? "border-blue-300 bg-blue-50"
+        : "border-slate-200 hover:bg-slate-50 hover:border-blue-300"
+    }`}
+  >
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <input
+          type="checkbox"
+          checked={selectedProjectIds.has(project.id)}
+          onChange={(e) => toggleSelectProject(project.id, e as any)}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded border-slate-300"
+        />
 
-                    <ChevronDown
-                      className={`w-4 h-4 shrink-0 ${
-                        selectedProjectId === project.id
-                          ? "text-blue-600"
-                          : "text-slate-400"
-                      }`}
-                      aria-hidden="true"
-                    />
-                  </div>
-                </button>
-              ))}
+        <button
+          type="button"
+          onClick={async () => {
+            setSelectedProjectId(project.id);
+            await loadProjectFilters(project.id);
+            await loadProjectAttributes(project.id);
+          }}
+          className="flex-1 text-left"
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="text-sm font-semibold text-slate-900">
+              {project.name}
+            </h4>
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
+              {project.product_count ?? 0} products
+            </span>
+            {project.use_case && (
+              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                {project.use_case}
+              </span>
+            )}
+            {project.source_status && getStatusBadge(project.source_status)}
+          </div>
+        </button>
+      </div>
+
+      <ChevronDown
+        className={`w-4 h-4 shrink-0 ${
+          selectedProjectId === project.id
+            ? "text-blue-600"
+            : "text-slate-400"
+        }`}
+        aria-hidden="true"
+      />
+    </div>
+  </div>
+))}
             </div>
           )}
         </div>

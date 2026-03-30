@@ -7,6 +7,23 @@ export const productService = {
     });
     return response.data;
   },
+  async getProjectAttributes(
+  projectId: string,
+  category?: string,
+): Promise<string[]> {
+  try {
+    const params: Record<string, string> = { project_id: projectId };
+    if (category) {
+      params.category = category;
+    }
+
+    const { data } = await api.get("/products/attributes", { params });
+    return data?.attributes || [];
+  } catch (error) {
+    console.error("Failed to fetch project attributes", error);
+    throw error;
+  }
+},
   async getProjectFilters(projectId?: string): Promise<{
   categories: string[];
   brands: string[];

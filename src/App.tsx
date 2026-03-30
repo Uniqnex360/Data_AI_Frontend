@@ -27,7 +27,6 @@ import GoldenRecordsTab from "./components/GoldenRecordsTab";
 import PublishingTab from "./components/PublishingTab";
 import AuditTrailTab from "./components/AuditTrailTab";
 import UserManagementTab from "./components/UserManagementTab";
-import { seedBusinessRules } from "./utils/seedData";
 import { Toaster } from "sonner";
 import logo from "./logo/logo.png";
 import DataCleaningTab from "./components/DataCleaningTab.tsx";
@@ -145,14 +144,11 @@ function App() {
   );
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
 
-  useEffect(() => {
-    seedBusinessRules().catch(console.error);
-  }, []);
+  
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component;
 
   const handleProjectSelect = (projectId: string) => {
-    console.log("PROJECTID1111111111", projectId);
     setSelectedProject(projectId);
     setActiveTab("sources");
   };

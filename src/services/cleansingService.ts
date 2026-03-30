@@ -10,6 +10,15 @@ export const cleansingService = {
       return [];
     }
   },
+  async downloadSelected(payload: {
+  project_id?: string;
+  product_ids?: string[];
+}): Promise<Blob> {
+  const response = await api.post("/cleansing/download-selected", payload, {
+    responseType: "blob",
+  });
+  return response.data;
+},
 //   async runProjectCleaning(projectId: string,llm_provider:string): Promise<{ task_id: string }> {
 //   try {
 //     const response = await api.post(`/cleansing/projects/${projectId}/clean`,{llm_provider:llm_provider});
