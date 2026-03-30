@@ -7,6 +7,24 @@ export const productService = {
     });
     return response.data;
   },
+  async getProjectFilters(projectId?: string): Promise<{
+  categories: string[];
+  brands: string[];
+}> {
+  try {
+    const params = projectId ? { project_id: projectId } : undefined;
+
+    const { data } = await api.get("/products/filters", { params });
+
+    return {
+      categories: data?.categories || [],
+      brands: data?.brands || [],
+    };
+  } catch (error) {
+    console.error("Failed to fetch project filters", error);
+    throw error;
+  }
+},
   async getProductsByProject(projectId: string, skip = 0, limit = 100): Promise<Product[]> {
   const response = await api.get('/products/', {
     params: { project_id: projectId, skip, limit }

@@ -1,10 +1,10 @@
 import api from "../lib/api.ts";
-import { Project } from "../types/database.types.ts";
+import { Project } from "../types/business-rules.types.ts";
 
 export const projectService = {
-  async getAllProjects(): Promise<Project[]> {
+  async getAllProjects(params?:{operation_mode?:string}): Promise<Project[]> {
     try {
-      const { data } = await api.get<Project[]>("/projects/");
+      const { data } = await api.get<Project[]>("/projects/",{params});
       return data || [];
     } catch (error) {
       console.error("Failed to fetch projects", error);

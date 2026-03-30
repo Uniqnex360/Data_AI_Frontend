@@ -1,35 +1,36 @@
 import React, {
-  useState,
-  useEffect,
   useCallback,
-  useRef,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-  FileText,
-  Play,
-  CheckCircle2,
-  Clock,
-  XCircle,
+  AlertTriangle,
+  Box,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
-  Loader2,
-  X,
-  Box,
-  AlertTriangle,
-  List,
   ChevronUp,
-  ChevronDown,
+  Clock,
+  FileText,
+  List,
+  Loader2,
+  Play,
+  RefreshCw,
+  X,
 } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
-import { GitMerge, Download } from "lucide-react";
+
+import { Download, GitMerge } from "lucide-react";
 import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
 import { AggregationTabProps } from "../types/business-rules.types";
+import { getStatusBadge } from "../utils/projectStatusColorizer";
+import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
@@ -54,8 +55,8 @@ export default function AggregationTab({
   const [downloading, setDownloading] = useState(false);
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
   const [llmOptions] = useState([
-    { value: "openai", label: "OpenAI" },
-    { value: "gemini", label: "Google Gemini" },
+    { value: "openai", label: "Datavio Algo-1" },
+    { value: "gemini", label: "Datavio Algo-2" },
   ]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
@@ -154,6 +155,18 @@ export default function AggregationTab({
       return () => clearInterval(interval);
     }
   }, [aggregatingProjects, pollProjectStatuses]);
+ const {
+  availableBrands,
+  availableCategories,
+  loadProjectFilters,
+  resetProjectFilters,
+} = useProjectFilters();
+  const loadDefaultFilters = useCallback(async () => {
+  await loadProjectFilters();
+}, [loadProjectFilters]);
+  useEffect(() => {
+    loadDefaultFilters();
+  }, [loadDefaultFilters]);
   const filteredExpandedProducts = useMemo(() => {
     let filtered = [...expandedProjectProducts];
     if (searchQuery.trim()) {
@@ -195,7 +208,9 @@ export default function AggregationTab({
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
-      const data = await projectService.getAllProjects();
+      const data = await projectService.getAllProjects({
+        operation_mode: "aggregation",
+      });
 
       const aggregationData = data.filter(
         (p: Project) => p.operation_mode === "aggregation",
@@ -221,21 +236,32 @@ export default function AggregationTab({
     loadProjects();
   }, [loadProjects]);
   const resetFilters = useCallback(() => {
-    setSearchQuery("");
-    setStatusFilter(new Set());
-    setCategoryFilter("");
-    setBrandFilter("");
-    setSelectedUseCase("");
-    setSelectedProjectId("");
-    setCurrentPage(1);
-  }, []);
+  setSearchQuery("");
+  setStatusFilter(new Set());
+  setCategoryFilter("");
+  setBrandFilter("");
+  setSelectedUseCase("");
+  setSelectedProjectId("");
+  setExpandedProjectId(null);
+  setExpandedProjectProducts([]);
+  setCurrentPage(1);
+  loadDefaultFilters();
+}, [loadDefaultFilters]);
+const resetLocalFilters = useCallback(() => {
+  setSearchQuery("");
+  setStatusFilter(new Set());
+  setCategoryFilter("");
+  setBrandFilter("");
+  setCurrentPage(1);
+}, []);
   const toggleExpandProject = useCallback(
     async (projectId: string) => {
       if (expandedProjectId === projectId) {
         setExpandedProjectId(null);
         setExpandedProjectProducts([]);
         setCurrentPage(1);
-        resetFilters();
+        resetLocalFilters();
+
         return;
       }
       setExpandedProjectId(projectId);
@@ -244,7 +270,8 @@ export default function AggregationTab({
         const data = await productService.getProductsByProject(projectId);
         setExpandedProjectProducts(data);
         setCurrentPage(1);
-        resetFilters();
+        resetLocalFilters();
+
         const processingProductIds = data
           .filter((p) => p.enrichment_status === "processing")
           .map((p) => p.id);
@@ -334,43 +361,105 @@ export default function AggregationTab({
     },
     [selectedLLM],
   );
+  // const handleAggregateAllInExpanded = useCallback(async () => {
+  //   if (!expandedProjectId) return;
+  //   const pending = expandedProjectProducts.filter(
+  //     (p) => p.enrichment_status === "pending",
+  //   );
+  //   if (pending.length === 0) {
+  //     notify.info("No pending products in this project");
+  //     return;
+  //   }
+  //   setLoading(true);
+  //   try {
+  //     await Promise.allSettled(
+  //       pending.map((p) =>
+  //         aggregationService.aggregateProduct(p.id, selectedLLM)
+  //       ),
+  //     );
+  //     const newPollingIds = pending.map((p) => p.id);
+  //     setPollingProductIds((prev) => {
+  //       const updated = new Set(prev);
+  //       newPollingIds.forEach((id) => updated.add(id));
+  //       return updated;
+  //     });
+  //     setExpandedProjectProducts((prev) =>
+  //       prev.map((p) =>
+  //         pending.some((pp) => pp.id === p.id)
+  //           ? { ...p, enrichment_status: "processing" }
+  //           : p
+  //       )
+  //     );
+  //     notify.success(`Aggregation started for ${pending.length} products`);
+  //   } catch (error) {
+  //     console.error("Batch aggregation failed", error);
+  //     notify.error("Batch aggregation failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [expandedProjectId, expandedProjectProducts, selectedLLM]);
+
   const handleAggregateAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
-    const pending = expandedProjectProducts.filter(
-      (p) => p.enrichment_status === "pending",
+
+    const selectedPendingProducts = expandedProjectProducts.filter(
+      (p) => selectedProductIds.has(p.id) && p.enrichment_status === "pending",
     );
-    if (pending.length === 0) {
-      notify.info("No pending products in this project");
+
+    const pendingProducts =
+      selectedProductIds.size > 0
+        ? selectedPendingProducts
+        : expandedProjectProducts.filter(
+            (p) => p.enrichment_status === "pending",
+          );
+
+    if (pendingProducts.length === 0) {
+      notify.info(
+        selectedProductIds.size > 0
+          ? "No pending selected products in this project"
+          : "No pending products in this project",
+      );
       return;
     }
+
     setLoading(true);
     try {
       await Promise.allSettled(
-        pending.map((p) =>
+        pendingProducts.map((p) =>
           aggregationService.aggregateProduct(p.id, selectedLLM),
         ),
       );
-      const newPollingIds = pending.map((p) => p.id);
+
+      const newPollingIds = pendingProducts.map((p) => p.id);
       setPollingProductIds((prev) => {
         const updated = new Set(prev);
         newPollingIds.forEach((id) => updated.add(id));
         return updated;
       });
+
       setExpandedProjectProducts((prev) =>
         prev.map((p) =>
-          pending.some((pp) => pp.id === p.id)
+          pendingProducts.some((pp) => pp.id === p.id)
             ? { ...p, enrichment_status: "processing" }
             : p,
         ),
       );
-      notify.success(`Aggregation started for ${pending.length} products`);
+
+      notify.success(
+        `Aggregation started for ${pendingProducts.length} product(s)`,
+      );
     } catch (error) {
       console.error("Batch aggregation failed", error);
       notify.error("Batch aggregation failed");
     } finally {
       setLoading(false);
     }
-  }, [expandedProjectId, expandedProjectProducts, selectedLLM]);
+  }, [
+    expandedProjectId,
+    expandedProjectProducts,
+    selectedProductIds,
+    selectedLLM,
+  ]);
   const handleAggregateSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToAggregate = Array.from(selectedProjectIds);
@@ -567,40 +656,7 @@ export default function AggregationTab({
     },
     [expandedProjectId],
   );
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-            <CheckCircle2 className="w-3 h-3" /> Completed
-          </span>
-        );
-      case "pending":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3 h-3" /> Pending
-          </span>
-        );
-      case "failed":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-            <XCircle className="w-3 h-3" /> Failed
-          </span>
-        );
-      case "processing":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-            <Loader2 className="w-3 h-3 animate-spin" /> Processing
-          </span>
-        );
-      default:
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-            {status}
-          </span>
-        );
-    }
-  };
+
   const safeParseValue = (value: any): any => {
     if (typeof value !== "string") return value;
     const str = value.trim();
@@ -636,8 +692,9 @@ export default function AggregationTab({
     }
     if (typeof parsedValue === "object" && parsedValue !== null) {
       if (Array.isArray(parsedValue)) {
-        if (parsedValue.length === 0)
+        if (parsedValue.length === 0) {
           return <span className="text-slate-400">-</span>;
+        }
         return parsedValue.join(", ");
       } else {
         if ("standard_value" in parsedValue || "value" in parsedValue) {
@@ -740,7 +797,11 @@ export default function AggregationTab({
                   <div
                     className="h-full bg-blue-600 rounded-full transition-all duration-500"
                     style={{
-                      width: `${(expandedStats.success / (expandedProjectProducts.length || 1)) * 100}%`,
+                      width: `${
+                        (expandedStats.success /
+                          (expandedProjectProducts.length || 1)) *
+                        100
+                      }%`,
                     }}
                   />
                 </div>
@@ -855,8 +916,10 @@ export default function AggregationTab({
               </label>
               <select
                 value={selectedProjectId}
-                onChange={(e) => {
-                  setSelectedProjectId(e.target.value);
+                onChange={async (e) => {
+                  const projectId = e.target.value;
+                  setSelectedProjectId(projectId);
+                  await loadProjectFilters(projectId);
                 }}
                 disabled={
                   projectsLoading ||
@@ -884,7 +947,7 @@ export default function AggregationTab({
                 value={
                   statusFilter.size === 1 ? Array.from(statusFilter)[0] : ""
                 }
-                disabled={!expandedProjectId}
+                disabled={projectsLoading}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === "") setStatusFilter(new Set());
@@ -910,26 +973,11 @@ export default function AggregationTab({
                   setCategoryFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                disabled={
-                  !expandedProjectId ||
-                  [
-                    ...new Set(
-                      expandedProjectProducts
-                        .map((p) => p.category_1)
-                        .filter(Boolean),
-                    ),
-                  ].length === 0
-                }
+                disabled={availableCategories.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
                 <option value="">All</option>
-                {[
-                  ...new Set(
-                    expandedProjectProducts
-                      .map((p) => p.category_1)
-                      .filter(Boolean),
-                  ),
-                ].map((cat) => (
+                {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>
@@ -945,26 +993,11 @@ export default function AggregationTab({
                   setBrandFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                disabled={
-                  !expandedProjectId ||
-                  [
-                    ...new Set(
-                      expandedProjectProducts
-                        .map((p) => p.brand_name)
-                        .filter(Boolean),
-                    ),
-                  ].length === 0
-                }
+                disabled={availableBrands.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
                 <option value="">All</option>
-                {[
-                  ...new Set(
-                    expandedProjectProducts
-                      .map((p) => p.brand_name)
-                      .filter(Boolean),
-                  ),
-                ].map((brand) => (
+                {availableBrands.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}
                   </option>
@@ -1011,7 +1044,12 @@ export default function AggregationTab({
           </div>
         </div>
         <div className="divide-y divide-slate-200">
-          {filteredProjects.length === 0 ? (
+          {projectsLoading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+              <p className="text-slate-500 text-sm">Loading projects...</p>
+            </div>
+          ) : filteredProjects.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
               No projects found
             </div>
@@ -1021,7 +1059,9 @@ export default function AggregationTab({
                 <div
                   className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
                     expandedProjectId === project.id ? "bg-blue-50" : ""
-                  } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
+                  } ${
+                    selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""
+                  } ${
                     aggregatingProjects.has(project.id) ? "bg-blue-50/30" : ""
                   }`}
                   onClick={() => toggleExpandProject(project.id)}
@@ -1049,6 +1089,7 @@ export default function AggregationTab({
                           {project.use_case}
                         </span>
                       )}
+                      {getStatusBadge(project.source_status || "NA")}
                       {aggregatingProjects.has(project.id) && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -1077,8 +1118,12 @@ export default function AggregationTab({
                           onClick={handleAggregateAllInExpanded}
                           disabled={
                             loading ||
-                            expandedStats.pending === 0 ||
-                            aggregatingProjects.has(project.id)
+                            aggregatingProjects.has(project.id) ||
+                            (selectedProductIds.size > 0
+                              ? !expandedProjectProducts.some((p) =>
+                                  selectedProductIds.has(p.id),
+                                )
+                              : expandedStats.pending === 0)
                           }
                           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
                         >
@@ -1089,7 +1134,9 @@ export default function AggregationTab({
                           )}
                           {aggregatingProjects.has(project.id)
                             ? "Aggregating..."
-                            : "Aggregate All"}
+                            : selectedProductIds.size > 0
+                              ? `Aggregate Selected (${selectedProductIds.size})`
+                              : "Aggregate All"}
                         </button>
                       )}
                     </div>
@@ -1176,7 +1223,6 @@ export default function AggregationTab({
                                     : ""
                                 }`}
                               >
-                                <td className="px-4 py-3"></td>
                                 <td
                                   className="px-4 py-3"
                                   onClick={(e) => e.stopPropagation()}
@@ -1254,7 +1300,9 @@ export default function AggregationTab({
                                               : "bg-red-400"
                                         }`}
                                         style={{
-                                          width: `${product.completeness_score || 10}%`,
+                                          width: `${
+                                            product.completeness_score || 10
+                                          }%`,
                                         }}
                                       />
                                     </div>

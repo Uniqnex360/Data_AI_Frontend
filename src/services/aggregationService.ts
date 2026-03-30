@@ -128,7 +128,7 @@ export const aggregationService = {
       return {
         id: "",
         project_id: projectId,
-        status: "idle",
+        status: "pending",
         total_products: 0,
         successful: 0,
         failed: 0,

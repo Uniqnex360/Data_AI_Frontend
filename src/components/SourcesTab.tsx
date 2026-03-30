@@ -183,22 +183,22 @@ export default function SourcesTab({
     poll();
   };
 
-const useCaseMap: Record<OperationMode, string[]> = {
-  aggregation: ["With categories", "Without categories"],
-  enrichment: [
-    "With Categories with attribute (back filling)",
-    "With Categories with attribute (back filling) and existing attribute validation",
-  ],
-  cleaning: ["Data cleaning and Standardization"],
-};
+  const useCaseMap: Record<OperationMode, string[]> = {
+    aggregation: ["With categories", "Without categories"],
+    enrichment: [
+      "With Categories with attribute (back filling)",
+      "With Categories with attribute (back filling) and existing attribute validation",
+    ],
+    cleaning: ["Data cleaning and Standardization"],
+  };
 
-const useCaseOptions = useCaseMap[operationMode];
+  const useCaseOptions = useCaseMap[operationMode];
 
-useEffect(() => {
-  setSelectedUseCase((prev) =>
-    prev && useCaseMap[operationMode].includes(prev) ? prev : "",
-  );
-}, [operationMode]);
+  useEffect(() => {
+    setSelectedUseCase((prev) =>
+      prev && useCaseMap[operationMode].includes(prev) ? prev : "",
+    );
+  }, [operationMode]);
   const handleSelectUseCase = (useCase: string) => {
     setSelectedUseCase(useCase);
     setShowUseCaseDropdown(false);
@@ -454,7 +454,7 @@ useEffect(() => {
     }
     setLoading(true);
     try {
-      await projectService.createProject({
+      const createdProject = await projectService.createProject({
         name: projectName,
         use_case: selectedUseCase,
         operation_mode: operationMode,
@@ -466,6 +466,11 @@ useEffect(() => {
       setShowUseCaseDropdown(false);
       setShowProjectModal(false);
       await loadProjects();
+      if (createdProject?.id) {
+        setSelectedProject(createdProject);
+        onProjectSelect?.(createdProject.id);
+        await loadSourcesForProject(createdProject.id);
+      }
     } catch (error) {
       console.error("Failed to create project", error);
       const errorMessage =
@@ -555,11 +560,10 @@ useEffect(() => {
               </label>
               <select
                 value={operationMode}
-                onChange={(e) =>{
-                  setOperationMode(e.target.value as OperationMode)
-                   setShowUseCaseDropdown(false);
-                }
-                }
+                onChange={(e) => {
+                  setOperationMode(e.target.value as OperationMode);
+                  setShowUseCaseDropdown(false);
+                }}
                 className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
               >
                 <option value="aggregation"> Aggregation</option>
@@ -602,22 +606,19 @@ useEffect(() => {
                 {showUseCaseDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {useCaseOptions.map((useCase) => (
-                      <label
-                        key={useCase}
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 cursor-pointer"
-                      >
-                        <input
-                          type="radio"
-                          name="useCaseSelection"
-                          checked={selectedUseCase === useCase}
-                          onChange={() => handleSelectUseCase(useCase)}
-                          className="rounded border-slate-300"
-                        />
-                        <span className="text-sm text-slate-700">
-                          {useCase}
-                        </span>
-                      </label>
-                    ))}
+  <button
+    key={useCase}
+    type="button"
+    onClick={() => handleSelectUseCase(useCase)}
+    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+      selectedUseCase === useCase
+        ? "bg-blue-50 text-blue-700 font-medium"
+        : "text-slate-700 hover:bg-slate-50"
+    }`}
+  >
+    {useCase}
+  </button>
+))}
                   </div>
                 )}
               </div>
@@ -966,24 +967,26 @@ useEffect(() => {
                         )}
                       </button>
                     </div>
-                    
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-  <div className="inline-block px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-md">
-    <p className="text-xs text-blue-700 font-medium capitalize">
-      <span className="text-blue-500 mr-1">Mode:</span>
-      {project.operation_mode}
-    </p>
-  </div>
 
-  {project.use_case && (
-    <div className="inline-block px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md">
-      <p className="text-xs text-slate-600 font-medium">
-        <span className="text-slate-400 mr-1">Workflow:</span>
-        {project.use_case}
-      </p>
-    </div>
-  )}
-</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <div className="inline-block px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-xs text-blue-700 font-medium capitalize">
+                          <span className="text-blue-500 mr-1">Mode:</span>
+                          {project.operation_mode}
+                        </p>
+                      </div>
+
+                      {project.use_case && (
+                        <div className="inline-block px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md">
+                          <p className="text-xs text-slate-600 font-medium">
+                            <span className="text-slate-400 mr-1">
+                              Workflow:
+                            </span>
+                            {project.use_case}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => {

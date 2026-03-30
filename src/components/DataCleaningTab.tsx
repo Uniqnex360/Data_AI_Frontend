@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { AlertCircle, ChevronDown, Loader2, Play } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
-import { aggregationService } from "../services/aggregationService";
 import { notify } from "../lib/notifications";
 import { Product, Project } from "../types/business-rules.types.ts";
 import { cleansingService } from "../services/cleansingService";
+import { getStatusBadge } from "../utils/projectStatusColorizer";
+import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 
 const statusStyles: Record<string, string> = {
   validated: "bg-green-100 text-green-700",
@@ -43,18 +44,19 @@ export default function DataCleaningTab() {
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
 
   const llmOptions = [
-    { value: "openai", label: "OpenAI" },
-    { value: "gemini", label: "Google Gemini" },
+    { value: "openai", label: "Datavio Algo-1" },
+    { value: "gemini", label: "Datavio Algo-1" },
   ];
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-
+   const { availableBrands, availableCategories, loadProjectFilters } =
+    useProjectFilters();
   useEffect(() => {
     loadProjects();
-  }, []);
+    loadProjectFilters();
+  }, [loadProjectFilters]);
 
   useEffect(() => {
     if (selectedProjectId) {
@@ -121,6 +123,8 @@ export default function DataCleaningTab() {
     setAttributeFilter("");
     setBulkAttributeName("");
     setBulkAttributeValue("");
+    loadProjectFilters();
+
     setEditingAttributes({});
   };
   const loadProducts = async () => {
@@ -360,12 +364,7 @@ export default function DataCleaningTab() {
     }
   };
 
-  const uniqueBrands = [
-    ...new Set(products.map((p) => p.brand_name).filter(Boolean)),
-  ];
-  const uniqueCategories = [
-    ...new Set(products.map((p) => p.category_1).filter(Boolean)),
-  ];
+ 
 
   const uniqueAttributes = [
     ...new Set(
@@ -451,8 +450,6 @@ export default function DataCleaningTab() {
         </h3>
         <p className="text-sm text-slate-600 mt-1">
           Select projects to manage cleaning and standarization
-
-
         </p>
       </div>
 
@@ -483,7 +480,11 @@ export default function DataCleaningTab() {
               </label>
               <select
                 value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
+                onChange={async (e) => {
+                  const projectId = e.target.value;
+                  setSelectedProjectId(projectId);
+                  await loadProjectFilters(projectId || undefined);
+                }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
                 <option value="">Select Project</option>
@@ -515,20 +516,21 @@ export default function DataCleaningTab() {
             <div>
               <label className="block text-sm text-slate-700 mb-2">Brand</label>
               <select
-                value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All</option>
-                {uniqueBrands.map((brand) => (
-                  <option key={brand} value={brand}>
-                    {brand}
-                  </option>
-                ))}
-              </select>
+  value={brandFilter}
+  onChange={(e) => setBrandFilter(e.target.value)}
+  disabled={availableBrands.length === 0}
+  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+>
+  <option value="">All</option>
+  {availableBrands.map((brand) => (
+    <option key={brand} value={brand}>
+      {brand}
+    </option>
+  ))}
+</select>
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Attribute
               </label>
@@ -544,24 +546,25 @@ export default function DataCleaningTab() {
                   </option>
                 ))}
               </select>
-            </div>
+            </div> */}
 
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Category
               </label>
               <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All</option>
-                {uniqueCategories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+  value={categoryFilter}
+  onChange={(e) => setCategoryFilter(e.target.value)}
+  disabled={availableCategories.length === 0}
+  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+>
+  <option value="">All</option>
+  {availableCategories.map((cat) => (
+    <option key={cat} value={cat}>
+      {cat}
+    </option>
+  ))}
+</select>
             </div>
           </div>
 
@@ -836,9 +839,7 @@ export default function DataCleaningTab() {
                     <td className="px-6 py-5">
                       <button
                         onClick={() => handleCleanProduct(product.id)}
-                        disabled={
-                          cleaning || product.enrichment_status === "processing"
-                        }
+                        disabled={cleaning || product.enrichment_status === "processing"}
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
                       >
                         {product.enrichment_status === "processing" ? (
@@ -884,7 +885,12 @@ export default function DataCleaningTab() {
             </p>
           </div>
 
-          {projects.length === 0 ? (
+          {loading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+              <p className="text-slate-500 text-sm">Loading projects...</p>
+            </div>
+          ) : projects.length === 0 ? (
             <div className="text-center py-12">
               <AlertCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600">No cleaning projects found</p>
@@ -898,7 +904,10 @@ export default function DataCleaningTab() {
               {projects.map((project) => (
                 <button
                   key={project.id}
-                  onClick={() => setSelectedProjectId(project.id)}
+                  onClick={async () => {
+                    setSelectedProjectId(project.id);
+                    await loadProjectFilters(project.id);
+                  }}
                   className={`w-full text-left p-4 border rounded-lg transition-colors ${
                     selectedProjectId === project.id
                       ? "border-blue-300 bg-blue-50"
@@ -914,16 +923,13 @@ export default function DataCleaningTab() {
                         <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
                           {project.product_count ?? 0} products
                         </span>
-                        {project.operation_mode && (
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full capitalize border border-blue-200">
-                            {project.operation_mode}
-                          </span>
-                        )}
                         {project.use_case && (
                           <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
                             {project.use_case}
                           </span>
                         )}
+                        {project.source_status &&
+                          getStatusBadge(project.source_status)}
                       </div>
                     </div>
 
