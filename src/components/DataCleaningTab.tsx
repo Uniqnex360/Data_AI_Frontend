@@ -3,7 +3,6 @@ import {
   AlertCircle,
   ChevronDown,
   Loader2,
-  Play,
   Download,
 } from "lucide-react";
 import { productService } from "../services/productService";
@@ -32,10 +31,7 @@ export default function DataCleaningTab() {
   const attributeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [attributeFilter, setAttributeFilter] = useState<string>("");
   const [availableAttributes, setAvailableAttributes] = useState<string[]>([]);
-  const [savingAttributes, setSavingAttributes] = useState<
-    Record<string, boolean>
-  >({});
-
+  const [savingAttributes, setSavingAttributes] = useState<Record<string, boolean>>({});
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const isSyncingScroll = useRef(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -60,6 +56,7 @@ export default function DataCleaningTab() {
   const llmOptions = [
     { value: "openai", label: "Datavio Algo-1" },
     { value: "gemini", label: "Datavio Algo-2" },
+    {value:'claude',label:"Datavio Algo-3"}
   ];
 
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -549,6 +546,9 @@ export default function DataCleaningTab() {
   return (
     <div className="p-1 bg-slate-50 min-h-screen">
       <div className="mb-6">
+        <p>
+          
+        </p>
         <h3 className="text-xl font-semibold text-slate-900 mb-1">
           Data Cleaning & Validation
         </h3>
