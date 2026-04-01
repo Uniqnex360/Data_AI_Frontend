@@ -12,6 +12,7 @@ import { Product, Project } from "../types/business-rules.types.ts";
 import { cleansingService } from "../services/cleansingService";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
+import { Play } from 'lucide-react';
 
 const statusStyles: Record<string, string> = {
   validated: "bg-green-100 text-green-700",
@@ -690,7 +691,7 @@ export default function DataCleaningTab() {
           )}
         </div>
       </div>
-      {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
+      {/* {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
         <div className="flex justify-end mb-4">
           <button
             onClick={handleDownloadSelected}
@@ -702,11 +703,11 @@ export default function DataCleaningTab() {
             ) : (
               <Download className="w-4 h-4" />
             )}
-            Download Selected
+            Download Selected1
           </button>
         </div>
-      )}
-      {/* {selectedProjectId && (
+      )} */}
+      {selectedProjectId && (
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <input
@@ -749,7 +750,7 @@ export default function DataCleaningTab() {
             </button>
           </div>
         </div>
-      )} */}
+      )}
       {selectedProjectId && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
           <div className="flex items-end gap-4 flex-wrap w-full">

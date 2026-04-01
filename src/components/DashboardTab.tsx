@@ -37,15 +37,19 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         ? await dashboardService.getProjectMetrics(projectId)
         : await dashboardService.getGlobalMetrics();
       setGlobalStats(data);
-      const total = data.totalProducts || 0;
-      const completed = data.aggregatedProducts || 0;
+            const total = data.totalProducts || 0;
+      const aggregationCompleted = data.aggregatedProducts || 0;
+      const cleaningCompleted = data.cleanedProducts || 0;
+      const standardizedProducts = data.standardizedProducts || 0;
+      const enrichedProducts = data.enrichedProducts || 0;
       const failed = data.failedProducts || 0;
+
       const transformedMetrics = [
         { metric_type: "total_products", metric_value: total },
-        { metric_type: "aggregated", metric_value: completed },
-        { metric_type: "cleaned", metric_value: completed },
-        { metric_type: "standardized", metric_value: completed },
-        { metric_type: "enriched", metric_value: completed },
+        { metric_type: "aggregated", metric_value: aggregationCompleted },
+        { metric_type: "cleaned", metric_value: cleaningCompleted },
+        { metric_type: "standardized", metric_value: standardizedProducts },
+        { metric_type: "enriched", metric_value: enrichedProducts },
         { metric_type: "failed", metric_value: failed },
         { metric_type: "pending", metric_value: data.pendingProducts || 0 },
         {
@@ -54,13 +58,23 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         },
       ];
       setMetrics(transformedMetrics);
-       if (projectId) {
-        const failedRes = await aggregationService.getProductsByProject(projectId, 0, 5, 'failed');
+      if (projectId) {
+        const failedRes = await aggregationService.getProductsByProject(
+          projectId,
+          0,
+          5,
+          "failed",
+        );
         let combinedList = failedRes.products;
 
         if (combinedList.length < 5) {
           const remainingSlots = 5 - combinedList.length;
-          const pendingRes = await aggregationService.getProductsByProject(projectId, 0, remainingSlots, 'pending');
+          const pendingRes = await aggregationService.getProductsByProject(
+            projectId,
+            0,
+            remainingSlots,
+            "pending",
+          );
           combinedList = [...combinedList, ...pendingRes.products];
         }
 
@@ -255,101 +269,101 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-red-500" /> Not Run / Failed
-              Details
-            </h5>
-            {getMetricValue("failed") > 0 && (
-              <button
-                onClick={() => onNavigate?.("aggregation", "failed")}
-                className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline"
-              >
-                View All Issues <ArrowRight className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+            <div className="flex items-center justify-between mb-4">
+              <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-500" /> Not Run / Failed
+                Details
+              </h5>
+              {getMetricValue("failed") > 0 && (
+                <button
+                  onClick={() => onNavigate?.("aggregation", "failed")}
+                  className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline"
+                >
+                  View All Issues <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
 
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
-                <tr>
-                  <th className="px-4 py-3">Product Code / SKU</th>
-                  <th className="px-4 py-3">Issue Type</th>
-                  <th className="px-4 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {problemProducts.length > 0 ? (
-                  problemProducts.map((p) => {
-                    const isFailed = p.enrichment_status === "failed";
-                    return (
-                      <tr
-                        key={p.id}
-                        className={
-                          isFailed
-                            ? "hover:bg-red-50/30 transition-colors"
-                            : "hover:bg-amber-50/30 transition-colors"
-                        }
-                      >
-                        <td className="px-4 py-3 font-mono font-medium text-slate-900">
-                          {p.product_code}
-                        </td>
-                        <td className="px-4 py-3">
-                          {isFailed ? (
-                            <span className="flex items-center gap-1.5 text-red-600 font-bold text-[11px] uppercase tracking-wide">
-                              <XCircle className="w-3.5 h-3.5" /> AI Aggregation
-                              Failed
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1.5 text-amber-600 font-bold text-[11px] uppercase tracking-wide">
-                              <Clock className="w-3.5 h-3.5" /> Not Run /
-                              Pending
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() =>
-                              onNavigate?.(
-                                "aggregation",
-                                isFailed ? "failed" : "pending",
-                              )
-                            }
-                            className={`text-xs font-bold underline decoration-dotted underline-offset-2 ${
-                              isFailed
-                                ? "text-blue-600 hover:text-blue-800"
-                                : "text-blue-600 hover:text-blue-800"
-                            }`}
-                          >
-                            {isFailed ? "Investigate" : "Run Now"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
                   <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-8 text-center text-slate-500"
-                    >
-                      {getMetricValue("failed") === 0 &&
-                      getMetricValue("pending") === 0 ? (
-                        <span className="flex items-center justify-center gap-2 text-green-600">
-                          <CheckCircle2 className="w-4 h-4" /> System healthy.
-                          All products processed.
-                        </span>
-                      ) : (
-                        "Loading details..."
-                      )}
-                    </td>
+                    <th className="px-4 py-3">Product Code / SKU</th>
+                    <th className="px-4 py-3">Issue Type</th>
+                    <th className="px-4 py-3 text-right">Action</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {problemProducts.length > 0 ? (
+                    problemProducts.map((p) => {
+                      const isFailed = p.enrichment_status === "failed";
+                      return (
+                        <tr
+                          key={p.id}
+                          className={
+                            isFailed
+                              ? "hover:bg-red-50/30 transition-colors"
+                              : "hover:bg-amber-50/30 transition-colors"
+                          }
+                        >
+                          <td className="px-4 py-3 font-mono font-medium text-slate-900">
+                            {p.product_code}
+                          </td>
+                          <td className="px-4 py-3">
+                            {isFailed ? (
+                              <span className="flex items-center gap-1.5 text-red-600 font-bold text-[11px] uppercase tracking-wide">
+                                <XCircle className="w-3.5 h-3.5" /> AI
+                                Aggregation Failed
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-amber-600 font-bold text-[11px] uppercase tracking-wide">
+                                <Clock className="w-3.5 h-3.5" /> Not Run /
+                                Pending
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() =>
+                                onNavigate?.(
+                                  "aggregation",
+                                  isFailed ? "failed" : "pending",
+                                )
+                              }
+                              className={`text-xs font-bold underline decoration-dotted underline-offset-2 ${
+                                isFailed
+                                  ? "text-blue-600 hover:text-blue-800"
+                                  : "text-blue-600 hover:text-blue-800"
+                              }`}
+                            >
+                              {isFailed ? "Investigate" : "Run Now"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="px-4 py-8 text-center text-slate-500"
+                      >
+                        {getMetricValue("failed") === 0 &&
+                        getMetricValue("pending") === 0 ? (
+                          <span className="flex items-center justify-center gap-2 text-green-600">
+                            <CheckCircle2 className="w-4 h-4" /> System healthy.
+                            All products processed.
+                          </span>
+                        ) : (
+                          "Loading details..."
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         </div>
         <div className="col-span-4 bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-fit">
           <h4 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
@@ -392,7 +406,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             )}
           </div>
         </div>
-        
       </div>
     </div>
   );
