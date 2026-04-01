@@ -214,7 +214,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               <Layers className="w-4 h-4 text-blue-600" /> Data Processing
               Pipeline
             </h4>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {[
                 {
                   label: "Aggregated",
@@ -228,12 +228,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                   icon: Filter,
                   color: "indigo",
                 },
-                {
-                  label: "Standardized",
-                  type: "standardized",
-                  icon: ShieldCheck,
-                  color: "purple",
-                },
+               
                 {
                   label: "Enriched",
                   type: "enriched",
@@ -259,7 +254,9 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                         {step.label}
                       </span>
                     </div>
-                    <p className="text-xl font-bold text-slate-900">{val}</p>
+                    <span className="text-xl font-bold text-slate-900">
+  {val} <span className="text-xs text-slate-900">{val > 1 ? "products" : "product"}</span>
+</span>
                     <p className="text-[10px] text-slate-500">
                       {Math.round(percent)}% Complete
                     </p>

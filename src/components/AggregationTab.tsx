@@ -29,7 +29,10 @@ import { aggregationService } from "../services/aggregationService";
 import { Download, GitMerge } from "lucide-react";
 import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
 import { AggregationTabProps } from "../types/business-rules.types";
-import { getStatusBadge, getProductStatusBadge } from '../utils/projectStatusColorizer';
+import {
+  getStatusBadge,
+  getProductStatusBadge,
+} from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 
 const ITEMS_PER_PAGE = 10;
@@ -57,7 +60,7 @@ export default function AggregationTab({
   const [llmOptions] = useState([
     { value: "openai", label: "Datavio Algo-1" },
     { value: "gemini", label: "Datavio Algo-2" },
-    {value:'claude',label:"Datavio Algo-3"}
+    { value: "claude", label: "Datavio Algo-3" },
   ]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
@@ -404,17 +407,19 @@ export default function AggregationTab({
     if (!expandedProjectId) return;
 
     const selectedPendingProducts = expandedProjectProducts.filter(
-  (p) => selectedProductIds.has(p.id) && (p.enrichment_status === "pending" || p.enrichment_status === 'failed'),
-);
+      (p) =>
+        selectedProductIds.has(p.id) &&
+        (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
+    );
 
     const pendingProducts =
-  selectedProductIds.size > 0
-    ? selectedPendingProducts
-    : expandedProjectProducts.filter(
-        (p) =>
-          p.enrichment_status === "pending" ||
-          p.enrichment_status === "failed",
-      );
+      selectedProductIds.size > 0
+        ? selectedPendingProducts
+        : expandedProjectProducts.filter(
+            (p) =>
+              p.enrichment_status === "pending" ||
+              p.enrichment_status === "failed",
+          );
 
     if (pendingProducts.length === 0) {
       notify.info(
@@ -1315,8 +1320,9 @@ export default function AggregationTab({
                                   </div>
                                 </td>
                                 <td className="px-4 py-3">
-                                  {getProductStatusBadge(product.enrichment_status || "pending")}
-
+                                  {getProductStatusBadge(
+                                    product.enrichment_status || "pending",
+                                  )}
                                 </td>
                                 <td
                                   className="px-4 py-3"
