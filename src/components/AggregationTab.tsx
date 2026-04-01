@@ -34,6 +34,7 @@ import {
   getProductStatusBadge,
 } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
+import { safeParseValue, formatValue } from '../utils/valueParser';
 
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
@@ -124,7 +125,6 @@ export default function AggregationTab({
       try {
         const job =
           await aggregationService.getProjectAggregationStatus(projectId);
-        console.log(`Polling status for project ${projectId}:`, job.status);
         if (job.status === "completed" || job.status === "failed") {
           newAggregatingProjects.delete(projectId);
           completedProjects.push(projectId);
@@ -145,7 +145,7 @@ export default function AggregationTab({
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
           const fresh =
-            await productService.getProductsByProject(expandedProjectId);
+            await productService.getProductsByProject(expandedProjectId,'aggregation');
           setExpandedProjectProducts(fresh);
         } catch (error) {
           console.error("Failed to refresh expanded project:", error);
@@ -155,7 +155,7 @@ export default function AggregationTab({
   }, [aggregatingProjects, expandedProjectId, projects]);
   useEffect(() => {
     if (aggregatingProjects.size > 0) {
-      const interval = setInterval(pollProjectStatuses, 3000);
+      const interval = setInterval(pollProjectStatuses, 5000);
       return () => clearInterval(interval);
     }
   }, [aggregatingProjects, pollProjectStatuses]);
@@ -271,7 +271,7 @@ export default function AggregationTab({
       setExpandedProjectId(projectId);
       setExpandedLoading(true);
       try {
-        const data = await productService.getProductsByProject(projectId);
+        const data = await productService.getProductsByProject(projectId,"aggregation");
         setExpandedProjectProducts(data);
         setCurrentPage(1);
         resetLocalFilters();
@@ -511,7 +511,7 @@ export default function AggregationTab({
         projectIdsToAggregate.includes(expandedProjectId)
       ) {
         const freshData =
-          await productService.getProductsByProject(expandedProjectId);
+          await productService.getProductsByProject(expandedProjectId,'aggregation');
         setExpandedProjectProducts(freshData);
         const processingIds = freshData
           .filter((p) => p.enrichment_status === "processing")
@@ -538,7 +538,7 @@ export default function AggregationTab({
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
     try {
-      const data = await productService.getProductsByProject(expandedProjectId);
+      const data = await productService.getProductsByProject(expandedProjectId,'aggregation');
       const completedOrFailed: string[] = [];
       pollingProductIds.forEach((productId) => {
         const updatedProduct = data.find((p) => p.id === productId);
@@ -601,7 +601,7 @@ export default function AggregationTab({
   }, [selectedProjectIds, selectedProductIds]);
   useEffect(() => {
     if (pollingProductIds.size > 0 && expandedProjectId) {
-      pollingIntervalRef.current = setInterval(pollProductStatuses, 3000);
+      pollingIntervalRef.current = setInterval(pollProductStatuses, 5000);
     } else {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -665,61 +665,8 @@ export default function AggregationTab({
     [expandedProjectId],
   );
 
-  const safeParseValue = (value: any): any => {
-    if (typeof value !== "string") return value;
-    const str = value.trim();
-    if (
-      (str.startsWith("{") && str.endsWith("}")) ||
-      (str.startsWith("[") && str.endsWith("]"))
-    ) {
-      try {
-        return JSON.parse(str);
-      } catch {
-        try {
-          const pythonLikeStr = str
-            .replace(/'/g, '"')
-            .replace(/None/g, "null")
-            .replace(/True/g, "true")
-            .replace(/False/g, "false");
-          return JSON.parse(pythonLikeStr);
-        } catch (e) {
-          return str;
-        }
-      }
-    }
-    return str;
-  };
-  const formatValue = (value: any): JSX.Element | string => {
-    if (value === null || value === undefined || value === "") {
-      return <span className="text-slate-400">-</span>;
-    }
-    let parsedValue = safeParseValue(value);
-    while (typeof parsedValue === "string" && parsedValue !== value) {
-      value = parsedValue;
-      parsedValue = safeParseValue(value);
-    }
-    if (typeof parsedValue === "object" && parsedValue !== null) {
-      if (Array.isArray(parsedValue)) {
-        if (parsedValue.length === 0) {
-          return <span className="text-slate-400">-</span>;
-        }
-        return parsedValue.join(", ");
-      } else {
-        if ("standard_value" in parsedValue || "value" in parsedValue) {
-          const displayValue = parsedValue.standard_value ?? parsedValue.value;
-          const uom = parsedValue.uom ?? parsedValue.unit;
-          return (
-            <span>
-              {String(displayValue)}
-              {uom && <span className="ml-1 text-slate-500">{uom}</span>}
-            </span>
-          );
-        }
-        return JSON.stringify(parsedValue);
-      }
-    }
-    return String(parsedValue);
-  };
+  
+  
   const selectedProductData = expandedProjectProducts.find(
     (p) => p.id === selectedProduct,
   );

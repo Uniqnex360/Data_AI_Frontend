@@ -88,7 +88,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       setLoading(false);
     }
   };
-  console.log("problemProducts", problemProducts);
   const getMetricValue = (type: string): number => {
     return metrics.find((m) => m.metric_type === type)?.metric_value || 0;
   };

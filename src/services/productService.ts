@@ -42,9 +42,9 @@ export const productService = {
     throw error;
   }
 },
-  async getProductsByProject(projectId: string, skip = 0, limit = 100): Promise<Product[]> {
+  async getProductsByProject(projectId: string,workflow_stage?:string, skip = 0, limit = 100,): Promise<Product[]> {
   const response = await api.get('/products/', {
-    params: { project_id: projectId, skip, limit }
+    params: { project_id: projectId, skip, limit,workflow_stage }
   });
   
   if (Array.isArray(response.data)) {

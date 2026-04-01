@@ -20,42 +20,6 @@ export const aggregationService = {
       return [];
     }
   },
-  async getProductsByProject(
-    projectId: string,
-    skip: number = 0,
-    limit: number = 10,
-    status?: string,
-  ): Promise<ProductsResponse> {
-    try {
-      const params: any = {
-      project_id: projectId,
-      skip,
-      limit
-    };
-      if (status && status !== 'all') {
-      params.enrichment_status = status; 
-    }
-      const { data } = await api.get<ProductsResponse | Product[]>('/products/', { params });
-      if (Array.isArray(data)) {
-        return {
-          products: data,
-          total: data.length,
-          skip,
-          limit,
-        };
-      }
-      return {
-        products: data.products || [],
-        total: data.total || 0,
-        skip: data.skip || skip,
-        limit: data.limit || limit,
-        project: data.project
-      };
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-      return { products: [], total: 0 };
-    }
-  },
   async getAllProducts(): Promise<Product[]> {
     try {
       const { data } = await api.get<Product[]>("/products/");
@@ -81,10 +45,14 @@ export const aggregationService = {
       return [];
     }
   },
-  async aggregateProject(projectId: string,llmProvider:string): Promise<AggregationResponse> {
+  async aggregateProject(
+    projectId: string,
+    llmProvider: string,
+  ): Promise<AggregationResponse> {
     try {
       const { data } = await api.post<AggregationResponse>(
-        `/aggregation/project/${projectId}`,{llm_provider:llmProvider}
+        `/aggregation/project/${projectId}`,
+        { llm_provider: llmProvider },
       );
       return data;
     } catch (error) {
@@ -92,23 +60,36 @@ export const aggregationService = {
       throw new Error("Project aggregation failed");
     }
   },
-  async exportSelectedItems(projectIds: string[], productIds: string[]): Promise<Blob> {
-  try {
-    const response = await api.post('/aggregation/export/batch', {
-      project_ids: projectIds,
-      product_ids: productIds
-    }, {
-      responseType: 'blob'
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Failed to export selected items:", error);
-    throw new Error("Export failed");
-  }
-},
-  async aggregateProduct(productId: string,llmProvider:string): Promise<ProductAggregationResponse> {
+  async exportSelectedItems(
+    projectIds: string[],
+    productIds: string[],
+  ): Promise<Blob> {
     try {
-      const { data } = await api.post<ProductAggregationResponse>(`/aggregation/run/${productId}`,{ llm_provider: llmProvider }  );
+      const response = await api.post(
+        "/aggregation/export/batch",
+        {
+          project_ids: projectIds,
+          product_ids: productIds,
+        },
+        {
+          responseType: "blob",
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to export selected items:", error);
+      throw new Error("Export failed");
+    }
+  },
+  async aggregateProduct(
+    productId: string,
+    llmProvider: string,
+  ): Promise<ProductAggregationResponse> {
+    try {
+      const { data } = await api.post<ProductAggregationResponse>(
+        `/aggregation/run/${productId}`,
+        { llm_provider: llmProvider },
+      );
       return data;
     } catch (error) {
       console.error("Failed to aggregate product:", error);
@@ -144,7 +125,7 @@ export const aggregationService = {
     );
     return data;
   },
-  
+
   async cleanupOldJobs(days: number = 7): Promise<{ deleted_count: number }> {
     const { data } = await api.delete<{ deleted_count: number }>(
       "/aggregation/jobs/cleanup",
