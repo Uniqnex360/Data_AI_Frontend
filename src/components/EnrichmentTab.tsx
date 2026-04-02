@@ -30,7 +30,7 @@ import { projectService } from "../services/projectService";
 import { enrichmentService } from "../services/enrichmentService";
 import { notify } from "../lib/notifications";
 import type { Product, Enrichment } from "../types/database.types";
-import type { Project } from "../types/business-rules.types.ts";
+import type { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
 import {
   getProductStatusBadge,
   getStatusBadge,
@@ -65,7 +65,8 @@ export default function EnrichmentTab() {
   const [loading, setLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -152,17 +153,21 @@ export default function EnrichmentTab() {
     if (selectedUseCase) {
       filtered = filtered.filter((p) => p.use_case === selectedUseCase);
     }
-
+    if(statusFilter)
+    {
+      filtered=filtered.filter((p)=>p.source_status===statusFilter)
+    }
+    
     if (selectedProjectId) {
       filtered = filtered.filter((p) => p.id === selectedProjectId);
     }
 
     return filtered;
-  }, [projects, selectedUseCase, selectedProjectId]);
+  }, [projects, selectedUseCase, selectedProjectId,statusFilter]);
 
   const resetLocalFilters = useCallback(() => {
     setSearchQuery("");
-    setStatusFilter(new Set());
+    setStatusFilter("");
     setCategoryFilter("");
     setBrandFilter("");
     setCurrentPage(1);
@@ -233,9 +238,7 @@ export default function EnrichmentTab() {
       );
     }
 
-    if (statusFilter.size > 0) {
-      filtered = filtered.filter((p) => statusFilter.has(p.enrichment_status));
-    }
+    
 
     if (categoryFilter) {
       filtered = filtered.filter((p) => p.category_1 === categoryFilter);
@@ -587,12 +590,7 @@ export default function EnrichmentTab() {
   }, [pollingProductIds.size, expandedProjectId, pollProjectStatuses]);
 
   const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
-    setStatusFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(status)) next.delete(status);
-      else next.add(status);
-      return next;
-    });
+    setStatusFilter((prev)=>(prev===status?"":status))
     setCurrentPage(1);
   };
 
@@ -603,7 +601,7 @@ export default function EnrichmentTab() {
 
   const resetFilters = useCallback(() => {
     setSearchQuery("");
-    setStatusFilter(new Set());
+    setStatusFilter("")
     setCategoryFilter("");
     setBrandFilter("");
     setSelectedUseCase("");
@@ -807,7 +805,7 @@ export default function EnrichmentTab() {
               <button
                 onClick={() => toggleStatusFilter("completed")}
                 className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md border transition-colors ${
-                  statusFilter.has("completed")
+                  statusFilter==='completed'
                     ? "bg-emerald-100 border-emerald-300"
                     : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100"
                 }`}
@@ -823,7 +821,7 @@ export default function EnrichmentTab() {
               <button
                 onClick={() => toggleStatusFilter("failed")}
                 className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md border transition-colors ${
-                  statusFilter.has("failed")
+                  statusFilter==='failed'
                     ? "bg-rose-100 border-rose-300"
                     : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
                 }`}
@@ -839,7 +837,7 @@ export default function EnrichmentTab() {
               <button
                 onClick={() => toggleStatusFilter("pending")}
                 className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md border transition-colors ${
-                  statusFilter.has("pending")
+                  statusFilter==='pending'
                     ? "bg-amber-100 border-amber-300"
                     : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
                 }`}
@@ -897,12 +895,13 @@ export default function EnrichmentTab() {
                   setExpandedProjectId(null);
                   setExpandedProjectProducts([]);
                   setSelectedProduct(null);
-                  setEnrichment(null);
+                  setAttributes([]);
+
                 }}
                 disabled={projectsLoading}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">All Use Cases</option>
+                <option value="">All Use Case</option>
                 {useCases.map((useCase) => (
                   <option key={useCase} value={useCase}>
                     {useCase}
@@ -925,7 +924,7 @@ export default function EnrichmentTab() {
                 disabled={projectsLoading}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">All Projects</option>
+                <option value="">All Project</option>
                 {(selectedUseCase
                   ? projects.filter((p) => p.use_case === selectedUseCase)
                   : projects
@@ -942,21 +941,17 @@ export default function EnrichmentTab() {
                 Status
               </label>
               <select
-                value={
-                  statusFilter.size === 1 ? Array.from(statusFilter)[0] : ""
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "") setStatusFilter(new Set());
-                  else setStatusFilter(new Set([val]));
-                  setCurrentPage(1);
-                }}
+               value={statusFilter}
+               onChange={(e)=>{
+                setStatusFilter(e.target.value)
+                setCurrentPage(1)
+               }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
+                <option value="">All Status</option>
+               <option value="Yet to Start">Yet to Start</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
 
@@ -973,7 +968,7 @@ export default function EnrichmentTab() {
                 disabled={availableCategories.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Category</option>
                 {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
@@ -993,7 +988,7 @@ export default function EnrichmentTab() {
                 disabled={availableBrands.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Brand</option>
                 {availableBrands.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}
@@ -1003,7 +998,7 @@ export default function EnrichmentTab() {
             </div>
           </div>
 
-          {(statusFilter.size > 0 ||
+          {(statusFilter ||
             categoryFilter ||
             brandFilter ||
             selectedUseCase ||
@@ -1143,9 +1138,7 @@ export default function EnrichmentTab() {
                 {expandedProjectId === project.id && (
                   <div className="border-t border-slate-200">
                     <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
-                      {!(
-                        statusFilter.size === 1 && statusFilter.has("completed")
-                      ) && (
+                      {!(statusFilter === "completed") && (
                         <button
                           onClick={handleEnrichAllInExpanded}
                           disabled={
@@ -1244,7 +1237,6 @@ export default function EnrichmentTab() {
                                 className="px-4 py-8 text-center text-slate-500"
                               >
                                 {searchQuery ||
-                                statusFilter.size > 0 ||
                                 categoryFilter ||
                                 brandFilter
                                   ? "No products match your filters"

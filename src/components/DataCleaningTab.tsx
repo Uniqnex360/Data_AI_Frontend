@@ -593,7 +593,7 @@ export default function DataCleaningTab() {
                 }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">Select Project</option>
+                <option value="">All Project</option>
                 {filteredProjects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
@@ -626,7 +626,7 @@ export default function DataCleaningTab() {
                 disabled={availableBrands.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Brand</option>
                 {availableBrands.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}
@@ -671,7 +671,7 @@ export default function DataCleaningTab() {
                 disabled={availableCategories.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Category</option>
                 {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}

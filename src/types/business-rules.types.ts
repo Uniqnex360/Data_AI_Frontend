@@ -187,3 +187,34 @@ export interface ManualProductData {
   stock: string;
 }
 export type OperationMode='aggregation'|'cleaning'|'enrichment'
+
+export interface DashboardStats {
+  totalProjects: number;
+  activeProjects: number;
+  totalProducts: number;
+  publishedProducts: number;
+  catalogHealth: number;
+}
+
+export interface TimelineParams {
+  projectId?: string;
+  period?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface BrandFlowParams {
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+}
+export interface CategoryParams {
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+} 
+export interface BrandAttributesParams {
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+}

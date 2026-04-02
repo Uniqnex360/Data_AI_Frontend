@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Package,
@@ -12,24 +13,41 @@ import {
   Tag,
   AlertTriangle,
   Loader2,
+  ArrowRight,
+  XCircle,
 } from "lucide-react";
 import { dashboardService } from "../services/dashboardService";
 import { aggregationService } from "../services/aggregationService";
 import type { Product } from "../types/database.types";
 import { DashboardStats, CategoryStat } from "../types/database.types";
-import { ArrowRight, XCircle } from "lucide-react";
+
 interface Props {
   projectId?: string;
   onNavigate?: (tab: "aggregation" | "sources", filterStatus?: string) => void;
 }
+
 export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [metrics, setMetrics] = useState<any[]>([]);
+  const [timelineStats, setTimelineStats] = useState<any[]>([]);
+  const [brandFlowStats, setBrandFlowStats] = useState<any[]>([]);
+  const [brandAttributeStats, setBrandAttributeStats] = useState<any[]>([]);
+  
+  // ---> Added State for Category Data <---
+  const [categoryFlowStats, setCategoryFlowStats] = useState<any[]>([]);
+  const [categoryAttributeStats, setCategoryAttributeStats] = useState<any[]>([]);
+
+  const [selectedPeriod, setSelectedPeriod] = useState<"day" | "week" | "month">("month");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [problemProducts, setProblemProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     loadData();
-  }, [projectId]);
+  }, [projectId, selectedPeriod]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -37,7 +55,26 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         ? await dashboardService.getProjectMetrics(projectId)
         : await dashboardService.getGlobalMetrics();
       setGlobalStats(data);
-            const total = data.totalProducts || 0;
+
+      const timeline = await dashboardService.getTimeline({
+        projectId,
+        period: selectedPeriod,
+      });
+
+      const brandFlow = await dashboardService.getBrandFlow({ projectId });
+      const brandAttributes = await dashboardService.getBrandAttributes({ projectId });
+
+      // ---> Fetch Category Data <---
+      const categoryFlow = await dashboardService.getCategoryFlow({ projectId });
+      const categoryAttributes = await dashboardService.getCategoryAttributes({ projectId });
+
+      setTimelineStats(timeline);
+      setBrandFlowStats(brandFlow);
+      setBrandAttributeStats(brandAttributes);
+      setCategoryFlowStats(categoryFlow); // Set state
+      setCategoryAttributeStats(categoryAttributes); // Set state
+
+      const total = data.totalProducts || 0;
       const aggregationCompleted = data.aggregatedProducts || 0;
       const cleaningCompleted = data.cleanedProducts || 0;
       const standardizedProducts = data.standardizedProducts || 0;
@@ -58,12 +95,13 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         },
       ];
       setMetrics(transformedMetrics);
+
       if (projectId) {
         const failedRes = await aggregationService.getProductsByProject(
           projectId,
           0,
           5,
-          "failed",
+          "failed"
         );
         let combinedList = failedRes.products;
 
@@ -73,7 +111,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             projectId,
             0,
             remainingSlots,
-            "pending",
+            "pending"
           );
           combinedList = [...combinedList, ...pendingRes.products];
         }
@@ -88,9 +126,11 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       setLoading(false);
     }
   };
+
   const getMetricValue = (type: string): number => {
     return metrics.find((m) => m.metric_type === type)?.metric_value || 0;
   };
+
   const getProjectStatus = () => {
     const total = getMetricValue("total_products");
     const enriched = getMetricValue("enriched");
@@ -113,7 +153,9 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       icon: Clock,
     };
   };
+
   const statusObj = getProjectStatus();
+
   if (loading)
     return (
       <div className="flex items-center justify-center py-12 text-slate-500">
@@ -121,6 +163,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         Loading Dashboard...
       </div>
     );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -144,6 +187,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </p>
         </div>
       </div>
+
       <div className="grid grid-cols-4 gap-4">
         <div
           onClick={() => onNavigate?.("aggregation", "all")}
@@ -206,69 +250,46 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           <p className="text-[10px] text-slate-400 mt-1">Data Completeness</p>
         </div>
       </div>
+
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-8 space-y-6">
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-600" /> Data Processing
-              Pipeline
+              <Layers className="w-4 h-4 text-blue-600" /> Data Processing Pipeline
             </h4>
             <div className="grid grid-cols-3 gap-4">
               {[
-                {
-                  label: "Aggregated",
-                  type: "aggregated",
-                  icon: Sparkles,
-                  color: "blue",
-                },
-                {
-                  label: "Cleaned",
-                  type: "cleaned",
-                  icon: Filter,
-                  color: "indigo",
-                },
-               
-                {
-                  label: "Enriched",
-                  type: "enriched",
-                  icon: CheckCircle2,
-                  color: "green",
-                },
+                { label: "Aggregated", type: "aggregated", icon: Sparkles, color: "blue" },
+                { label: "Cleaned", type: "cleaned", icon: Filter, color: "indigo" },
+                { label: "Enriched", type: "enriched", icon: CheckCircle2, color: "green" },
               ].map((step, idx) => {
                 const val = getMetricValue(step.type);
                 const total = getMetricValue("total_products");
                 const percent = total > 0 ? (val / total) * 100 : 0;
                 return (
-                  <div
-                    key={idx}
-                    className="bg-slate-50 rounded-lg p-3 border border-slate-100 relative overflow-hidden"
-                  >
+                  <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-100 relative overflow-hidden">
                     <div
                       className={`absolute bottom-0 left-0 h-1 bg-${step.color}-500 transition-all duration-1000`}
                       style={{ width: `${percent}%` }}
                     />
                     <div className="flex items-center gap-2 mb-2">
                       <step.icon className={`w-4 h-4 text-${step.color}-600`} />
-                      <span className="text-xs font-bold text-slate-700">
-                        {step.label}
-                      </span>
+                      <span className="text-xs font-bold text-slate-700">{step.label}</span>
                     </div>
                     <span className="text-xl font-bold text-slate-900">
-  {val} <span className="text-xs text-slate-900">{val > 1 ? "products" : "product"}</span>
-</span>
-                    <p className="text-[10px] text-slate-500">
-                      {Math.round(percent)}% Complete
-                    </p>
+                      {val} <span className="text-xs text-slate-900">{val > 1 ? "products" : "product"}</span>
+                    </span>
+                    <p className="text-[10px] text-slate-500">{Math.round(percent)}% Complete</p>
                   </div>
                 );
               })}
             </div>
           </div>
+          
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-red-500" /> Not Run / Failed
-                Details
+                <XCircle className="w-4 h-4 text-red-500" /> Not Run / Failed Details
               </h5>
               {getMetricValue("failed") > 0 && (
                 <button
@@ -296,41 +317,24 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                       return (
                         <tr
                           key={p.id}
-                          className={
-                            isFailed
-                              ? "hover:bg-red-50/30 transition-colors"
-                              : "hover:bg-amber-50/30 transition-colors"
-                          }
+                          className={isFailed ? "hover:bg-red-50/30 transition-colors" : "hover:bg-amber-50/30 transition-colors"}
                         >
-                          <td className="px-4 py-3 font-mono font-medium text-slate-900">
-                            {p.product_code}
-                          </td>
+                          <td className="px-4 py-3 font-mono font-medium text-slate-900">{p.product_code}</td>
                           <td className="px-4 py-3">
                             {isFailed ? (
                               <span className="flex items-center gap-1.5 text-red-600 font-bold text-[11px] uppercase tracking-wide">
-                                <XCircle className="w-3.5 h-3.5" /> AI
-                                Aggregation Failed
+                                <XCircle className="w-3.5 h-3.5" /> AI Aggregation Failed
                               </span>
                             ) : (
                               <span className="flex items-center gap-1.5 text-amber-600 font-bold text-[11px] uppercase tracking-wide">
-                                <Clock className="w-3.5 h-3.5" /> Not Run /
-                                Pending
+                                <Clock className="w-3.5 h-3.5" /> Not Run / Pending
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <button
-                              onClick={() =>
-                                onNavigate?.(
-                                  "aggregation",
-                                  isFailed ? "failed" : "pending",
-                                )
-                              }
-                              className={`text-xs font-bold underline decoration-dotted underline-offset-2 ${
-                                isFailed
-                                  ? "text-blue-600 hover:text-blue-800"
-                                  : "text-blue-600 hover:text-blue-800"
-                              }`}
+                              onClick={() => onNavigate?.("aggregation", isFailed ? "failed" : "pending")}
+                              className="text-xs font-bold underline decoration-dotted underline-offset-2 text-blue-600 hover:text-blue-800"
                             >
                               {isFailed ? "Investigate" : "Run Now"}
                             </button>
@@ -340,15 +344,10 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                     })
                   ) : (
                     <tr>
-                      <td
-                        colSpan={3}
-                        className="px-4 py-8 text-center text-slate-500"
-                      >
-                        {getMetricValue("failed") === 0 &&
-                        getMetricValue("pending") === 0 ? (
+                      <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                        {getMetricValue("failed") === 0 && getMetricValue("pending") === 0 ? (
                           <span className="flex items-center justify-center gap-2 text-green-600">
-                            <CheckCircle2 className="w-4 h-4" /> System healthy.
-                            All products processed.
+                            <CheckCircle2 className="w-4 h-4" /> System healthy. All products processed.
                           </span>
                         ) : (
                           "Loading details..."
@@ -361,48 +360,234 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
           </div>
         </div>
+
         <div className="col-span-4 bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-fit">
           <h4 className="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
             <Tag className="w-4 h-4 text-orange-600" /> Category Distribution
           </h4>
           <div className="space-y-3">
-            {globalStats?.categoryDistribution &&
-            globalStats.categoryDistribution.length > 0 ? (
-              globalStats.categoryDistribution.map(
-                (cat: CategoryStat, i: number) => (
-                  <div key={i} className="group">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span
-                        className="font-medium text-slate-700 "
-                        title={cat.category_name}
-                      >
-                        {cat.category_name || "Uncategorized"}
-                      </span>
-                      <span className="font-bold text-slate-900">
-                        {cat.count}
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-orange-400 group-hover:bg-orange-500 transition-colors"
-                        style={{
-                          width: `${(cat.count / getMetricValue("total_products")) * 100}%`,
-                        }}
-                      />
-                    </div>
+            {globalStats?.categoryDistribution && globalStats.categoryDistribution.length > 0 ? (
+              globalStats.categoryDistribution.map((cat: CategoryStat, i: number) => (
+                <div key={i} className="group">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-medium text-slate-700 " title={cat.category_name}>
+                      {cat.category_name || "Uncategorized"}
+                    </span>
+                    <span className="font-bold text-slate-900">{cat.count}</span>
                   </div>
-                ),
-              )
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-orange-400 group-hover:bg-orange-500 transition-colors"
+                      style={{ width: `${(cat.count / getMetricValue("total_products")) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="text-center py-8 text-slate-400 italic text-xs border-2 border-dashed border-slate-100 rounded-lg">
-                No category data available yet.
-                <br />
-                Run aggregation to classify products.
+                No category data available yet.<br />Run aggregation to classify products.
               </div>
             )}
           </div>
         </div>
       </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-blue-600" /> Timeline Overview
+          </h4>
+          <div className="flex items-center gap-2">
+            {["day", "week", "month"].map((p) => (
+              <button
+                key={p}
+                onClick={() => setSelectedPeriod(p as "day" | "week" | "month")}
+                className={`px-3 py-1 rounded text-xs font-bold rounded-md ${
+                  selectedPeriod === p ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-slate-200">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+              <tr>
+                <th className="px-4 py-3">Period</th>
+                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">Aggregated</th>
+                <th className="px-4 py-3">Moved to Enrichment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {timelineStats.length > 0 ? (
+                timelineStats.map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-3">{row.period}</td>
+                    <td className="px-4 py-3">{row.totalProducts}</td>
+                    <td className="px-4 py-3">{row.aggregatedProducts}</td>
+                    <td className="px-4 py-3">{row.movedToEnrichment}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                    No timeline data available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* --- GRID Layout for Brand and Category Data --- */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Brand Flow Overview */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Tag className="w-4 h-4 text-emerald-600" /> Brand Flow Overview
+          </h4>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                <tr>
+                  <th className="px-4 py-3">Brand</th>
+                  <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Aggregated</th>
+                  <th className="px-4 py-3">Enrichment</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {brandFlowStats.length > 0 ? (
+                  brandFlowStats.map((row, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-3 font-medium text-slate-900">{row.brand}</td>
+                      <td className="px-4 py-3">{row.totalProducts}</td>
+                      <td className="px-4 py-3">{row.aggregatedProducts}</td>
+                      <td className="px-4 py-3">{row.enrichmentProducts}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No brand flow data available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Category Flow Overview */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Filter className="w-4 h-4 text-blue-600" /> Category Flow Overview
+          </h4>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                <tr>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Aggregated</th>
+                  <th className="px-4 py-3">Enrichment</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {categoryFlowStats.length > 0 ? (
+                  categoryFlowStats.map((row, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-3 font-medium text-slate-900">{row.category}</td>
+                      <td className="px-4 py-3">{row.totalProducts}</td>
+                      <td className="px-4 py-3">{row.aggregatedProducts}</td>
+                      <td className="px-4 py-3">{row.enrichmentProducts}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No category flow data available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Brand Attribute Distribution */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-violet-600" /> Brand Attribute Distribution
+          </h4>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                <tr>
+                  <th className="px-4 py-3">Brand</th>
+                  <th className="px-4 py-3">Agg.</th>
+                  <th className="px-4 py-3">Enrich.</th>
+                  <th className="px-4 py-3">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {brandAttributeStats.length > 0 ? (
+                  brandAttributeStats.map((row, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-3 font-medium text-slate-900">{row.brand}</td>
+                      <td className="px-4 py-3">{row.aggregationAttributes}</td>
+                      <td className="px-4 py-3">{row.enrichmentAttributes}</td>
+                      <td className="px-4 py-3 font-bold">{row.totalAttributes}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No brand attribute data available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Category Attribute Distribution */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-orange-600" /> Category Attribute Distribution
+          </h4>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                <tr>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Agg.</th>
+                  <th className="px-4 py-3">Enrich.</th>
+                  <th className="px-4 py-3">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {categoryAttributeStats.length > 0 ? (
+                  categoryAttributeStats.map((row, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-3 font-medium text-slate-900">{row.category}</td>
+                      <td className="px-4 py-3">{row.aggregationAttributes}</td>
+                      <td className="px-4 py-3">{row.enrichmentAttributes}</td>
+                      <td className="px-4 py-3 font-bold">{row.totalAttributes}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No category attribute data available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {/* --- END GRID --- */}
+
     </div>
   );
 }

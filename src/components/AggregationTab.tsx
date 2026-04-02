@@ -856,7 +856,7 @@ export default function AggregationTab({
                 disabled={projectsLoading}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">All Use Cases</option>
+                <option value="">All Use Case</option>
                 {useCases.map((useCase) => (
                   <option key={useCase} value={useCase}>
                     {useCase}
@@ -882,7 +882,7 @@ export default function AggregationTab({
                 }
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
-                <option value="">All Projects</option>
+                <option value="">All Project</option>
                 {(selectedUseCase
                   ? projects.filter((p) => p.use_case === selectedUseCase)
                   : projects
@@ -911,7 +911,7 @@ export default function AggregationTab({
                 }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="failed">Failed</option>
@@ -931,7 +931,7 @@ export default function AggregationTab({
                 disabled={availableCategories.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Category</option>
                 {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
@@ -951,7 +951,7 @@ export default function AggregationTab({
                 disabled={availableBrands.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
-                <option value="">All</option>
+                <option value="">All Brand</option>
                 {availableBrands.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}

@@ -104,12 +104,12 @@ const tabs: Tab[] = [
   //   icon: Sparkles,
   //   component: CleansingTab,
   // },
-  {
-    id: "standardization",
-    label: "Standardization",
-    icon: CheckCircle,
-    component: StandardizationTab,
-  },
+  // {
+  //   id: "standardization",
+  //   label: "Standardization",
+  //   icon: CheckCircle,
+  //   component: StandardizationTab,
+  // },
   {
     id: "enrichment",
     label: "Enrichment",
