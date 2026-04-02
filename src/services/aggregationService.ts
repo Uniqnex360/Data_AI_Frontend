@@ -91,9 +91,12 @@ export const aggregationService = {
         { llm_provider: llmProvider },
       );
       return data;
-    } catch (error) {
+    } catch (error:any) {
       console.error("Failed to aggregate product:", error);
-      throw new Error("Product aggregation failed");
+      if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw error
     }
   },
   async getProjectAggregationStatus(

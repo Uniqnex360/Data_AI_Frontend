@@ -100,7 +100,7 @@ export default function EnrichmentTab() {
     setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects({
-        operation_mode: "aggregation",
+        operation_mode: "aggregation",tab:'enrichment'
       });
       console.log("loadProjects", data);
 
@@ -313,7 +313,7 @@ export default function EnrichmentTab() {
         ),
       );
 
-      await aggregationService.aggregateProduct(productId, selectedLLM); // ✅ Changed
+      await aggregationService.aggregateProduct(productId, selectedLLM); 
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("Enrichment started");
 
@@ -381,7 +381,7 @@ export default function EnrichmentTab() {
       await Promise.allSettled(
         pendingProducts.map((p) =>
           aggregationService.aggregateProduct(p.id, selectedLLM),
-        ), // ✅ Changed
+        ), 
       );
 
       const newPollingIds = pendingProducts.map((p) => p.id);
@@ -412,7 +412,7 @@ export default function EnrichmentTab() {
     expandedProjectId,
     expandedProjectProducts,
     selectedProductIds,
-    selectedLLM, // ✅ Added dependency
+    selectedLLM, 
   ]);
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
@@ -446,7 +446,7 @@ export default function EnrichmentTab() {
         });
       }
       if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
-        await loadAttributes(selectedProduct); // ✅ Changed
+        await loadAttributes(selectedProduct); 
       }
     } catch (error) {
       console.error("Polling error:", error);
@@ -463,8 +463,8 @@ export default function EnrichmentTab() {
       for (let i = 0; i < projectIdsToEnrich.length; i += batchSize) {
         const batch = projectIdsToEnrich.slice(i, i + batchSize);
         const promises = batch.map((projectId) =>
-          aggregationService // ✅ Changed from enrichmentService
-            .aggregateProject(projectId, selectedLLM) // ✅ Use aggregateProject
+          aggregationService 
+            .aggregateProject(projectId, selectedLLM) 
             .then((result) => ({
               status: "fulfilled" as const,
               projectId,
@@ -531,7 +531,7 @@ export default function EnrichmentTab() {
     for (const projectId of enrichingProjects) {
       try {
         const job =
-          await aggregationService.getProjectAggregationStatus(projectId); // ✅ Changed
+          await aggregationService.getProjectAggregationStatus(projectId); 
 
         if (job.status === "completed" || job.status === "failed") {
           newEnrichingProjects.delete(projectId);
@@ -572,9 +572,9 @@ export default function EnrichmentTab() {
     }
   }, [enrichingProjects, pollProjectStatuses]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (pollingProductIds.size > 0 && expandedProjectId) {
-      pollingIntervalRef.current = setInterval(pollProjectStatuses, 3000);
+      pollingIntervalRef.current = setInterval(pollProductStatuses, 3000);
     } else {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -587,7 +587,7 @@ export default function EnrichmentTab() {
         pollingIntervalRef.current = null;
       }
     };
-  }, [pollingProductIds.size, expandedProjectId, pollProjectStatuses]);
+  }, [pollingProductIds.size, expandedProjectId, pollProductStatuses]);
 
   const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
     setStatusFilter((prev)=>(prev===status?"":status))
@@ -1486,7 +1486,7 @@ export default function EnrichmentTab() {
                 </div>
               </div>
 
-             {attributesLoading ? ( // ✅ Changed from enrichmentLoading
+             {attributesLoading ? ( 
   <div className="flex flex-col items-center justify-center py-12 text-slate-500">
     <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
     <p>Loading attributes...</p>
@@ -1503,7 +1503,7 @@ export default function EnrichmentTab() {
       </p>
     </div>
   </div>
-) : attributes.length === 0 ? ( // ✅ Changed from !enrichment
+) : attributes.length === 0 ? ( 
   <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
     <Target className="w-10 h-10 mx-auto mb-3 text-slate-300" />
     <p>No attributes found for this product.</p>
@@ -1532,7 +1532,7 @@ export default function EnrichmentTab() {
         <Box className="w-4 h-4" /> Specifications
       </h3>
       <div className="grid grid-cols-2 gap-4">
-        {attributes.map((attr) => ( // ✅ Changed to use attributes
+        {attributes.map((attr) => ( 
           <div
             key={attr.id}
             className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow"
