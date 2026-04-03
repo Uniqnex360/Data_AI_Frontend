@@ -186,7 +186,7 @@ export interface ManualProductData {
   price: string;
   stock: string;
 }
-export type OperationMode='aggregation'|'cleaning'|'enrichment'
+export type OperationMode='aggregation'|'cleaning'|'enrichment'|'pdf_extraction'
 
 export interface DashboardStats {
   totalProjects: number;

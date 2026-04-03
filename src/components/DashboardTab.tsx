@@ -9,7 +9,6 @@ import {
   Layers,
   Sparkles,
   Filter,
-  ShieldCheck,
   Tag,
   AlertTriangle,
   Loader2,
@@ -32,13 +31,10 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [brandFlowStats, setBrandFlowStats] = useState<any[]>([]);
   const [brandAttributeStats, setBrandAttributeStats] = useState<any[]>([]);
   
-  // ---> Added State for Category Data <---
   const [categoryFlowStats, setCategoryFlowStats] = useState<any[]>([]);
   const [categoryAttributeStats, setCategoryAttributeStats] = useState<any[]>([]);
 
   const [selectedPeriod, setSelectedPeriod] = useState<"day" | "week" | "month">("month");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
 
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [problemProducts, setProblemProducts] = useState<Product[]>([]);
@@ -64,15 +60,14 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       const brandFlow = await dashboardService.getBrandFlow({ projectId });
       const brandAttributes = await dashboardService.getBrandAttributes({ projectId });
 
-      // ---> Fetch Category Data <---
       const categoryFlow = await dashboardService.getCategoryFlow({ projectId });
       const categoryAttributes = await dashboardService.getCategoryAttributes({ projectId });
 
       setTimelineStats(timeline);
       setBrandFlowStats(brandFlow);
       setBrandAttributeStats(brandAttributes);
-      setCategoryFlowStats(categoryFlow); // Set state
-      setCategoryAttributeStats(categoryAttributes); // Set state
+      setCategoryFlowStats(categoryFlow); 
+      setCategoryAttributeStats(categoryAttributes); 
 
       const total = data.totalProducts || 0;
       const aggregationCompleted = data.aggregatedProducts || 0;
@@ -444,9 +439,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </div>
       </div>
 
-      {/* --- GRID Layout for Brand and Category Data --- */}
       <div className="grid grid-cols-2 gap-6">
-        {/* Brand Flow Overview */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Tag className="w-4 h-4 text-emerald-600" /> Brand Flow Overview
@@ -481,7 +474,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Category Flow Overview */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Filter className="w-4 h-4 text-blue-600" /> Category Flow Overview
@@ -516,7 +508,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Brand Attribute Distribution */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Layers className="w-4 h-4 text-violet-600" /> Brand Attribute Distribution
@@ -551,7 +542,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Category Attribute Distribution */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Layers className="w-4 h-4 text-orange-600" /> Category Attribute Distribution
@@ -586,7 +576,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
       </div>
-      {/* --- END GRID --- */}
 
     </div>
   );

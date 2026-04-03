@@ -13,7 +13,26 @@ export const extractionService={
       throw new Error('AI extraction failed to process source')
     }
   },
-  
+  async freshAggregation(data:{mpns:string[];project_id:string,use_case:string})
+  {
+    try {
+     const response = await api.post('/extraction/pdf/fresh-aggregation', data);
+     return response.data
+    } catch (error:any) {
+      console.log('Fresh aggregation failed',error)
+      throw new Error(error)
+    }
+  },
+  async getBatchStatus(batchId:string)
+  {
+    try {
+      const response = await api.get(`/extraction/pdf/batch-status/${batchId}`);
+      return response.data
+    } catch (error:any) {
+      console.log('Failed to get batch status',error)
+      throw new Error(error)
+    }
+  },
   async batchAggregate(file: File, projectId?: string): Promise<any> {
     try {
       const formData = new FormData();
@@ -33,15 +52,7 @@ export const extractionService={
       throw error; 
     }
   },
-  async getBatchStatus(batchId:string){
-    try {
-      const { data } = await api.get(`/sources/batch-status/${batchId}`);
-    return data; 
-    } catch (error) {
-      console.error("Failed to get batch status", error);
-      throw new Error("Failed to get batch status")
-    }
-  },
+  
   async download(sourceId: string, type: 'input' | 'output') {
     try {
       const response = await api.get(`/sources/${sourceId}/download`, {

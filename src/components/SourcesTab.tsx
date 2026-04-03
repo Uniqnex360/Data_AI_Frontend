@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Upload,
   FileSpreadsheet,
@@ -12,6 +12,7 @@ import {
   Search,
   Clock,
   XCircle,
+  Globe,
 } from "lucide-react";
 import { extractionService } from "../services/extractionService";
 import { projectService } from "../services/projectService";
@@ -19,6 +20,7 @@ import type { Source, Project } from "../types/database.types";
 import { notify } from "../lib/notifications.ts";
 import { getStatusIcon } from "../utils/statusIcon";
 import { cleansingService } from "../services/cleansingService";
+import { X, Loader2 } from "lucide-react";
 import {
   ManualProductData,
   OperationMode,
@@ -38,6 +40,76 @@ export default function SourcesTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMode, setActiveMode] = useState<"manual" | "bulk">("bulk");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [freshMpns, setFreshMpns] = useState<string[]>([]);
+  const [currentFreshMpn, setCurrentFreshMpn] = useState("");
+  const [selectedUseCase, setSelectedUseCase] = useState<string>("");
+  const [showUseCaseDropdown, setShowUseCaseDropdown] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [freshAggregating, setFreshAggregating] = useState(false);
+  const [freshBatchId, setFreshBatchId] = useState<string | null>(null);
+  const handleAddFreshMpn = () => {
+    if (currentFreshMpn.trim() && !freshMpns.includes(currentFreshMpn.trim())) {
+      setFreshMpns([...freshMpns, currentFreshMpn.trim()]);
+      setCurrentFreshMpn("");
+    }
+  };
+  const handleRemoveFreshMpn = (mpn: string) => {
+    setFreshMpns(freshMpns.filter((m) => m !== mpn));
+  };
+  const handleFreshAggregation = async () => {
+    if (freshMpns.length === 0) {
+      notify.error("Please add at least one MPN/Model/UPC");
+      return;
+    }
+    if (!projectId) {
+      notify.error("Please select a project first");
+      return;
+    }
+    setFreshAggregating(true);
+    try {
+      const response = await extractionService.freshAggregation({
+        mpns: freshMpns,
+        project_id: projectId,
+        use_case: selectedUseCase,
+      });
+      console.log("Fresh aggregation response:", response); 
+      setFreshBatchId(response.batch_id);
+      notify.success(
+        "Extraction Started",
+        `Processing ${freshMpns.length} MPN(s). Products will appear in Aggregation tab when complete.`,
+      );
+      setFreshMpns([]);
+      pollFreshAggregationStatus(response.batch_id);
+      await loadSources();
+      await loadProjects();
+    } catch (error: any) {
+      console.error("Fresh aggregation failed", error);
+      notify.error("Extraction failed", error.message);
+    } finally {
+      setFreshAggregating(false);
+    }
+  };
+  const pollFreshAggregationStatus = (batchId: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const status = await extractionService.getBatchStatus(batchId);
+        if (status.status === "completed") {
+          clearInterval(interval);
+          notify.success(
+            "Extraction Complete",
+            `Products have been added. Go to Aggregation tab to start aggregation.`,
+          );
+          await loadSources();
+          await loadProjects();
+        } else if (status.status === "failed") {
+          clearInterval(interval);
+          notify.error("Extraction failed", status.source_metadata?.error);
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
+    }, 3000);
+  };
   const [manualData, setManualData] = useState<ManualProductData>({
     brand: "",
     title: "",
@@ -55,9 +127,6 @@ export default function SourcesTab({
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState<string>("");
-  const [selectedUseCase, setSelectedUseCase] = useState<string>("");
-  const [showUseCaseDropdown, setShowUseCaseDropdown] = useState(false);
-  const [showProjectModal, setShowProjectModal] = useState(false);
   const [importResults, setImportResults] = useState<{
     success: number;
     failed: number;
@@ -93,6 +162,13 @@ export default function SourcesTab({
       console.error("Failed to load projects:", error);
     }
   };
+  useEffect(() => {
+    if (selectedProject) {
+      setOperationMode(selectedProject.operation_mode as OperationMode);
+      setSelectedUseCase(selectedProject.use_case || "");
+    }
+  }, [selectedProject]);
+
   const loadSourcesForProject = async (id: string) => {
     if (!id) return;
     try {
@@ -190,6 +266,13 @@ export default function SourcesTab({
       "With Categories with attribute (back filling) and existing attribute validation",
     ],
     cleaning: ["Data cleaning and Standardization"],
+    pdf_extraction: [
+      "1. Fresh PDF Aggregation (MPN/Model/UPC based web enrichment)",
+      "2. Structured PDF Extraction (Given MPNs)",
+      "3. Unstructured PDF Extraction (Given MPNs)",
+      "4. Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
+      "5. Blind PDF Extraction (No MPNs - Title/Description based)",
+    ],
   };
 
   const useCaseOptions = useCaseMap[operationMode];
@@ -287,17 +370,17 @@ export default function SourcesTab({
         fileInputRef.current.value = "";
       }
       notify.success(
-  "Upload Successful",
-  result?.summary
-    ? `${result.summary.valid_rows} valid rows • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
-    : "File uploaded successfully",
-);
+        "Upload Successful",
+        result?.summary
+          ? `${result.summary.valid_rows} valid rows • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
+          : "File uploaded successfully",
+      );
 
-setImportResults({
-  success: result?.summary?.valid_rows || 0,
-  failed: result?.summary?.rejected_rows || 0,
-  status: "accepted",
-});
+      setImportResults({
+        success: result?.summary?.valid_rows || 0,
+        failed: result?.summary?.rejected_rows || 0,
+        status: "accepted",
+      });
       setBulkFile(null);
       pollBatchStatus(result.batch_id);
       await loadSources();
@@ -576,6 +659,7 @@ setImportResults({
                 <option value="aggregation"> Aggregation</option>
                 <option value="cleaning"> Cleaning</option>
                 <option value="enrichment"> Enrichment</option>
+                <option value="pdf_extraction">PDF Extraction</option>
               </select>
               <p className="text-xs text-slate-500 mt-1">
                 {operationMode === "aggregation"
@@ -596,7 +680,7 @@ setImportResults({
                     e.stopPropagation();
                     setShowUseCaseDropdown(!showUseCaseDropdown);
                   }}
-                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
+                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50 truncate"
                 >
                   <span
                     className={
@@ -604,7 +688,15 @@ setImportResults({
                     }
                   >
                     {selectedUseCase ||
-                      `Select ${operationMode === "aggregation" ? "Aggregation" : operationMode === "enrichment" ? "Enrichment" : "Cleaning"} Use Case`}
+                      `Select ${
+                        operationMode === "aggregation"
+                          ? "Aggregation"
+                          : operationMode === "enrichment"
+                            ? "Enrichment"
+                            : operationMode === "pdf_extraction"
+                              ? "PDF Extraction"
+                              : "Cleaning"
+                      } Use Case`}
                   </span>
                   <ChevronDown
                     className={`w-4 h-4 text-slate-400 transition-transform ${showUseCaseDropdown ? "rotate-180" : ""}`}
@@ -686,7 +778,94 @@ setImportResults({
           </div>
         </div>
         <div className="p-6">
-          {activeMode === "bulk" ? (
+          {activeMode === "bulk" &&
+          operationMode === "pdf_extraction" &&
+          selectedUseCase?.startsWith("1.") ? (
+            // Fresh PDF Aggregation UI
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="w-5 h-5 text-blue-600" />
+                  <h4 className="font-semibold text-blue-900">
+                    Fresh PDF Aggregation
+                  </h4>
+                </div>
+                <p className="text-sm text-blue-700">
+                  Enter MPN, Model Number, or UPC. The system will search
+                  manufacturer websites and automatically extract product data.
+                  Products will be created and ready for aggregation.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  MPN / Model Number / UPC
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={currentFreshMpn}
+                    onChange={(e) => setCurrentFreshMpn(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleAddFreshMpn()}
+                    placeholder="e.g., 203-602, iPhone 14, 123456789012"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={handleAddFreshMpn}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {freshMpns.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Items to Process ({freshMpns.length})
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {freshMpns.map((mpn) => (
+                      <span
+                        key={mpn}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-sm"
+                      >
+                        {mpn}
+                        <button onClick={() => handleRemoveFreshMpn(mpn)}>
+                          <X className="w-3 h-3 text-slate-500" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {projectId ? (
+                <button
+                  onClick={handleFreshAggregation}
+                  disabled={freshAggregating || freshMpns.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {freshAggregating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing MPNs...
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4" />
+                      Fetch Product Data
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Select a project to enable fresh aggregation
+                </div>
+              )}
+            </div>
+          ) : activeMode === "bulk" ? (
             <div>
               <div className="mb-4">
                 <button
@@ -998,6 +1177,8 @@ setImportResults({
                   <button
                     onClick={() => {
                       setSelectedProject(project);
+                      setOperationMode(project.operation_mode as OperationMode);
+                      setSelectedUseCase(project.use_case || "");
                       loadSourcesForProject(project.id);
                       onProjectSelect?.(project.id);
                     }}

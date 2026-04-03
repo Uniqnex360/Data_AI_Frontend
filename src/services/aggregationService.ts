@@ -2,7 +2,6 @@ import api from "../lib/api.ts";
 import type { Product, AggregatedAttribute } from "../types/database.types";
 import {
   ProjectWithStats,
-  ProductsResponse,
   AggregationResponse,
   ProductAggregationResponse,
   AggregationJob,
