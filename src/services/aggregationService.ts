@@ -138,6 +138,26 @@ export const aggregationService = {
     );
     return data;
   },
+  async getProductsWithMovement(projectId:string):Promise<{
+    aggregation_products:Product[],
+    enrichment_products:Product[],
+    completed_products:Array<{
+      id:string,
+      product_code:string,
+      product_name:string,
+      completeness_score:number,
+      workflow_stage:string,
+      moved_to:string
+    }>
+    last_updated:string
+  }>{
+    try {
+      const { data } = await api.get(`/aggregation/project/${projectId}/products-with-movement`);
+      return data
+    } catch (error) {
+      throw new Error(error)
+    }
+  },
   async aggregateProductData(
     productId: string,
   ): Promise<ProductAggregationResponse> {

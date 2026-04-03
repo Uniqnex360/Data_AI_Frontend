@@ -34,7 +34,8 @@ import {
   getProductStatusBadge,
 } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
-import { safeParseValue, formatValue } from '../utils/valueParser';
+import { safeParseValue, formatValue } from "../utils/valueParser";
+import { useProductMovement } from "../hooks/useProductMovement";
 
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
@@ -144,8 +145,10 @@ export default function AggregationTab({
       setAggregatingProjects(newAggregatingProjects);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
-          const fresh =
-            await productService.getProductsByProject(expandedProjectId,'aggregation');
+          const fresh = await productService.getProductsByProject(
+            expandedProjectId,
+            "aggregation",
+          );
           setExpandedProjectProducts(fresh);
         } catch (error) {
           console.error("Failed to refresh expanded project:", error);
@@ -213,7 +216,8 @@ export default function AggregationTab({
     setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects({
-        operation_mode: "aggregation", tab:"aggregation"
+        operation_mode: "aggregation",
+        tab: "aggregation",
       });
 
       const aggregationData = data.filter(
@@ -271,7 +275,10 @@ export default function AggregationTab({
       setExpandedProjectId(projectId);
       setExpandedLoading(true);
       try {
-        const data = await productService.getProductsByProject(projectId,"aggregation");
+        const data = await productService.getProductsByProject(
+          projectId,
+          "aggregation",
+        );
         setExpandedProjectProducts(data);
         setCurrentPage(1);
         resetLocalFilters();
@@ -334,7 +341,19 @@ export default function AggregationTab({
   const isExpandedProjectSelected = expandedProjectId
     ? selectedProjectIds.has(expandedProjectId)
     : false;
-
+  const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
+    projectId: expandedProjectId,
+    currentTab: "aggregation",
+    onProductsMoved: useCallback(() => {
+      if (expandedProjectId) {
+        productService
+          .getProductsByProject(expandedProjectId, "aggregation")
+          .then(setExpandedProjectProducts)
+          .catch(console.error);
+      }
+    }, [expandedProjectId]),
+    enabled: !!expandedProjectId && expandedProjectProducts.length > 0,
+  });
   const handleAggregate = useCallback(
     async (productId: string) => {
       try {
@@ -343,11 +362,13 @@ export default function AggregationTab({
             p.id === productId ? { ...p, enrichment_status: "processing" } : p,
           ),
         );
+        trackProcessingProduct(productId);
         await aggregationService.aggregateProduct(productId, selectedLLM);
         setPollingProductIds((prev) => new Set(prev).add(productId));
         notify.success("Aggregation started");
       } catch (error: any) {
         console.error("Aggregation failed:", error);
+        removeTrackingProduct(productId);
         const errorMessage =
           error.response?.data?.detail || error.message || "Aggregation failed";
         notify.error("Aggregation Failed", errorMessage);
@@ -432,6 +453,7 @@ export default function AggregationTab({
 
     setLoading(true);
     try {
+      pendingProducts.forEach((p) => trackProcessingProduct(p.id));
       await Promise.allSettled(
         pendingProducts.map((p) =>
           aggregationService.aggregateProduct(p.id, selectedLLM),
@@ -459,6 +481,7 @@ export default function AggregationTab({
     } catch (error) {
       console.error("Batch aggregation failed", error);
       notify.error("Batch aggregation failed");
+      pendingProducts.forEach((p) => removeTrackingProduct(p.id));
     } finally {
       setLoading(false);
     }
@@ -510,8 +533,10 @@ export default function AggregationTab({
         expandedProjectId &&
         projectIdsToAggregate.includes(expandedProjectId)
       ) {
-        const freshData =
-          await productService.getProductsByProject(expandedProjectId,'aggregation');
+        const freshData = await productService.getProductsByProject(
+          expandedProjectId,
+          "aggregation",
+        );
         setExpandedProjectProducts(freshData);
         const processingIds = freshData
           .filter((p) => p.enrichment_status === "processing")
@@ -535,41 +560,78 @@ export default function AggregationTab({
       setSelectedProjectIds(new Set());
     }
   }, [selectedProjectIds, expandedProjectId, selectedLLM]);
-  const pollProductStatuses = useCallback(async () => {
-    if (pollingProductIds.size === 0 || !expandedProjectId) return;
+   const loadAttributes = useCallback(async (productId: string) => {
     try {
-      const data = await productService.getProductsByProject(expandedProjectId,'aggregation');
-      const completedOrFailed: string[] = [];
-      pollingProductIds.forEach((productId) => {
-        const updatedProduct = data.find((p) => p.id === productId);
-        if (
-          updatedProduct &&
-          (updatedProduct.enrichment_status === "completed" ||
-            updatedProduct.enrichment_status === "failed")
-        ) {
-          completedOrFailed.push(productId);
-          if (updatedProduct.enrichment_status === "completed") {
-            notify.success("Aggregation Complete", updatedProduct.product_name);
-          } else {
-            notify.error("Aggregation Failed", updatedProduct.product_name);
-          }
-        }
-      });
-      setExpandedProjectProducts(data);
-      if (completedOrFailed.length > 0) {
-        setPollingProductIds((prev) => {
-          const updated = new Set(prev);
-          completedOrFailed.forEach((id) => updated.delete(id));
-          return updated;
-        });
-      }
-      if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
-        await loadAttributes(selectedProduct);
-      }
+      setAttributesLoading(true);
+      const data = await aggregationService.getAggregatedAttributes(productId);
+      setAttributes(data);
     } catch (error) {
-      console.error("Polling error:", error);
+      console.error("Failed to load attributes:", error);
+      notify.error("Failed to load attributes");
+    } finally {
+      setAttributesLoading(false);
     }
-  }, [pollingProductIds, expandedProjectId, selectedProduct]);
+  }, []);
+
+ const pollProductStatuses = useCallback(async () => {
+  if (pollingProductIds.size === 0 || !expandedProjectId) return;
+  try {
+    // Fetch from BOTH tabs
+    const [aggregationData, enrichmentData] = await Promise.all([
+      productService.getProductsByProject(expandedProjectId, 'aggregation'),
+      productService.getProductsByProject(expandedProjectId, 'enrichment'),
+    ]);
+    
+    const completedOrFailed: string[] = [];
+    
+    pollingProductIds.forEach((productId) => {
+      // Check if product still in aggregation tab
+      const productInAggregation = aggregationData.find(p => p.id === productId);
+      const productInEnrichment = enrichmentData.find(p => p.id === productId);
+      
+      // Case 1: Product moved to Enrichment tab
+      if (!productInAggregation && productInEnrichment) {
+        const score = productInEnrichment.completeness_score || 0;
+        completedOrFailed.push(productId);
+        notify.info(
+          "Moved to Enrichment",
+          `${productInEnrichment.product_name || productInEnrichment.product_code} has ${score}% completeness and requires further enrichment.`
+        );
+      }
+      // Case 2: Product completed and still in aggregation (score >= 90)
+      else if (productInAggregation && productInAggregation.enrichment_status === "completed") {
+        const score = productInAggregation.completeness_score || 0;
+        if (score >= 90) {
+          completedOrFailed.push(productId);
+          notify.success("Aggregation Complete", productInAggregation.product_name);
+        }
+      }
+      // Case 3: Product failed
+      else if (productInAggregation && productInAggregation.enrichment_status === "failed") {
+        completedOrFailed.push(productId);
+        notify.error("Aggregation Failed", productInAggregation.product_name);
+      }
+      // Case 4: Still processing - do nothing
+    });
+    
+    // Update current tab view only
+    setExpandedProjectProducts(aggregationData);
+    
+    if (completedOrFailed.length > 0) {
+      setPollingProductIds((prev) => {
+        const updated = new Set(prev);
+        completedOrFailed.forEach((id) => updated.delete(id));
+        return updated;
+      });
+    }
+    
+    if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
+      await loadAttributes(selectedProduct);
+    }
+  } catch (error) {
+    console.error("Polling error:", error);
+  }
+}, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
     const selectedProducts = Array.from(selectedProductIds);
@@ -615,18 +677,7 @@ export default function AggregationTab({
       }
     };
   }, [pollingProductIds.size, expandedProjectId, pollProductStatuses]);
-  const loadAttributes = useCallback(async (productId: string) => {
-    try {
-      setAttributesLoading(true);
-      const data = await aggregationService.getAggregatedAttributes(productId);
-      setAttributes(data);
-    } catch (error) {
-      console.error("Failed to load attributes:", error);
-      notify.error("Failed to load attributes");
-    } finally {
-      setAttributesLoading(false);
-    }
-  }, []);
+
   useEffect(() => {
     if (selectedProduct) {
       loadAttributes(selectedProduct);
@@ -665,8 +716,6 @@ export default function AggregationTab({
     [expandedProjectId],
   );
 
-  
-  
   const selectedProductData = expandedProjectProducts.find(
     (p) => p.id === selectedProduct,
   );

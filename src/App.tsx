@@ -1,24 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   Database,
   FileText,
   GitMerge,
   Sparkles,
-  CheckCircle,
   Shield,
   Target,
-  FileSearch,
-  Eye,
-  Send,
-  TrendingUp,
-  Users,
 } from "lucide-react";
 import DashboardTab from "./components/DashboardTab";
 import SourcesTab from "./components/SourcesTab";
-import SourcePriorityTab from "./components/SourcePriorityTab";
 import AggregationTab from "./components/AggregationTab";
-import CleansingTab from "./components/CleansingTab";
 import StandardizationTab from "./components/StandardizationTab";
 import BusinessRulesTab from "./components/BusinessRulesTab";
 import EnrichmentTab from "./components/EnrichmentTab";
