@@ -216,12 +216,12 @@ export default function AggregationTab({
     setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects({
-        operation_mode: "aggregation",
+        operation_mode: "aggregation,pdf_extraction",  
         tab: "aggregation",
       });
 
       const aggregationData = data.filter(
-        (p: Project) => p.operation_mode === "aggregation",
+        (p: Project) => p.operation_mode === "aggregation"||"pdf_extraction" ,
       );
       setProjects(aggregationData);
 
