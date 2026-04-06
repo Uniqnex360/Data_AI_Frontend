@@ -13,6 +13,7 @@ import {
   Clock,
   XCircle,
   Globe,
+  FileText,
 } from "lucide-react";
 import { extractionService } from "../services/extractionService";
 import { projectService } from "../services/projectService";
@@ -21,6 +22,7 @@ import { notify } from "../lib/notifications.ts";
 import { getStatusIcon } from "../utils/statusIcon";
 import { cleansingService } from "../services/cleansingService";
 import { X, Loader2 } from "lucide-react";
+import { pollBatchStatus } from '../../utils/polling';
 import {
   ManualProductData,
   OperationMode,
@@ -79,7 +81,10 @@ export default function SourcesTab({
         `Processing ${freshMpns.length} MPN(s). Products will appear in Aggregation tab when complete.`,
       );
       setFreshMpns([]);
-      pollFreshAggregationStatus(response.batch_id);
+      pollBatchStatus(response.batch_id, async () => {
+  await loadSources();
+  await loadProjects();
+});
       await loadSources();
       await loadProjects();
     } catch (error: any) {
@@ -89,27 +94,12 @@ export default function SourcesTab({
       setFreshAggregating(false);
     }
   };
-  const pollFreshAggregationStatus = (batchId: string) => {
-    const interval = setInterval(async () => {
-      try {
-        const status = await extractionService.getBatchStatus(batchId);
-        if (status.status === "completed") {
-          clearInterval(interval);
-          notify.success(
-            "Extraction Complete",
-            `Products have been added. Go to Aggregation tab to start aggregation.`,
-          );
-          await loadSources();
-          await loadProjects();
-        } else if (status.status === "failed") {
-          clearInterval(interval);
-          notify.error("Extraction failed", status.source_metadata?.error);
-        }
-      } catch (error) {
-        console.error("Polling error:", error);
-      }
-    }, 3000);
-  };
+  const handlePolling = (batchId: string) => {
+  pollBatchStatus(batchId, async () => {
+    await loadSources();
+    await loadProjects();
+  });
+};
   const [manualData, setManualData] = useState<ManualProductData>({
     brand: "",
     title: "",
@@ -126,6 +116,9 @@ export default function SourcesTab({
     stock: "",
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [structuredMpn, setStructuredMpn] = useState("");
+const [structuredPdfFile, setStructuredPdfFile] = useState<File | null>(null);
+const [structuredExtracting, setStructuredExtracting] = useState(false);
   const [projectName, setProjectName] = useState<string>("");
   const [importResults, setImportResults] = useState<{
     success: number;
@@ -169,6 +162,55 @@ export default function SourcesTab({
     }
   }, [selectedProject]);
 
+  const handleStructuredExtraction = async () => {
+  if (!structuredPdfFile || !structuredMpn.trim()) {
+    notify.error("Please provide an MPN and a PDF file");
+    return;
+  }
+  
+  // ✅ Validate that the file is a PDF
+  const fileType = structuredPdfFile.type;
+  const fileExtension = structuredPdfFile.name.split('.').pop()?.toLowerCase();
+  
+  if (fileType !== 'application/pdf' && fileExtension !== 'pdf') {
+    notify.error("Invalid file type", "Please upload a valid PDF file");
+    return;
+  }
+  
+  if (!projectId) {
+    notify.error("Please select a project first");
+    return;
+  }
+  
+  setStructuredExtracting(true);
+  try {
+    // Only save the PDF file and MPN reference, don't extract
+    const formData = new FormData();
+    formData.append("file", structuredPdfFile);
+    formData.append("mpn", structuredMpn.trim());
+    formData.append("project_id", projectId);
+    formData.append("use_case", selectedUseCase);
+    
+    // Call a new endpoint that only saves the PDF source
+    const response = await extractionService.savePdfSource(formData);
+    
+    notify.success(
+      "PDF Saved",
+      `PDF for MPN ${structuredMpn} has been saved. Go to Aggregation tab to extract.`
+    );
+    setStructuredMpn("");
+    setStructuredPdfFile(null);
+    // Clear the file input
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+    await loadSources();
+    await loadProjects();
+  } catch (error: any) {
+    notify.error("Failed to save PDF", error.message);
+  } finally {
+    setStructuredExtracting(false);
+  }
+};
   const loadSourcesForProject = async (id: string) => {
     if (!id) return;
     try {
@@ -205,59 +247,7 @@ export default function SourcesTab({
     document.addEventListener("click", handleClickOutSide);
     return () => document.removeEventListener("click", handleClickOutSide);
   }, [showUseCaseDropdown]);
-  const pollBatchStatus = async (batchId: string) => {
-    const maxAttempts = 60;
-    let attempts = 0;
-    const poll = async () => {
-      try {
-        const response = await extractionService.getBatchStatus(batchId);
-        const { status, metadata } = response;
-        if (status === "completed") {
-          notify.success(
-            "Import Finished",
-            `Successfully processed ${metadata?.total || 0} products.`,
-          );
-          setImportResults({
-            success: metadata?.successful || 0,
-            failed: metadata?.failed || 0,
-            status: status,
-          });
-          await loadSources();
-          await loadProjects();
-          return;
-        }
-        if (status === "failed") {
-          notify.error(
-            "Import Failed",
-            metadata?.error_message || "An error occurred during processing.",
-          );
-          setImportResults({
-            success: metadata?.successful || 0,
-            failed: metadata?.failed || 0,
-            status: status,
-          });
-          await loadSources();
-          return;
-        }
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 5000);
-        } else {
-          notify.error(
-            "Polling Timeout",
-            "The import is taking longer than expected. Please check back later.",
-          );
-        }
-      } catch (error) {
-        console.error("Failed to poll batch status:", error);
-        notify.error(
-          "Connection Error",
-          "Lost connection while checking import status.",
-        );
-      }
-    };
-    poll();
-  };
+  
 
   const useCaseMap: Record<OperationMode, string[]> = {
     aggregation: ["With categories", "Without categories"],
@@ -382,7 +372,10 @@ export default function SourcesTab({
         status: "accepted",
       });
       setBulkFile(null);
-      pollBatchStatus(result.batch_id);
+      pollBatchStatus(result.batch_id, async () => {
+  await loadSources();
+  await loadProjects();
+});
       await loadSources();
     } catch (error) {
       console.error("Bulk upload failed:", error);
@@ -780,8 +773,10 @@ export default function SourcesTab({
         <div className="p-6">
           {activeMode === "bulk" &&
           operationMode === "pdf_extraction" &&
-          selectedUseCase?.startsWith("1.") ? (
-            // Fresh PDF Aggregation UI
+          selectedUseCase?.startsWith("1.") &&
+            projectId &&          // ← project must exist
+  !showProjectModal ? ( 
+            // Fresh PDF Aggregation 
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -865,7 +860,72 @@ export default function SourcesTab({
                 </div>
               )}
             </div>
-          ) : activeMode === "bulk" ? (
+          ) :operationMode === "pdf_extraction" &&
+ selectedUseCase?.startsWith("2.") &&
+ projectId &&
+ !showProjectModal ?(
+  // Structured PDF Extraction UI
+  <div className="space-y-4">
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText className="w-5 h-5 text-green-600" />
+        <h4 className="font-semibold text-green-900">Structured PDF Extraction</h4>
+      </div>
+      <p className="text-sm text-green-700">
+        Upload a structured PDF (e.g., spec sheet, catalog) and provide the MPN.
+        The system will extract product data only for that MPN from the PDF.
+      </p>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">MPN</label>
+      <input
+        type="text"
+        value={structuredMpn}
+        onChange={(e) => setStructuredMpn(e.target.value)}
+        placeholder="e.g., 203-602"
+        className="w-full px-3 py-2 border border-slate-300 rounded-md"
+      />
+    </div>
+
+    <div>
+  <label className="block text-sm font-medium text-slate-700 mb-2">PDF File</label>
+  <input
+    type="file"
+    accept=".pdf"
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        notify.error("Invalid file", "Please select a valid PDF file");
+        e.target.value = '';
+        return;
+      }
+      setStructuredPdfFile(file || null);
+    }}
+    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+  />
+  {structuredPdfFile && (
+    <p className="text-sm text-green-600 mt-2">Selected: {structuredPdfFile.name}</p>
+  )}
+</div>
+
+    {projectId ? (
+      <button
+        onClick={handleStructuredExtraction}
+        disabled={structuredExtracting || !structuredPdfFile || !structuredMpn}
+        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md"
+      >
+        {structuredExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+        {structuredExtracting ? "Extracting..." : "Extract from PDF"}
+      </button>
+    ) : (
+      <div className="p-3 bg-amber-50 text-amber-700 text-sm rounded-md">
+        Select a project first
+      </div>
+    )}
+  </div>
+) :
+           activeMode === "bulk" ? (
             <div>
               <div className="mb-4">
                 <button
@@ -1179,6 +1239,7 @@ export default function SourcesTab({
                       setSelectedProject(project);
                       setOperationMode(project.operation_mode as OperationMode);
                       setSelectedUseCase(project.use_case || "");
+                      
                       loadSourcesForProject(project.id);
                       onProjectSelect?.(project.id);
                     }}

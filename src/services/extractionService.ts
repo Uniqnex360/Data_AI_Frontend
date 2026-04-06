@@ -13,6 +13,31 @@ export const extractionService={
       throw new Error('AI extraction failed to process source')
     }
   },
+  savePdfSource: async (formData: FormData) => {
+  const response = await api.post('/extraction/pdf/save-pdf-source', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+},
+  async structuredExtraction (formData: FormData) {
+  const response = await api.post('/extraction/pdf/structured-extraction', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+},
+async extractPdfForProduct(mpn: string, projectId: string) {
+  try{
+  const response = await api.post('/extraction/pdf/extract-pending', {
+    mpn,
+    project_id: projectId
+  });
+  return response.data;
+}
+catch(error:any){
+console.log("Error occured while extracting pdf from product",error)
+throw new Error(error)
+}
+},
   async freshAggregation(data:{mpns:string[];project_id:string,use_case:string})
   {
     try {

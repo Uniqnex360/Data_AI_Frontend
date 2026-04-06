@@ -36,6 +36,8 @@ import {
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { safeParseValue, formatValue } from "../utils/valueParser";
 import { useProductMovement } from "../hooks/useProductMovement";
+import { extractionService } from "../services/extractionService.ts";
+import { pollBatchStatus } from "../../utils/polling.ts";
 
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
@@ -45,6 +47,8 @@ export default function AggregationTab({
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [useCases, setUseCases] = useState<string[]>([]);
+  const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
+
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
@@ -118,6 +122,37 @@ export default function AggregationTab({
     }),
     [expandedProjectProducts],
   );
+
+  const handleExtractFromPdf = async (productId: string, mpn: string) => {
+    setExtractingPdf((prev) => new Set(prev).add(productId));
+    try {
+      // Find the source for this MPN
+      const response = await extractionService.extractPdfForProduct(
+        mpn,
+        expandedProjectId!,
+      );
+      notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
+
+      // Poll for completion
+      pollBatchStatus(response.batch_id, async () => {
+        const fresh = await productService.getProductsByProject(
+          expandedProjectId!,
+          "aggregation",
+        );
+        setExpandedProjectProducts(fresh);
+      });
+
+     
+    } catch (error: any) {
+      notify.error("Extraction failed", error.message);
+    } finally {
+      setExtractingPdf((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
   const pollProjectStatuses = useCallback(async () => {
     if (aggregatingProjects.size === 0) return;
     const newAggregatingProjects = new Set(aggregatingProjects);
@@ -216,12 +251,12 @@ export default function AggregationTab({
     setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects({
-        operation_mode: "aggregation,pdf_extraction",  
+        operation_mode: "aggregation,pdf_extraction",
         tab: "aggregation",
       });
 
       const aggregationData = data.filter(
-        (p: Project) => p.operation_mode === "aggregation"||"pdf_extraction" ,
+        (p: Project) => p.operation_mode === "aggregation" || "pdf_extraction",
       );
       setProjects(aggregationData);
 
@@ -560,7 +595,7 @@ export default function AggregationTab({
       setSelectedProjectIds(new Set());
     }
   }, [selectedProjectIds, expandedProjectId, selectedLLM]);
-   const loadAttributes = useCallback(async (productId: string) => {
+  const loadAttributes = useCallback(async (productId: string) => {
     try {
       setAttributesLoading(true);
       const data = await aggregationService.getAggregatedAttributes(productId);
@@ -573,65 +608,78 @@ export default function AggregationTab({
     }
   }, []);
 
- const pollProductStatuses = useCallback(async () => {
-  if (pollingProductIds.size === 0 || !expandedProjectId) return;
-  try {
-    // Fetch from BOTH tabs
-    const [aggregationData, enrichmentData] = await Promise.all([
-      productService.getProductsByProject(expandedProjectId, 'aggregation'),
-      productService.getProductsByProject(expandedProjectId, 'enrichment'),
-    ]);
-    
-    const completedOrFailed: string[] = [];
-    
-    pollingProductIds.forEach((productId) => {
-      // Check if product still in aggregation tab
-      const productInAggregation = aggregationData.find(p => p.id === productId);
-      const productInEnrichment = enrichmentData.find(p => p.id === productId);
-      
-      // Case 1: Product moved to Enrichment tab
-      if (!productInAggregation && productInEnrichment) {
-        const score = productInEnrichment.completeness_score || 0;
-        completedOrFailed.push(productId);
-        notify.info(
-          "Moved to Enrichment",
-          `${productInEnrichment.product_name || productInEnrichment.product_code} has ${score}% completeness and requires further enrichment.`
+  const pollProductStatuses = useCallback(async () => {
+    if (pollingProductIds.size === 0 || !expandedProjectId) return;
+    try {
+      // Fetch from BOTH tabs
+      const [aggregationData, enrichmentData] = await Promise.all([
+        productService.getProductsByProject(expandedProjectId, "aggregation"),
+        productService.getProductsByProject(expandedProjectId, "enrichment"),
+      ]);
+
+      const completedOrFailed: string[] = [];
+
+      pollingProductIds.forEach((productId) => {
+        // Check if product still in aggregation tab
+        const productInAggregation = aggregationData.find(
+          (p) => p.id === productId,
         );
-      }
-      // Case 2: Product completed and still in aggregation (score >= 90)
-      else if (productInAggregation && productInAggregation.enrichment_status === "completed") {
-        const score = productInAggregation.completeness_score || 0;
-        if (score >= 90) {
+        const productInEnrichment = enrichmentData.find(
+          (p) => p.id === productId,
+        );
+
+        // Case 1: Product moved to Enrichment tab
+        if (!productInAggregation && productInEnrichment) {
+          const score = productInEnrichment.completeness_score || 0;
           completedOrFailed.push(productId);
-          notify.success("Aggregation Complete", productInAggregation.product_name);
+          notify.info(
+            "Moved to Enrichment",
+            `${productInEnrichment.product_name || productInEnrichment.product_code} has ${score}% completeness and requires further enrichment.`,
+          );
         }
-      }
-      // Case 3: Product failed
-      else if (productInAggregation && productInAggregation.enrichment_status === "failed") {
-        completedOrFailed.push(productId);
-        notify.error("Aggregation Failed", productInAggregation.product_name);
-      }
-      // Case 4: Still processing - do nothing
-    });
-    
-    // Update current tab view only
-    setExpandedProjectProducts(aggregationData);
-    
-    if (completedOrFailed.length > 0) {
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        completedOrFailed.forEach((id) => updated.delete(id));
-        return updated;
+        // Case 2: Product completed and still in aggregation (score >= 90)
+        else if (
+          productInAggregation &&
+          productInAggregation.enrichment_status === "completed"
+        ) {
+          const score = productInAggregation.completeness_score || 0;
+          if (score >= 90) {
+            completedOrFailed.push(productId);
+            notify.success(
+              "Aggregation Complete",
+              productInAggregation.product_name,
+            );
+          }
+        }
+        // Case 3: Product failed
+        else if (
+          productInAggregation &&
+          productInAggregation.enrichment_status === "failed"
+        ) {
+          completedOrFailed.push(productId);
+          notify.error("Aggregation Failed", productInAggregation.product_name);
+        }
+        // Case 4: Still processing - do nothing
       });
+
+      // Update current tab view only
+      setExpandedProjectProducts(aggregationData);
+
+      if (completedOrFailed.length > 0) {
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          completedOrFailed.forEach((id) => updated.delete(id));
+          return updated;
+        });
+      }
+
+      if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
+        await loadAttributes(selectedProduct);
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
     }
-    
-    if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
-      await loadAttributes(selectedProduct);
-    }
-  } catch (error) {
-    console.error("Polling error:", error);
-  }
-}, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
     const selectedProducts = Array.from(selectedProductIds);
@@ -1343,6 +1391,26 @@ export default function AggregationTab({
                                         : "Run"}
                                     </button>
                                   )}
+                                  {product.source_url?.endsWith(".pdf") &&
+                                    product.completeness_score === 0 && (
+                                      <button
+                                        onClick={() =>
+                                          handleExtractFromPdf(
+                                            product.id,
+                                            product.product_code,
+                                          )
+                                        }
+                                        disabled={extractingPdf.has(product.id)}
+                                        className="ml-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                                      >
+                                        {extractingPdf.has(product.id) ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <FileText className="w-4 h-4" />
+                                        )}
+                                        Extract PDF
+                                      </button>
+                                    )}
                                   {product.enrichment_status ===
                                     "processing" && (
                                     <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
