@@ -14,9 +14,7 @@ export const extractionService={
     }
   },
   savePdfSource: async (formData: FormData) => {
-  const response = await api.post('/extraction/pdf/save-pdf-source', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
+  const response = await api.post('/extraction/pdf/save-pdf-source', formData);
   return response.data;
 },
   async structuredExtraction (formData: FormData) {
