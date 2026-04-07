@@ -475,35 +475,43 @@ export default function DataCleaningTab() {
     }));
   };
 
-  const handleRemoveAttributeValue = (
-    product: Product,
-    attrName: string,
-    valueToRemove: string,
-  ) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to remove "${valueToRemove}" from ${attrName}?`,
-    );
-    if (!confirmed) return;
+ const handleRemoveAttributeValue = (
+  product: Product,
+  attrName: string,
+  valueToRemove: string,
+) => {
+  notify.confirm({
+    message: `Remove "${valueToRemove}"?`,
+    description: `This will remove the value from ${attrName}.`,
+    confirmLabel: "Remove",
+    cancelLabel: "Cancel",
+    onConfirm: () => {
+      const currentValues = getAttrValues(product, attrName);
+      const updatedValues = currentValues.filter((v) => v !== valueToRemove);
 
-    const currentValues = getAttrValues(product, attrName);
-    const updatedValues = currentValues.filter((v) => v !== valueToRemove);
-
-    setEditingAttributes((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...(prev[product.id] || {}),
-        [attrName]: {
-          value: updatedValues.join(" | "),
-          uom:
-            prev[product.id]?.[attrName]?.uom ??
-            (product.dynamic_attributes || []).find((a) => a.name === attrName)?.unit ??
-            (product.dynamic_attributes || []).find((a) => a.name === attrName)?.uom ??
-            "",
-          values: updatedValues,
+      setEditingAttributes((prev) => ({
+        ...prev,
+        [product.id]: {
+          ...(prev[product.id] || {}),
+          [attrName]: {
+            value: updatedValues.join(" | "),
+            uom:
+              prev[product.id]?.[attrName]?.uom ??
+              (product.dynamic_attributes || []).find((a) => a.name === attrName)?.unit ??
+              (product.dynamic_attributes || []).find((a) => a.name === attrName)?.uom ??
+              "",
+            values: updatedValues,
+          },
         },
-      },
-    }));
-  };
+      }));
+
+      notify.success(
+        "Value removed",
+        `"${valueToRemove}" removed from ${attrName}`,
+      );
+    },
+  });
+};
 
   const handleSaveAttributes = async (productId: string) => {
     const changes = editingAttributes[productId];
