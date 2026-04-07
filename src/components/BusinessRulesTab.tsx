@@ -166,7 +166,7 @@ export default function BusinessRulesTab() {
           >
             <option value="all">Select Rule</option>
             <option value="enrichment">Enrichment</option>
-            <option value="aggregation">Aggregation</option>
+            {/* <option value="aggregation">Aggregation</option> */}
             <option value="standardization">Standarization</option>
             <option value="extraction">Extraction</option>
           </select>

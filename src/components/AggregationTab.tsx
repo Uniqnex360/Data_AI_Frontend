@@ -50,6 +50,8 @@ export default function AggregationTab({
   const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
 
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
+  const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
+
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
     null,
@@ -91,23 +93,18 @@ export default function AggregationTab({
   const [attributesLoading, setAttributesLoading] = useState(false);
 
   const filteredProjects = useMemo(() => {
-    let filtered = projects;
-    if (selectedUseCase) {
-      filtered = filtered.filter((p) => p.use_case === selectedUseCase);
-    }
-    if (selectedProjectId) {
-      filtered = filtered.filter((p) => p.id === selectedProjectId);
-    }
-    return filtered;
-  }, [projects, selectedUseCase, selectedProjectId]);
-  useEffect(() => {
-    if (selectedProjectId && projects.length > 0) {
-      const project = projects.find((p) => p.id === selectedProjectId);
-      if (project && project.use_case) {
-        setSelectedUseCase(project.use_case);
-      }
-    }
-  }, [selectedProjectId, projects]);
+  let filtered = projects;
+  if (selectedUseCase) {
+    filtered = filtered.filter((p) => p.use_case === selectedUseCase);
+  }
+  if (selectedProjectId) {
+    filtered = filtered.filter((p) => p.id === selectedProjectId);
+  }
+  if (projectStatusFilter) {
+    filtered = filtered.filter((p) => p.source_status === projectStatusFilter);
+  }
+  return filtered;
+}, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
   const expandedStats = useMemo(
     () => ({
       success: expandedProjectProducts.filter(
@@ -256,7 +253,7 @@ export default function AggregationTab({
       });
 
       const aggregationData = data.filter(
-        (p: Project) => p.operation_mode === "aggregation" || "pdf_extraction",
+        (p: Project) => p.operation_mode === "aggregation" ||p.operation_mode=== "pdf_extraction",
       );
       setProjects(aggregationData);
 
@@ -279,17 +276,18 @@ export default function AggregationTab({
     loadProjects();
   }, [loadProjects]);
   const resetFilters = useCallback(() => {
-    setSearchQuery("");
-    setStatusFilter(new Set());
-    setCategoryFilter("");
-    setBrandFilter("");
-    setSelectedUseCase("");
-    setSelectedProjectId("");
-    setExpandedProjectId(null);
-    setExpandedProjectProducts([]);
-    setCurrentPage(1);
-    loadDefaultFilters();
-  }, [loadDefaultFilters]);
+  setSearchQuery("");
+  setStatusFilter(new Set());
+  setCategoryFilter("");
+  setBrandFilter("");
+  setSelectedUseCase("");
+  setSelectedProjectId("");
+  setProjectStatusFilter(""); 
+  setExpandedProjectId(null);
+  setExpandedProjectProducts([]);
+  setCurrentPage(1);
+  loadDefaultFilters();
+}, [loadDefaultFilters]); 
   const resetLocalFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter(new Set());
@@ -996,23 +994,18 @@ export default function AggregationTab({
                 Status
               </label>
               <select
-                value={
-                  statusFilter.size === 1 ? Array.from(statusFilter)[0] : ""
-                }
-                disabled={projectsLoading}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "") setStatusFilter(new Set());
-                  else setStatusFilter(new Set([val]));
-                  setCurrentPage(1);
-                }}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-              </select>
+  value={projectStatusFilter}
+  onChange={(e) => {
+    setProjectStatusFilter(e.target.value);
+    setCurrentPage(1);
+  }}
+  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+>
+  <option value="">All Status</option>
+  <option value="Yet to Start">Yet to Start</option>
+  <option value="Completed">Completed</option>
+  <option value="Failed">Failed</option>
+</select>
             </div>
 
             <div>
@@ -1059,6 +1052,7 @@ export default function AggregationTab({
           </div>
 
           {(statusFilter.size > 0 ||
+          projectStatusFilter||
             categoryFilter ||
             brandFilter ||
             selectedUseCase ||
