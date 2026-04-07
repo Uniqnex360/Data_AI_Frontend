@@ -177,10 +177,7 @@ export default function DataCleaningTab() {
   const [bulkAttributeValues, setBulkAttributeValues] = useState<Record<string, string>>({});
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
-  // Scroll sync
-  const headerScrollRef = useRef<HTMLDivElement>(null);
-  const bodyScrollRef   = useRef<HTMLDivElement>(null);
-  const isSyncing       = useRef(false);
+  // (scroll sync handled natively by single table container)
 
   const { availableBrands, availableCategories, loadProjectFilters } = useProjectFilters();
 
@@ -193,19 +190,7 @@ export default function DataCleaningTab() {
   useEffect(() => { loadProjects(); loadProjectFilters(); }, [loadProjectFilters]);
   useEffect(() => { if (selectedProjectId) loadProducts(); }, [selectedProjectId]);
 
-  // ── Scroll sync between frozen header scroll and body ──────────────────────
-  const syncHeader = () => {
-    if (isSyncing.current || !bodyScrollRef.current || !headerScrollRef.current) return;
-    isSyncing.current = true;
-    headerScrollRef.current.scrollLeft = bodyScrollRef.current.scrollLeft;
-    requestAnimationFrame(() => { isSyncing.current = false; });
-  };
-  const syncBody = () => {
-    if (isSyncing.current || !bodyScrollRef.current || !headerScrollRef.current) return;
-    isSyncing.current = true;
-    bodyScrollRef.current.scrollLeft = headerScrollRef.current.scrollLeft;
-    requestAnimationFrame(() => { isSyncing.current = false; });
-  };
+  // Single table container handles all scrolling naturally
 
   // ── Data loaders ────────────────────────────────────────────────────────────
   const loadProjects = async () => {
@@ -694,186 +679,178 @@ export default function DataCleaningTab() {
             )}
           </div>
 
-          {/* The table wrapper uses a two-region approach:
-              LEFT  = fixed columns (no horizontal scroll)
-              RIGHT = attribute columns (horizontally scrollable, synced) */}
-          <div className="flex overflow-hidden" style={{ maxHeight: "calc(100vh - 260px)" }}>
+          {/* ── Single unified scrollable table with sticky left columns ── */}
+          <div
+            className="overflow-auto"
+            style={{ maxHeight: "calc(100vh - 260px)" }}
+          >
+            <table className="border-collapse" style={{ tableLayout: "fixed", width: FIXED_WIDTH + COL_ACTION + availableAttributes.length * COL_ATTR }}>
+              {/* ── THEAD: sticky to top ── */}
+              <thead>
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
 
-            {/* ── LEFT: fixed columns ── */}
-            <div className="flex-none flex flex-col" style={{ width: FIXED_WIDTH + COL_ACTION }}>
-              {/* Header row */}
-              <table className="table-fixed border-b border-slate-200" style={{ width: FIXED_WIDTH + COL_ACTION }}>
-                <thead className="bg-slate-50">
-                  <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <th style={{ width: COL_CHECKBOX }} className="px-3 py-3 border-r border-slate-200">
+                  {/* Fixed sticky headers */}
+                  <th style={{ width: COL_CHECKBOX, minWidth: COL_CHECKBOX, left: 0, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">
+                    <input type="checkbox"
+                      checked={selectedProductIds.size === filteredSortedProducts.length && filteredSortedProducts.length > 0}
+                      onChange={toggleAll}
+                      className="rounded border-slate-300 text-blue-600" />
+                  </th>
+                  <th style={{ width: COL_STATUS, minWidth: COL_STATUS, left: COL_CHECKBOX, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Status</th>
+                  <th style={{ width: COL_ENTITY, minWidth: COL_ENTITY, left: COL_CHECKBOX + COL_STATUS, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Entity</th>
+                  <th style={{ width: COL_NAME, minWidth: COL_NAME, left: COL_CHECKBOX + COL_STATUS + COL_ENTITY, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Name (Product)</th>
+                  <th style={{ width: COL_BRAND, minWidth: COL_BRAND, left: COL_CHECKBOX + COL_STATUS + COL_ENTITY + COL_NAME, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Brand</th>
+                  <th style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY, left: COL_CHECKBOX + COL_STATUS + COL_ENTITY + COL_NAME + COL_BRAND, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Category</th>
+
+                  {/* Scrollable attribute headers */}
+                  {availableAttributes.map((attr) => (
+                    <AttrHeader
+                      key={attr}
+                      attr={attr}
+                      sort={getSort(attr)}
+                      filter={getFilter(attr)}
+                      onSort={() => toggleSort(attr)}
+                      onFilter={(v) => setColFilter(attr, v)}
+                    />
+                  ))}
+
+                  {/* Action — sticky right */}
+                  <th style={{ width: COL_ACTION, minWidth: COL_ACTION, right: 0, position: "sticky", zIndex: 20 }}
+                    className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center">Action</th>
+                </tr>
+              </thead>
+
+              {/* ── TBODY: every row has the same column structure ── */}
+              <tbody>
+                {filteredSortedProducts.map((product) => (
+                  <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50/70 align-middle group">
+
+                    {/* Sticky left: checkbox */}
+                    <td style={{ width: COL_CHECKBOX, position: "sticky", left: 0, zIndex: 10 }}
+                      className="px-3 py-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/70">
                       <input type="checkbox"
-                        checked={selectedProductIds.size === filteredSortedProducts.length && filteredSortedProducts.length > 0}
-                        onChange={toggleAll}
+                        checked={selectedProductIds.has(product.id)}
+                        onChange={() => toggleProduct(product.id)}
                         className="rounded border-slate-300 text-blue-600" />
-                    </th>
-                    <th style={{ width: COL_STATUS }}   className="px-3 py-3 border-r border-slate-200">Status</th>
-                    <th style={{ width: COL_ENTITY }}   className="px-3 py-3 border-r border-slate-200">Entity</th>
-                    <th style={{ width: COL_NAME }}     className="px-3 py-3 border-r border-slate-200">Name (Product)</th>
-                    <th style={{ width: COL_BRAND }}    className="px-3 py-3 border-r border-slate-200">Brand</th>
-                    <th style={{ width: COL_CATEGORY }} className="px-3 py-3 border-r border-slate-200">Category</th>
-                    <th style={{ width: COL_ACTION }}   className="px-3 py-3">Action</th>
-                  </tr>
-                </thead>
-              </table>
+                    </td>
 
-              {/* Body rows */}
-              <div className="overflow-y-auto flex-1">
-                <table className="table-fixed" style={{ width: FIXED_WIDTH + COL_ACTION }}>
-                  <tbody>
-                    {filteredSortedProducts.map((product) => (
-                      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50 align-middle">
-                        <td style={{ width: COL_CHECKBOX }} className="px-3 py-2 border-r border-slate-100">
-                          <input type="checkbox"
-                            checked={selectedProductIds.has(product.id)}
-                            onChange={() => toggleProduct(product.id)}
-                            className="rounded border-slate-300 text-blue-600" />
-                        </td>
-                        <td style={{ width: COL_STATUS }} className="px-3 py-2 border-r border-slate-100">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_STYLES[product.enrichment_status] || "bg-slate-100 text-slate-600"}`}>
-                            {product.enrichment_status}
-                          </span>
-                        </td>
-                        <td style={{ width: COL_ENTITY }} className="px-3 py-2 border-r border-slate-100">
-                          <div className="flex items-center gap-1.5">
-                            {/* Airtable-style colored dot */}
-                            <span className="w-5 h-5 rounded bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                              {(product.product_code || "?")[0].toUpperCase()}
-                            </span>
-                            <span className="text-xs font-mono text-slate-700 truncate" title={product.product_code}>
-                              {product.product_code}
-                            </span>
-                          </div>
-                        </td>
-                        <td style={{ width: COL_NAME }} className="px-3 py-2 border-r border-slate-100">
-                          <span className="text-xs text-slate-800 leading-snug line-clamp-2" title={product.product_name}>
-                            {product.product_name}
-                          </span>
-                        </td>
-                        <td style={{ width: COL_BRAND }} className="px-3 py-2 border-r border-slate-100">
-                          <span className="text-xs text-slate-600">{product.brand_name}</span>
-                        </td>
-                        <td style={{ width: COL_CATEGORY }} className="px-3 py-2 border-r border-slate-100">
-                          <span className="text-xs text-slate-600">{product.category_1}</span>
-                        </td>
-                        <td style={{ width: COL_ACTION }} className="px-3 py-2">
-                          <div className="flex flex-col gap-1">
-                            <button
-                              onClick={() => handleCleanProduct(product.id)}
-                              disabled={cleaning || product.enrichment_status === "processing"}
-                              className="text-blue-600 hover:text-blue-700 text-xs font-medium disabled:opacity-40 hover:underline"
-                            >
-                              {product.enrichment_status === "processing"
-                                ? <Loader2 className="w-3 h-3 animate-spin" />
-                                : product.enrichment_status === "completed" ? "Re-clean" : "Clean"}
-                            </button>
-                            {Object.keys(editingAttributes[product.id] || {}).length > 0 && (
-                              <button
-                                onClick={() => handleSaveAttributes(product.id)}
-                                disabled={savingAttributes[product.id]}
-                                className="text-emerald-600 hover:text-emerald-700 text-xs font-medium disabled:opacity-40 hover:underline inline-flex items-center gap-0.5"
-                              >
-                                {savingAttributes[product.id]
-                                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving</>
-                                  : "Save"}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    {/* Sticky left: status */}
+                    <td style={{ width: COL_STATUS, position: "sticky", left: COL_CHECKBOX, zIndex: 10 }}
+                      className="px-3 py-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/70">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_STYLES[product.enrichment_status] || "bg-slate-100 text-slate-600"}`}>
+                        {product.enrichment_status}
+                      </span>
+                    </td>
 
-            {/* ── RIGHT: scrollable attribute columns ── */}
-            <div className="flex-1 flex flex-col overflow-hidden border-l border-slate-200">
-              {/* Attribute header row (scrollable) */}
-              <div
-                ref={headerScrollRef}
-                onScroll={syncBody}
-                className="overflow-x-auto border-b border-slate-200 shrink-0"
-                style={{ scrollbarWidth: "none" }}
-              >
-                <table className="table-fixed" style={{ width: availableAttributes.length * COL_ATTR }}>
-                  <thead className="bg-slate-50">
-                    <tr>
-                      {availableAttributes.map((attr) => (
-                        <AttrHeader
+                    {/* Sticky left: entity/MPN */}
+                    <td style={{ width: COL_ENTITY, position: "sticky", left: COL_CHECKBOX + COL_STATUS, zIndex: 10 }}
+                      className="px-3 py-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/70">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                          {(product.product_code || "?")[0].toUpperCase()}
+                        </span>
+                        <span className="text-xs font-mono text-slate-700 truncate" title={product.product_code}>
+                          {product.product_code}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Sticky left: name */}
+                    <td style={{ width: COL_NAME, position: "sticky", left: COL_CHECKBOX + COL_STATUS + COL_ENTITY, zIndex: 10 }}
+                      className="px-3 py-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/70">
+                      <span className="text-xs text-slate-800 leading-snug line-clamp-2" title={product.product_name}>
+                        {product.product_name}
+                      </span>
+                    </td>
+
+                    {/* Sticky left: brand */}
+                    <td style={{ width: COL_BRAND, position: "sticky", left: COL_CHECKBOX + COL_STATUS + COL_ENTITY + COL_NAME, zIndex: 10 }}
+                      className="px-3 py-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/70">
+                      <span className="text-xs text-slate-600">{product.brand_name}</span>
+                    </td>
+
+                    {/* Sticky left: category */}
+                    <td style={{ width: COL_CATEGORY, position: "sticky", left: COL_CHECKBOX + COL_STATUS + COL_ENTITY + COL_NAME + COL_BRAND, zIndex: 10 }}
+                      className="px-3 py-2 border-r border-slate-200 bg-white group-hover:bg-slate-50/70">
+                      <span className="text-xs text-slate-600">{product.category_1}</span>
+                    </td>
+
+                    {/* Scrollable attribute cells — same row, same height */}
+                    {availableAttributes.map((attr) => {
+                      const dynAttr = (product.dynamic_attributes || []).find((a) => a.name === attr);
+                      const edited  = editingAttributes[product.id]?.[attr];
+                      const curVal  = edited?.value ?? dynAttr?.value ?? "";
+                      const curUom  = edited?.uom   ?? dynAttr?.unit  ?? dynAttr?.uom ?? "";
+                      const conflict = product.validation_conflicts?.[attr];
+
+                      return (
+                        <td
                           key={attr}
-                          attr={attr}
-                          sort={getSort(attr)}
-                          filter={getFilter(attr)}
-                          onSort={() => toggleSort(attr)}
-                          onFilter={(v) => setColFilter(attr, v)}
-                        />
-                      ))}
-                    </tr>
-                  </thead>
-                </table>
-              </div>
+                          style={{ width: COL_ATTR, minWidth: COL_ATTR }}
+                          className={`border-r border-slate-100 p-0 align-middle ${conflict ? "bg-amber-50/40" : ""}`}
+                        >
+                          <div className="flex flex-col px-2 py-1.5 gap-1">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={curVal}
+                                onChange={(e) => handleAttributeChange(product.id, attr, "value", e.target.value)}
+                                disabled={savingAttributes[product.id]}
+                                placeholder="—"
+                                className="flex-1 h-7 px-2 text-xs rounded border border-slate-200 bg-white outline-none placeholder-slate-300 disabled:opacity-40 focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-colors"
+                              />
+                              {conflict && (
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="AI suggested correction" />
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              value={curUom}
+                              onChange={(e) => handleAttributeChange(product.id, attr, "uom", e.target.value)}
+                              placeholder="unit (e.g. kg, V)"
+                              className="h-6 px-2 text-[11px] rounded border border-slate-200 bg-slate-50 text-slate-400 outline-none placeholder-slate-300 focus:border-blue-300 focus:bg-white transition-colors w-full"
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
 
-              {/* Attribute body rows (scrollable, synced) */}
-              <div
-                ref={bodyScrollRef}
-                onScroll={syncHeader}
-                className="overflow-x-auto overflow-y-auto flex-1"
-              >
-                <table className="table-fixed" style={{ width: availableAttributes.length * COL_ATTR }}>
-                  <tbody>
-                    {filteredSortedProducts.map((product) => (
-                      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50 align-middle">
-                        {availableAttributes.map((attr) => {
-                          const dynAttr  = (product.dynamic_attributes || []).find((a) => a.name === attr);
-                          const edited   = editingAttributes[product.id]?.[attr];
-                          const curVal   = edited?.value  ?? dynAttr?.value  ?? "";
-                          const curUom   = edited?.uom    ?? dynAttr?.unit   ?? dynAttr?.uom ?? "";
-                          const conflict = product.validation_conflicts?.[attr];
-
-                          return (
-                            <td
-                              key={attr}
-                              style={{ width: COL_ATTR, minWidth: COL_ATTR }}
-                              className={`border-r border-slate-100 p-0 align-middle ${conflict ? "bg-amber-50/40" : ""}`}
-                            >
-                              <div className="flex flex-col px-2 py-1.5 gap-1">
-                                {/* Value row */}
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="text"
-                                    value={curVal}
-                                    onChange={(e) => handleAttributeChange(product.id, attr, "value", e.target.value)}
-                                    disabled={savingAttributes[product.id]}
-                                    placeholder="—"
-                                    className="flex-1 h-7 px-2 text-xs rounded border border-slate-200 bg-white outline-none placeholder-slate-300 disabled:opacity-40 focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-colors"
-                                  />
-                                  {conflict && (
-                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="AI suggested correction" />
-                                  )}
-                                </div>
-                                {/* UOM row — only shown when uom exists or is editable */}
-                                <input
-                                  type="text"
-                                  value={curUom}
-                                  onChange={(e) => handleAttributeChange(product.id, attr, "uom", e.target.value)}
-                                  placeholder="unit (e.g. kg, V)"
-                                  className="h-6 px-2 text-[11px] rounded border border-slate-200 bg-slate-50 text-slate-400 outline-none placeholder-slate-300 focus:border-blue-300 focus:bg-white transition-colors w-full"
-                                />
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    {/* Sticky right: action */}
+                    <td style={{ width: COL_ACTION, position: "sticky", right: 0, zIndex: 10 }}
+                      className="px-3 py-2 border-l border-slate-200 bg-white group-hover:bg-slate-50/70 text-center">
+                      <div className="flex flex-col gap-1 items-center">
+                        <button
+                          onClick={() => handleCleanProduct(product.id)}
+                          disabled={cleaning || product.enrichment_status === "processing"}
+                          className="text-blue-600 hover:text-blue-700 text-xs font-medium disabled:opacity-40 hover:underline"
+                        >
+                          {product.enrichment_status === "processing"
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : product.enrichment_status === "completed" ? "Re-clean" : "Clean"}
+                        </button>
+                        {Object.keys(editingAttributes[product.id] || {}).length > 0 && (
+                          <button
+                            onClick={() => handleSaveAttributes(product.id)}
+                            disabled={savingAttributes[product.id]}
+                            className="text-emerald-600 hover:text-emerald-700 text-xs font-medium disabled:opacity-40 hover:underline inline-flex items-center gap-0.5"
+                          >
+                            {savingAttributes[product.id]
+                              ? <><Loader2 className="w-3 h-3 animate-spin" />Saving</>
+                              : "Save"}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
