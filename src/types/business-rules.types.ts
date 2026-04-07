@@ -218,3 +218,12 @@ export interface BrandAttributesParams {
   startDate?: string;
   endDate?: string;
 }
+export type UserRole = "admin" | "editor" | "viewer";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  is_active?: boolean;
+}

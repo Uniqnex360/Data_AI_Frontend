@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Database,
@@ -7,43 +8,42 @@ import {
   Sparkles,
   Shield,
   Target,
+  LogOut,
 } from "lucide-react";
+
 import DashboardTab from "./components/DashboardTab";
 import SourcesTab from "./components/SourcesTab";
 import AggregationTab from "./components/AggregationTab";
-import StandardizationTab from "./components/StandardizationTab";
 import BusinessRulesTab from "./components/BusinessRulesTab";
 import EnrichmentTab from "./components/EnrichmentTab";
-import ValidationTab from "./components/ValidationTab";
 import GoldenRecordsTab from "./components/GoldenRecordsTab";
-import PublishingTab from "./components/PublishingTab";
-import AuditTrailTab from "./components/AuditTrailTab";
-import UserManagementTab from "./components/UserManagementTab";
+import DataCleaningTab from "./components/DataCleaningTab";
+
+
+import RequireAuth from "./components/RequireAuth";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+
 import { Toaster } from "sonner";
 import logo from "./logo/logo.png";
-import DataCleaningTab from "./components/DataCleaningTab.tsx";
+import LoginPage from "./components/LoginPage.tsx";
+import RegisterPage from "./components/RegisterPage.tsx";
+import UnauthorizedPage from "./components/UnauthorizedPage.tsx";
+
 type TabId =
   | "dashboard"
-  | "projects"
   | "sources"
-  | "priority"
   | "aggregation"
-  | "cleansing"
-  | "standardization"
   | "rules"
   | "enrichment"
-  | "validation"
   | "golden"
-  | "datacleaning"
-  | "publishing"
-  | "audit"
-  | "users";
+  | "datacleaning";
 
 interface Tab {
   id: TabId;
   label: string;
   icon: React.ElementType;
   component: React.ComponentType<any>;
+  roles?: string[];
 }
 
 const tabs: Tab[] = [
@@ -52,93 +52,71 @@ const tabs: Tab[] = [
     label: "Dashboard",
     icon: BarChart3,
     component: DashboardTab,
+    roles: ["admin", "editor", "viewer"],
   },
-  // { id: 'projects', label: 'Projects', icon: FolderOpen, component: ProjectsTab },
   {
     id: "sources",
     label: "Input & Sources",
     icon: FileText,
     component: SourcesTab,
+    roles: ["admin", "editor", "viewer"],
   },
   {
     id: "rules",
     label: "Business Rules",
     icon: Shield,
     component: BusinessRulesTab,
+    roles: ["admin"],
   },
-  // {
-  //   id: "validation",
-  //   label: "Validation",
-  //   icon: Eye,
-  //   component: ValidationTab,
-  // },
-  // {
-  //   id: "priority",
-  //   label: "Source Priority",
-  //   icon: TrendingUp,
-  //   component: SourcePriorityTab,
-  // },
   {
     id: "aggregation",
     label: "Aggregation",
     icon: GitMerge,
     component: AggregationTab,
+    roles: ["admin", "editor", "viewer"],
   },
-   {
+  {
     id: "datacleaning",
     label: "Data Cleaning",
-    icon: Sparkles    ,
+    icon: Sparkles,
     component: DataCleaningTab,
+    roles: ["admin", "editor", "viewer"],
   },
-  // {
-  //   id: "cleansing",
-  //   label: "Cleansing",
-  //   icon: Sparkles,
-  //   component: CleansingTab,
-  // },
-  // {
-  //   id: "standardization",
-  //   label: "Standardization",
-  //   icon: CheckCircle,
-  //   component: StandardizationTab,
-  // },
   {
     id: "enrichment",
     label: "Enrichment",
     icon: Target,
     component: EnrichmentTab,
+    roles: ["admin", "editor", "viewer"],
   },
   {
     id: "golden",
     label: "Golden Records",
     icon: Database,
     component: GoldenRecordsTab,
+    roles: ["admin", "editor", "viewer"],
   },
-  // {
-  //   id: "publishing",
-  //   label: "Publishing",
-  //   icon: Send,
-  //   component: PublishingTab,
-  // },
-  // {
-  //   id: "audit",
-  //   label: "Audit Trail",
-  //   icon: FileSearch,
-  //   component: AuditTrailTab,
-  // },
-  // { id: "users", label: "Users", icon: Users, component: UserManagementTab },
 ];
 
-function App() {
+function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [selectedProject, setSelectedProject] = useState<string | undefined>(
     undefined,
   );
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
 
-  
+  const { user, logout } = useAuth();
 
-  const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component;
+  const allowedTabs = tabs.filter(
+    (tab) => !tab.roles || (user && tab.roles.includes(user.role)),
+  );
+
+  const fallbackTab = allowedTabs[0]?.id || "dashboard";
+
+  const currentTab =
+    allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
+
+  const ActiveComponent = currentTab?.component;
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
@@ -146,6 +124,8 @@ function App() {
   };
 
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
+    const targetTab = allowedTabs.find((t) => t.id === tab);
+    if (!targetTab) return;
     setActiveTab(tab);
     if (filterStatus) {
       setAggregationFilter(filterStatus);
@@ -154,45 +134,60 @@ function App() {
 
   return (
     <>
-      <Toaster position="top-right" richColors expand={true} />
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <header className="bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center">
             <div className="w-64 px-6 py-4 border-r border-slate-200 shrink-0 hidden md:flex items-center">
-              <img
-                src={logo}
-                alt="Logo"
-                 className="w-full h-16 object-cover"
-              />
+              <img src={logo} alt="Logo" className="w-full h-16 object-cover" />
             </div>
-          <div className="flex-1 px-6 py-4">
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Product Intelligence & Catalog Automation
-            </h1>
-            <p className="text-sm text-slate-600 mt-1">
-              Enterprise catalog management with AI-powered data processing
-            </p>
-            {selectedProject && (
-              <div className="mt-2">
+
+            <div className="flex-1 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-slate-900">
+                  Product Intelligence & Catalog Automation
+                </h1>
+                <p className="text-sm text-slate-600 mt-1">
+                  Enterprise catalog management with AI-powered data processing
+                </p>
+                {selectedProject && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setSelectedProject(undefined)}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      Clear Project Selection
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-slate-900">
+                    {user?.full_name}
+                  </p>
+                  <p className="text-xs text-slate-500 capitalize">
+                    {user?.role}
+                  </p>
+                </div>
                 <button
-                  onClick={() => setSelectedProject(undefined)}
-                  className="text-xs text-blue-600 hover:text-blue-700"
+                  onClick={logout}
+                  className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
                 >
-                  Clear Project Selection
+                  <LogOut className="w-4 h-4" />
+                  Logout
                 </button>
               </div>
-            )}
-          </div>
-
+            </div>
           </div>
         </header>
 
         <div className="flex flex-1 overflow-hidden">
           <nav className="w-64 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
             <div className="p-2">
-              {tabs.map((tab) => {
+              {allowedTabs.map((tab) => {
                 const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
+                const isActive = currentTab?.id === tab.id;
 
                 return (
                   <button
@@ -211,7 +206,9 @@ function App() {
                     `}
                   >
                     <Icon
-                      className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`}
+                      className={`w-4 h-4 ${
+                        isActive ? "text-blue-600" : "text-slate-400"
+                      }`}
                     />
                     {tab.label}
                   </button>
@@ -225,22 +222,53 @@ function App() {
               <ActiveComponent
                 projectId={selectedProject}
                 onProjectSelect={
-                  activeTab === "sources" ? handleProjectSelect : undefined
+                  currentTab?.id === "sources" ? handleProjectSelect : undefined
                 }
                 onNavigate={
-                  activeTab === "dashboard"
+                  currentTab?.id === "dashboard"
                     ? handleDashboardNavigate
                     : undefined
                 }
                 initialFilter={
-                  activeTab === "aggregation" ? aggregationFilter : undefined
+                  currentTab?.id === "aggregation"
+                    ? aggregationFilter
+                    : undefined
                 }
               />
             )}
+            {!ActiveComponent && <Navigate to={`/${fallbackTab}`} replace />}
           </main>
         </div>
       </div>
     </>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+      <Route
+        path="/*"
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Toaster position="top-right" richColors expand={true} />
+      <AppRoutes />
+    </AuthProvider>
   );
 }
 
