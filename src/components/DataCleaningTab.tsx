@@ -48,7 +48,7 @@ const COL_ENTITY    = 180;  // MPN / product code
 const COL_NAME      = 220;
 const COL_BRAND     = 140;
 const COL_CATEGORY  = 160;
-const COL_ATTR      = 200;  // each attribute column
+const COL_ATTR      = 260;  // each attribute column — wide enough for value + UOM stacked
 const COL_ACTION    = 90;
 
 const FIXED_WIDTH = COL_CHECKBOX + COL_STATUS + COL_ENTITY + COL_NAME + COL_BRAND + COL_CATEGORY;
@@ -839,31 +839,31 @@ export default function DataCleaningTab() {
                             <td
                               key={attr}
                               style={{ width: COL_ATTR, minWidth: COL_ATTR }}
-                              className={`border-r border-slate-100 p-0 ${conflict ? "bg-amber-50/40" : ""}`}
+                              className={`border-r border-slate-100 p-0 align-middle ${conflict ? "bg-amber-50/40" : ""}`}
                             >
-                              <div className="flex items-center h-full">
-                                <input
-                                  type="text"
-                                  value={curVal}
-                                  onChange={(e) => handleAttributeChange(product.id, attr, "value", e.target.value)}
-                                  disabled={savingAttributes[product.id]}
-                                  placeholder="—"
-                                  className="flex-1 h-9 px-3 text-xs outline-none bg-transparent placeholder-slate-300 disabled:opacity-40 focus:bg-blue-50/50 transition-colors"
-                                />
-                                {curUom !== undefined && (
+                              <div className="flex flex-col px-2 py-1.5 gap-1">
+                                {/* Value row */}
+                                <div className="flex items-center gap-1">
                                   <input
                                     type="text"
-                                    value={curUom}
-                                    onChange={(e) => handleAttributeChange(product.id, attr, "uom", e.target.value)}
-                                    placeholder="uom"
-                                    className="w-14 h-9 px-2 text-xs outline-none bg-slate-50/60 border-l border-slate-100 text-slate-400 placeholder-slate-300 focus:bg-blue-50/50 transition-colors"
+                                    value={curVal}
+                                    onChange={(e) => handleAttributeChange(product.id, attr, "value", e.target.value)}
+                                    disabled={savingAttributes[product.id]}
+                                    placeholder="—"
+                                    className="flex-1 h-7 px-2 text-xs rounded border border-slate-200 bg-white outline-none placeholder-slate-300 disabled:opacity-40 focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-colors"
                                   />
-                                )}
-                                {conflict && (
-                                  <span className="px-1.5 shrink-0" title="AI suggested correction">
-                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                                  </span>
-                                )}
+                                  {conflict && (
+                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="AI suggested correction" />
+                                  )}
+                                </div>
+                                {/* UOM row — only shown when uom exists or is editable */}
+                                <input
+                                  type="text"
+                                  value={curUom}
+                                  onChange={(e) => handleAttributeChange(product.id, attr, "uom", e.target.value)}
+                                  placeholder="unit (e.g. kg, V)"
+                                  className="h-6 px-2 text-[11px] rounded border border-slate-200 bg-slate-50 text-slate-400 outline-none placeholder-slate-300 focus:border-blue-300 focus:bg-white transition-colors w-full"
+                                />
                               </div>
                             </td>
                           );
