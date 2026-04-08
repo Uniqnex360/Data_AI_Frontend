@@ -1696,7 +1696,6 @@ export default function AggregationTab({
     Last updated: {new Date().toLocaleDateString()}
   </span>
   
-  {/* ✅ Only show aggregation button for non-PDF projects */}
   {expandedProjectId && 
    projects.find(p => p.id === expandedProjectId)?.operation_mode !== "pdf_extraction" && (
     <button

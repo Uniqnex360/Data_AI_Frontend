@@ -104,14 +104,16 @@ export default function EnrichmentTab() {
     setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects({
-        operation_mode: "aggregation,pdf_extraction",
+        operation_mode: "aggregation,pdf_extraction,enrichment",
         tab: "enrichment",
       });
       console.log("loadProjects", data);
 
       const enrichmentProjects = data.filter(
-        (p: Project) => p.operation_mode === "aggregation"||'pdf_extraction',
-      );
+  (p: Project) => p.operation_mode === "aggregation" || 
+                 p.operation_mode === "pdf_extraction" || 
+                 p.operation_mode === "enrichment"
+);
 
       setProjects(enrichmentProjects);
 

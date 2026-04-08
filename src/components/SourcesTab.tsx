@@ -180,7 +180,6 @@ const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
       return;
     }
 
-    // ✅ Validate that the file is a PDF
     const fileType = structuredPdfFile.type;
     const fileExtension = structuredPdfFile.name
       .split(".")
@@ -1025,7 +1024,6 @@ const handleUnstructuredExtraction = async () => {
    selectedUseCase?.startsWith("3.") &&
    projectId &&
    !showProjectModal ? (
-  // ✅ Unstructured PDF Extraction UI
   <div className="space-y-4">
     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
       <div className="flex items-center gap-2 mb-2">
