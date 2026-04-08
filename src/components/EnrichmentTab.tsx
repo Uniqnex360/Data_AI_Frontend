@@ -116,15 +116,24 @@ export default function EnrichmentTab() {
 );
 
       setProjects(enrichmentProjects);
+      
 
       const uniqueUseCases = [
-        ...new Set(
-          enrichmentProjects
-            .map((p: Project) => p.use_case)
-            .filter(Boolean) as string[],
-        ),
-      ];
-      setUseCases(uniqueUseCases);
+      ...new Set(
+        enrichmentProjects
+          .map((p: Project) => p.use_case)
+          .filter(Boolean) as string[],
+      ),
+    ];
+    const sortedUseCases = uniqueUseCases.sort((a, b) => {
+      const aIsAggregation = a === "With categories" || a === "Without categories";
+      const bIsAggregation = b === "With categories" || b === "Without categories";
+      
+      if (aIsAggregation && !bIsAggregation) return -1;
+      if (!aIsAggregation && bIsAggregation) return 1;
+      return a.localeCompare(b);
+    });
+      setUseCases(sortedUseCases);
     } catch (error) {
       console.error("Failed to load enrichment projects:", error);
       notify.error("Failed to load enrichment projects");
