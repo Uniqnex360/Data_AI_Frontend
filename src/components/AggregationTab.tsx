@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Clock,
   FileText,
+  Globe,
   List,
   Loader2,
   Play,
@@ -25,8 +26,7 @@ import { projectService } from "../services/projectService";
 import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
-
-import { Download, GitMerge } from "lucide-react";
+import { Download, GitMerge, CheckCircle } from "lucide-react";
 import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
 import { AggregationTabProps } from "../types/business-rules.types";
 import {
@@ -38,7 +38,6 @@ import { safeParseValue, formatValue } from "../utils/valueParser";
 import { useProductMovement } from "../hooks/useProductMovement";
 import { extractionService } from "../services/extractionService.ts";
 import { pollBatchStatus } from "../../utils/polling.ts";
-
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
   projectId,
@@ -48,10 +47,8 @@ export default function AggregationTab({
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [useCases, setUseCases] = useState<string[]>([]);
   const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
-
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
-
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
     null,
@@ -80,7 +77,6 @@ export default function AggregationTab({
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     new Set(),
   );
-
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
@@ -91,20 +87,21 @@ export default function AggregationTab({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
-
   const filteredProjects = useMemo(() => {
-  let filtered = projects;
-  if (selectedUseCase) {
-    filtered = filtered.filter((p) => p.use_case === selectedUseCase);
-  }
-  if (selectedProjectId) {
-    filtered = filtered.filter((p) => p.id === selectedProjectId);
-  }
-  if (projectStatusFilter) {
-    filtered = filtered.filter((p) => p.source_status === projectStatusFilter);
-  }
-  return filtered;
-}, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
+    let filtered = projects;
+    if (selectedUseCase) {
+      filtered = filtered.filter((p) => p.use_case === selectedUseCase);
+    }
+    if (selectedProjectId) {
+      filtered = filtered.filter((p) => p.id === selectedProjectId);
+    }
+    if (projectStatusFilter) {
+      filtered = filtered.filter(
+        (p) => p.source_status === projectStatusFilter,
+      );
+    }
+    return filtered;
+  }, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
   const expandedStats = useMemo(
     () => ({
       success: expandedProjectProducts.filter(
@@ -119,18 +116,27 @@ export default function AggregationTab({
     }),
     [expandedProjectProducts],
   );
-
-  const handleExtractFromPdf = async (productId: string, mpn: string) => {
+  const handleExtractFreshMpn = async (productId: string, mpn: string) => {
+    if (!expandedProjectId) {
+      notify.error("No project selected");
+      return;
+    }
     setExtractingPdf((prev) => new Set(prev).add(productId));
+    setExpandedProjectProducts((prev) =>
+    prev.map((p) =>
+      p.id === productId 
+        ? { ...p, enrichment_status: "processing" } 
+        : p
+    )
+  );
     try {
-      // Find the source for this MPN
-      const response = await extractionService.extractPdfForProduct(
-        mpn,
-        expandedProjectId!,
-      );
-      notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
-
-      // Poll for completion
+      const project = projects.find((p) => p.id === expandedProjectId);
+      const response = await extractionService.freshAggregation({
+        mpns: [mpn],
+        project_id: expandedProjectId!,
+        use_case: project?.use_case || selectedUseCase,
+      });
+      notify.success("Extraction Started", `Extracting data for ${mpn}`);
       pollBatchStatus(response.batch_id, async () => {
         const fresh = await productService.getProductsByProject(
           expandedProjectId!,
@@ -138,10 +144,54 @@ export default function AggregationTab({
         );
         setExpandedProjectProducts(fresh);
       });
-
-     
     } catch (error: any) {
       notify.error("Extraction failed", error.message);
+      setExpandedProjectProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId 
+          ? { ...p, enrichment_status: "failed" } 
+          : p
+      )
+    );
+    } finally {
+      setExtractingPdf((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
+  const handleExtractFromPdf = async (productId: string, mpn: string) => {
+    setExtractingPdf((prev) => new Set(prev).add(productId));
+    setExpandedProjectProducts((prev) =>
+    prev.map((p) =>
+      p.id === productId 
+        ? { ...p, enrichment_status: "processing" } 
+        : p
+    )
+  );
+    try {
+      const response = await extractionService.extractPdfForProduct(
+        mpn,
+        expandedProjectId!,
+      );
+      notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
+      pollBatchStatus(response.batch_id, async () => {
+        const fresh = await productService.getProductsByProject(
+          expandedProjectId!,
+          "aggregation",
+        );
+        setExpandedProjectProducts(fresh);
+      });
+    } catch (error: any) {
+      notify.error("Extraction failed", error.message);
+       setExpandedProjectProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId 
+          ? { ...p, enrichment_status: "failed" } 
+          : p
+      )
+    );
     } finally {
       setExtractingPdf((prev) => {
         const newSet = new Set(prev);
@@ -251,12 +301,12 @@ export default function AggregationTab({
         operation_mode: "aggregation,pdf_extraction",
         tab: "aggregation",
       });
-
       const aggregationData = data.filter(
-        (p: Project) => p.operation_mode === "aggregation" ||p.operation_mode=== "pdf_extraction",
+        (p: Project) =>
+          p.operation_mode === "aggregation" ||
+          p.operation_mode === "pdf_extraction",
       );
       setProjects(aggregationData);
-
       const uniqueUseCases = [
         ...new Set(
           aggregationData
@@ -276,18 +326,18 @@ export default function AggregationTab({
     loadProjects();
   }, [loadProjects]);
   const resetFilters = useCallback(() => {
-  setSearchQuery("");
-  setStatusFilter(new Set());
-  setCategoryFilter("");
-  setBrandFilter("");
-  setSelectedUseCase("");
-  setSelectedProjectId("");
-  setProjectStatusFilter(""); 
-  setExpandedProjectId(null);
-  setExpandedProjectProducts([]);
-  setCurrentPage(1);
-  loadDefaultFilters();
-}, [loadDefaultFilters]); 
+    setSearchQuery("");
+    setStatusFilter(new Set());
+    setCategoryFilter("");
+    setBrandFilter("");
+    setSelectedUseCase("");
+    setSelectedProjectId("");
+    setProjectStatusFilter("");
+    setExpandedProjectId(null);
+    setExpandedProjectProducts([]);
+    setCurrentPage(1);
+    loadDefaultFilters();
+  }, [loadDefaultFilters]);
   const resetLocalFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter(new Set());
@@ -302,7 +352,6 @@ export default function AggregationTab({
         setExpandedProjectProducts([]);
         setCurrentPage(1);
         resetLocalFilters();
-
         return;
       }
       setExpandedProjectId(projectId);
@@ -315,7 +364,6 @@ export default function AggregationTab({
         setExpandedProjectProducts(data);
         setCurrentPage(1);
         resetLocalFilters();
-
         const processingProductIds = data
           .filter((p) => p.enrichment_status === "processing")
           .map((p) => p.id);
@@ -347,7 +395,6 @@ export default function AggregationTab({
   };
   const canDownloadSelected = useMemo(() => {
     const downloadableStatuses = new Set(["completed", "failed"]);
-
     const productOk =
       selectedProductIds.size > 0 &&
       expandedProjectProducts.some(
@@ -355,7 +402,6 @@ export default function AggregationTab({
           selectedProductIds.has(p.id) &&
           downloadableStatuses.has(p.enrichment_status),
       );
-
     const projectOk =
       selectedProjectIds.size > 0 &&
       projects.some(
@@ -363,7 +409,6 @@ export default function AggregationTab({
           selectedProjectIds.has(pr.id) &&
           downloadableStatuses.has(pr.processing_status ?? ""),
       );
-
     return productOk || projectOk;
   }, [
     selectedProductIds,
@@ -419,53 +464,13 @@ export default function AggregationTab({
     },
     [selectedLLM],
   );
-  // const handleAggregateAllInExpanded = useCallback(async () => {
-  //   if (!expandedProjectId) return;
-  //   const pending = expandedProjectProducts.filter(
-  //     (p) => p.enrichment_status === "pending",
-  //   );
-  //   if (pending.length === 0) {
-  //     notify.info("No pending products in this project");
-  //     return;
-  //   }
-  //   setLoading(true);
-  //   try {
-  //     await Promise.allSettled(
-  //       pending.map((p) =>
-  //         aggregationService.aggregateProduct(p.id, selectedLLM)
-  //       ),
-  //     );
-  //     const newPollingIds = pending.map((p) => p.id);
-  //     setPollingProductIds((prev) => {
-  //       const updated = new Set(prev);
-  //       newPollingIds.forEach((id) => updated.add(id));
-  //       return updated;
-  //     });
-  //     setExpandedProjectProducts((prev) =>
-  //       prev.map((p) =>
-  //         pending.some((pp) => pp.id === p.id)
-  //           ? { ...p, enrichment_status: "processing" }
-  //           : p
-  //       )
-  //     );
-  //     notify.success(`Aggregation started for ${pending.length} products`);
-  //   } catch (error) {
-  //     console.error("Batch aggregation failed", error);
-  //     notify.error("Batch aggregation failed");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }, [expandedProjectId, expandedProjectProducts, selectedLLM]);
-
   const handleAggregateAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
-
     const selectedPendingProducts = expandedProjectProducts.filter(
       (p) =>
         selectedProductIds.has(p.id) &&
         (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
     );
-
     const pendingProducts =
       selectedProductIds.size > 0
         ? selectedPendingProducts
@@ -474,7 +479,6 @@ export default function AggregationTab({
               p.enrichment_status === "pending" ||
               p.enrichment_status === "failed",
           );
-
     if (pendingProducts.length === 0) {
       notify.info(
         selectedProductIds.size > 0
@@ -483,7 +487,6 @@ export default function AggregationTab({
       );
       return;
     }
-
     setLoading(true);
     try {
       pendingProducts.forEach((p) => trackProcessingProduct(p.id));
@@ -492,14 +495,12 @@ export default function AggregationTab({
           aggregationService.aggregateProduct(p.id, selectedLLM),
         ),
       );
-
       const newPollingIds = pendingProducts.map((p) => p.id);
       setPollingProductIds((prev) => {
         const updated = new Set(prev);
         newPollingIds.forEach((id) => updated.add(id));
         return updated;
       });
-
       setExpandedProjectProducts((prev) =>
         prev.map((p) =>
           pendingProducts.some((pp) => pp.id === p.id)
@@ -507,7 +508,6 @@ export default function AggregationTab({
             : p,
         ),
       );
-
       notify.success(
         `Aggregation started for ${pendingProducts.length} product(s)`,
       );
@@ -605,28 +605,21 @@ export default function AggregationTab({
       setAttributesLoading(false);
     }
   }, []);
-
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
     try {
-      // Fetch from BOTH tabs
       const [aggregationData, enrichmentData] = await Promise.all([
         productService.getProductsByProject(expandedProjectId, "aggregation"),
         productService.getProductsByProject(expandedProjectId, "enrichment"),
       ]);
-
       const completedOrFailed: string[] = [];
-
       pollingProductIds.forEach((productId) => {
-        // Check if product still in aggregation tab
         const productInAggregation = aggregationData.find(
           (p) => p.id === productId,
         );
         const productInEnrichment = enrichmentData.find(
           (p) => p.id === productId,
         );
-
-        // Case 1: Product moved to Enrichment tab
         if (!productInAggregation && productInEnrichment) {
           const score = productInEnrichment.completeness_score || 0;
           completedOrFailed.push(productId);
@@ -634,9 +627,7 @@ export default function AggregationTab({
             "Moved to Enrichment",
             `${productInEnrichment.product_name || productInEnrichment.product_code} has ${score}% completeness and requires further enrichment.`,
           );
-        }
-        // Case 2: Product completed and still in aggregation (score >= 90)
-        else if (
+        } else if (
           productInAggregation &&
           productInAggregation.enrichment_status === "completed"
         ) {
@@ -648,21 +639,15 @@ export default function AggregationTab({
               productInAggregation.product_name,
             );
           }
-        }
-        // Case 3: Product failed
-        else if (
+        } else if (
           productInAggregation &&
           productInAggregation.enrichment_status === "failed"
         ) {
           completedOrFailed.push(productId);
           notify.error("Aggregation Failed", productInAggregation.product_name);
         }
-        // Case 4: Still processing - do nothing
       });
-
-      // Update current tab view only
       setExpandedProjectProducts(aggregationData);
-
       if (completedOrFailed.length > 0) {
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -670,7 +655,6 @@ export default function AggregationTab({
           return updated;
         });
       }
-
       if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
         await loadAttributes(selectedProduct);
       }
@@ -699,6 +683,7 @@ export default function AggregationTab({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
       notify.success("Export started");
     } catch (error) {
       console.error("Export failed:", error);
@@ -723,7 +708,6 @@ export default function AggregationTab({
       }
     };
   }, [pollingProductIds.size, expandedProjectId, pollProductStatuses]);
-
   useEffect(() => {
     if (selectedProduct) {
       loadAttributes(selectedProduct);
@@ -761,7 +745,6 @@ export default function AggregationTab({
     },
     [expandedProjectId],
   );
-
   const selectedProductData = expandedProjectProducts.find(
     (p) => p.id === selectedProduct,
   );
@@ -784,7 +767,6 @@ export default function AggregationTab({
               Select projects to manage aggregation
             </p>
           </div>
-
           <div
             className={`flex items-center gap-3 transition-all duration-200 ${
               expandedProjectId ? "mr-[600px]" : ""
@@ -804,7 +786,6 @@ export default function AggregationTab({
                 Download Selected
               </button>
             )}
-
             {selectedProjectIds.size > 0 && (
               <button
                 onClick={handleAggregateSelectedProjects}
@@ -822,7 +803,6 @@ export default function AggregationTab({
             )}
           </div>
         </div>
-
         <div
           className={`absolute right-0 top-0 w-[420px] z-10 transition-all duration-200 ${
             expandedProjectId
@@ -935,7 +915,6 @@ export default function AggregationTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Use Case
@@ -959,7 +938,6 @@ export default function AggregationTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Project
@@ -988,26 +966,24 @@ export default function AggregationTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Status
               </label>
               <select
-  value={projectStatusFilter}
-  onChange={(e) => {
-    setProjectStatusFilter(e.target.value);
-    setCurrentPage(1);
-  }}
-  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
->
-  <option value="">All Status</option>
-  <option value="Yet to Start">Yet to Start</option>
-  <option value="Completed">Completed</option>
-  <option value="Failed">Failed</option>
-</select>
+                value={projectStatusFilter}
+                onChange={(e) => {
+                  setProjectStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Status</option>
+                <option value="Yet to Start">Yet to Start</option>
+                <option value="Completed">Completed</option>
+                <option value="Failed">Failed</option>
+              </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Category
@@ -1029,7 +1005,6 @@ export default function AggregationTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">Brand</label>
               <select
@@ -1050,9 +1025,8 @@ export default function AggregationTab({
               </select>
             </div>
           </div>
-
           {(statusFilter.size > 0 ||
-          projectStatusFilter||
+            projectStatusFilter ||
             categoryFilter ||
             brandFilter ||
             selectedUseCase ||
@@ -1156,36 +1130,40 @@ export default function AggregationTab({
                 </div>
                 {expandedProjectId === project.id && (
                   <div className="border-t border-slate-200">
-                    <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
-                      {!(
-                        statusFilter.size === 1 && statusFilter.has("completed")
-                      ) && (
-                        <button
-                          onClick={handleAggregateAllInExpanded}
-                          disabled={
-                            loading ||
-                            aggregatingProjects.has(project.id) ||
-                            (selectedProductIds.size > 0
-                              ? !expandedProjectProducts.some((p) =>
-                                  selectedProductIds.has(p.id),
-                                )
-                              : expandedStats.pending === 0)
-                          }
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                        >
-                          {loading || aggregatingProjects.has(project.id) ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
-                          {aggregatingProjects.has(project.id)
-                            ? "Aggregating..."
-                            : selectedProductIds.size > 0
-                              ? `Aggregate Selected (${selectedProductIds.size})`
-                              : "Aggregate All"}
-                        </button>
-                      )}
-                    </div>
+                    {project.operation_mode !== "pdf_extraction" && (
+                      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
+                        {!(
+                          statusFilter.size === 1 &&
+                          statusFilter.has("completed")
+                        ) && (
+                          <button
+                            onClick={handleAggregateAllInExpanded}
+                            disabled={
+                              loading ||
+                              aggregatingProjects.has(project.id) ||
+                              (selectedProductIds.size > 0
+                                ? !expandedProjectProducts.some((p) =>
+                                    selectedProductIds.has(p.id),
+                                  )
+                                : expandedStats.pending === 0)
+                            }
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                          >
+                            {loading || aggregatingProjects.has(project.id) ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                            {aggregatingProjects.has(project.id)
+                              ? "Aggregating..."
+                              : selectedProductIds.size > 0
+                                ? `Aggregate Selected (${selectedProductIds.size})`
+                                : "Aggregate All"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="overflow-x-auto max-h-[600px]">
                       <table className="w-full border-separate border-spacing-0">
                         <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
@@ -1366,48 +1344,115 @@ export default function AggregationTab({
                                   className="px-4 py-3"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  {product.enrichment_status !==
-                                    "processing" && (
-                                    <button
-                                      onClick={() =>
-                                        handleAggregate(product.id)
-                                      }
-                                      disabled={
-                                        loading ||
-                                        product.enrichment_status ===
-                                          "processing" ||
-                                        aggregatingProjects.has(project.id)
-                                      }
-                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
-                                    >
-                                      {product.enrichment_status === "completed"
-                                        ? "Re-run"
-                                        : "Run"}
-                                    </button>
-                                  )}
-                                  {product.source_url?.endsWith(".pdf") &&
-                                    product.completeness_score === 0 && (
-                                      <button
-                                        onClick={() =>
-                                          handleExtractFromPdf(
-                                            product.id,
-                                            product.product_code,
-                                          )
-                                        }
-                                        disabled={extractingPdf.has(product.id)}
-                                        className="ml-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
-                                      >
-                                        {extractingPdf.has(product.id) ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <FileText className="w-4 h-4" />
+                                  {/* For PDF Extraction projects - ONLY show extraction buttons */}
+                                  {project.operation_mode ===
+                                  "pdf_extraction" ? (
+                                    <>
+                                      {/* Extract from uploaded PDF */}
+                                      {product.source_url?.endsWith(".pdf") &&
+                                        product.completeness_score === 0 && (
+                                          <button
+                                            onClick={() =>
+                                              handleExtractFromPdf(
+                                                product.id,
+                                                product.product_code,
+                                              )
+                                            }
+                                            disabled={extractingPdf.has(
+                                              product.id,
+                                            )}
+                                            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                                          >
+                                            {extractingPdf.has(product.id) ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <>
+                                                <FileText className="w-4 h-4 inline mr-1" />
+                                                Extract PDF
+                                              </>
+                                            )}
+                                          </button>
                                         )}
-                                        Extract PDF
-                                      </button>
-                                    )}
-                                  {product.enrichment_status ===
-                                    "processing" && (
-                                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+
+                                      {/* Extract from Web (Fresh Aggregation) */}
+                                      {product.source_url ===
+                                        "web_search_pending" &&
+                                        product.completeness_score === 0 && (
+                                          <button
+                                            onClick={() =>
+                                              handleExtractFreshMpn(
+                                                product.id,
+                                                product.product_code,
+                                              )
+                                            }
+                                            disabled={extractingPdf.has(
+                                              product.id,
+                                            )}
+                                            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                                          >
+                                            {extractingPdf.has(product.id) ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <>
+                                                <Globe className="w-4 h-4 inline mr-1" />
+                                                Extract 
+                                              </>
+                                            )}
+                                          </button>
+                                        )}
+
+                                      {/* Processing indicator */}
+                                      {product.enrichment_status ===
+                                        "processing" && (
+                                        <div className="flex items-center gap-1 text-blue-500">
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                          <span className="text-xs">
+                                            Extracting...
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {/* Completed - show success indicator */}
+                                      {product.completeness_score > 0 &&
+                                        product.enrichment_status ===
+                                          "completed" && (
+                                          <div className="flex items-center gap-1 text-green-600">
+                                            <CheckCircle className="w-4 h-4" />
+                                            <span className="text-xs">
+                                              Extracted
+                                            </span>
+                                          </div>
+                                        )}
+                                    </>
+                                  ) : (
+                                    /* For Aggregation/Enrichment/Cleaning projects - show normal Run button */
+                                    <>
+                                      {product.enrichment_status !==
+                                        "processing" && (
+                                        <button
+                                          onClick={() =>
+                                            handleAggregate(product.id)
+                                          }
+                                          disabled={
+                                            loading ||
+                                            product.enrichment_status ===
+                                              "processing" ||
+                                            aggregatingProjects.has(project.id)
+                                          }
+                                          className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
+                                        >
+                                          {product.enrichment_status ===
+                                          "completed"
+                                            ? "Re-run"
+                                            : "Run"}
+                                        </button>
+                                      )}
+
+                                      {product.enrichment_status ===
+                                        "processing" && (
+                                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                      )}
+                                    </>
                                   )}
                                 </td>
                               </tr>

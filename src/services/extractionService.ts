@@ -1,140 +1,223 @@
-
 import api from "../lib/api.ts";
 import { Source } from "../types/database.types.ts";
-import { RawExtraction, ExtractionInput } from '../types/database.types';
-
-export const extractionService={
-  async extractFromSource(input:ExtractionInput):Promise<any>{
+import { RawExtraction, ExtractionInput } from "../types/database.types";
+export const extractionService = {
+  async extractFromSource(input: ExtractionInput): Promise<any> {
     try {
-      const {data}=await api.post('/sources/',input)
-      return data
+      const { data } = await api.post("/sources/", input);
+      return data;
     } catch (error) {
-      console.error("Extraction failed",error)
-      throw new Error('AI extraction failed to process source')
+      console.error("Extraction failed", error);
+      throw new Error("AI extraction failed to process source");
     }
   },
   savePdfSource: async (formData: FormData) => {
-  const response = await api.post('/extraction/pdf/save-pdf-source', formData);
-  return response.data;
-},
-  async structuredExtraction (formData: FormData) {
-  const response = await api.post('/extraction/pdf/structured-extraction', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-  return response.data;
-},
-async extractPdfForProduct(mpn: string, projectId: string) {
-  try{
-  const response = await api.post('/extraction/pdf/extract-pending', {
-    mpn,
-    project_id: projectId
-  });
-  return response.data;
-}
-catch(error:any){
-console.log("Error occured while extracting pdf from product",error)
-throw new Error(error)
-}
-},
-  async freshAggregation(data:{mpns:string[];project_id:string,use_case:string})
-  {
+    const response = await api.post(
+      "/extraction/pdf/save-pdf-source",
+      formData,
+    );
+    return response.data;
+  },
+  async savePendingMpns(data: {
+    mpns: string[];
+    project_id: string;
+    use_case: string;
+  }) {
     try {
-     const response = await api.post('/extraction/pdf/fresh-aggregation', data);
-     return response.data
-    } catch (error:any) {
-      console.log('Fresh aggregation failed',error)
-      throw new Error(error)
+     const response = await api.post('/extraction/pdf/save-pending-mpns', data);
+      return response.data;
+    } catch (error) {
+      console.error(error);
+
+      throw new Error("Failed to save mpn");
     }
   },
-  async getBatchStatus(batchId:string)
-  {
+  async structuredExtraction(formData: FormData) {
+    const response = await api.post(
+      "/extraction/pdf/structured-extraction",
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+    return response.data;
+  },
+  async extractPdfForProduct(mpn: string, projectId: string) {
+    try {
+      const response = await api.post("/extraction/pdf/extract-pending", {
+        mpn,
+        project_id: projectId,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.log("Error occured while extracting pdf from product", error);
+      throw new Error(error);
+    }
+  },
+  async freshAggregation(data: { mpns: string[]; project_id: string; use_case: string }) {
+  const response = await api.post('/extraction/pdf/fresh-aggregation', data);
+  return response.data;
+},
+  async getBatchStatus(batchId: string) {
     try {
       const response = await api.get(`/extraction/pdf/batch-status/${batchId}`);
-      return response.data
-    } catch (error:any) {
-      console.log('Failed to get batch status',error)
-      throw new Error(error)
+      return response.data;
+    } catch (error: any) {
+      console.log("Failed to get batch status", error);
+      throw new Error(error);
     }
   },
   async batchAggregate(file: File, projectId?: string): Promise<any> {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
       if (projectId) {
-        formData.append('projectId', projectId);
+        formData.append("projectId", projectId);
       }
-
-      const { data } = await api.post('/sources/batch-aggregate', formData, {
+      const { data } = await api.post("/sources/batch-aggregate", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
       return data;
     } catch (error) {
       console.error("Batch upload failed", error);
-      throw error; 
+      throw error;
     }
   },
-  
-  async download(sourceId: string, type: 'input' | 'output') {
+  async download(sourceId: string, type: "input" | "output") {
     try {
       const response = await api.get(`/sources/${sourceId}/download`, {
-        params: { type: type }, 
-        responseType: 'blob',
+        params: { type },
+        responseType: "blob",
       });
-
-      const extension = type === 'input' ? 'csv' : 'xlsx';
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      if (!response.data || response.data.size === 0) {
+        throw new Error("No data received from server");
+      }
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = "";
+      if (contentDisposition) {
+        const encodedMatch = contentDisposition.match(
+          /filename\*=UTF-8''(.+?)(?:;|$)/,
+        );
+        if (encodedMatch) {
+          filename = decodeURIComponent(encodedMatch[1]);
+        } else {
+          const fallbackMatch = contentDisposition.match(
+            /filename[^;=\n]*=["']?([^"';\n]+)["']?/,
+          );
+          if (fallbackMatch) {
+            filename = decodeURIComponent(fallbackMatch[1]);
+          }
+        }
+      }
+      if (!filename) {
+        const contentType =
+          response.headers["content-type"]?.toLowerCase() || "";
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/:/g, "-");
+        if (contentType.includes("pdf")) {
+          filename = `input_${sourceId}_${timestamp}.pdf`;
+        } else if (
+          contentType.includes("csv") ||
+          contentType.includes("text/csv")
+        ) {
+          filename = `input_${sourceId}_${timestamp}.csv`;
+        } else if (
+          contentType.includes("spreadsheet") ||
+          contentType.includes("excel")
+        ) {
+          filename = `output_${sourceId}_${timestamp}.xlsx`;
+        } else if (type === "input") {
+          filename = `input_${sourceId}_${timestamp}.csv`;
+        } else {
+          filename = `output_${sourceId}_${timestamp}.xlsx`;
+        }
+      }
+      filename = filename
+        .replace(/\.\./g, "")
+        .replace(/[\/\\:*?"<>|]/g, "_")
+        .trim();
+      if (!filename.includes(".")) {
+        filename += type === "input" ? ".csv" : ".xlsx";
+      }
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"] || "application/octet-stream",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', `data_ai_${type}_${sourceId}.${extension}`);
+      link.download = filename;
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
-      link.remove();
-    } catch (error) {
-      console.error("Download Error", error);
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error: any) {
+      console.error("Download Error:", error);
+      if (error.response?.status === 404) {
+        throw error("Download Failed", "The requested file was not found");
+      } else if (error.response?.status === 403) {
+        throw error(
+          "Download Failed",
+          "You do not have permission to download this file",
+        );
+      } else if (error.response?.status === 500) {
+        throw error(
+          "Download Failed",
+          "Server error occurred while generating the file",
+        );
+      } else if (error.message === "No data received from server") {
+        throw error("Download Failed", "The file appears to be empty");
+      } else {
+        throw error(
+          "Download Failed",
+          error.message || "An unexpected error occurred",
+        );
+      }
     }
   },
-  
-  async getSourcesByProject(projectId:string):Promise<Source[]>{
+  async getSourcesByProject(projectId: string): Promise<Source[]> {
     try {
-      const {data}=await api.get(`/sources/project/${projectId}`)
-      return data||[]
+      const { data } = await api.get(`/sources/project/${projectId}`);
+      return data || [];
     } catch (error) {
-      console.error("Failed to load project sources",error)
-      return []
+      console.error("Failed to load project sources", error);
+      return [];
     }
   },
-  
-  async getAllSources():Promise<Source[]>{
+  async getAllSources(): Promise<Source[]> {
     try {
-      const {data}=await api.get<Source[]>('/sources/')
-      return data||[]
+      const { data } = await api.get<Source[]>("/sources/");
+      return data || [];
     } catch (error) {
-      console.error("Failed to fetch sources",error)
-      return []
+      console.error("Failed to fetch sources", error);
+      return [];
     }
   },
-  
-  async getRawExtractions(sourceId?:string):Promise<RawExtraction[]>{
+  async getRawExtractions(sourceId?: string): Promise<RawExtraction[]> {
     try {
-      const {data}=await api.get<RawExtraction[]>('/extraction/',{
-        params:{source_id:sourceId}
-      })
-      return data||[]
+      const { data } = await api.get<RawExtraction[]>("/extraction/", {
+        params: { source_id: sourceId },
+      });
+      return data || [];
     } catch (error) {
-      console.error('Failed to fetch extractions',error)
-      return []
+      console.error("Failed to fetch extractions", error);
+      return [];
     }
   },
-  async triggerAggregation(sourceId:string){
+  async triggerAggregation(sourceId: string) {
     try {
-      if(!sourceId)throw new Error("Source Id is missing")
-      const response=await api.post(`/sources/aggregate/${sourceId}`)
-      return response.data
+      if (!sourceId) throw new Error("Source Id is missing");
+      const response = await api.post(`/sources/aggregate/${sourceId}`);
+      return response.data;
     } catch (error) {
-       console.error('Failed to fetch extractions',error)
-      return []
+      console.error("Failed to fetch extractions", error);
+      return [];
     }
-  }
-}
+  },
+};

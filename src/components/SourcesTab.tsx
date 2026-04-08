@@ -22,7 +22,7 @@ import { notify } from "../lib/notifications.ts";
 import { getStatusIcon } from "../utils/statusIcon";
 import { cleansingService } from "../services/cleansingService";
 import { X, Loader2 } from "lucide-react";
-import { pollBatchStatus } from '../../utils/polling';
+import { pollBatchStatus } from "../../utils/polling";
 import {
   ManualProductData,
   OperationMode,
@@ -44,16 +44,24 @@ export default function SourcesTab({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [freshMpns, setFreshMpns] = useState<string[]>([]);
   const [currentFreshMpn, setCurrentFreshMpn] = useState("");
+  const [loadingSources, setLoadingSources] = useState<Set<string>>(new Set());
+
   const [selectedUseCase, setSelectedUseCase] = useState<string>("");
   const [showUseCaseDropdown, setShowUseCaseDropdown] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [freshAggregating, setFreshAggregating] = useState(false);
   const [freshBatchId, setFreshBatchId] = useState<string | null>(null);
   const handleAddFreshMpn = () => {
-    if (currentFreshMpn.trim() && !freshMpns.includes(currentFreshMpn.trim())) {
-      setFreshMpns([...freshMpns, currentFreshMpn.trim()]);
-      setCurrentFreshMpn("");
+    const trimmed = currentFreshMpn.trim();
+    if (!trimmed) return;
+
+    if (freshMpns.includes(trimmed)) {
+      notify.info("Duplicate MPN", `${trimmed} is already in the list`);
+      return;
     }
+
+    setFreshMpns([...freshMpns, trimmed]);
+    setCurrentFreshMpn("");
   };
   const handleRemoveFreshMpn = (mpn: string) => {
     setFreshMpns(freshMpns.filter((m) => m !== mpn));
@@ -69,37 +77,38 @@ export default function SourcesTab({
     }
     setFreshAggregating(true);
     try {
-      const response = await extractionService.freshAggregation({
+      const response = await extractionService.savePendingMpns({
         mpns: freshMpns,
         project_id: projectId,
         use_case: selectedUseCase,
       });
-      console.log("Fresh aggregation response:", response); 
-      setFreshBatchId(response.batch_id);
+
       notify.success(
-        "Extraction Started",
-        `Processing ${freshMpns.length} MPN(s). Products will appear in Aggregation tab when complete.`,
+        "MPNs Saved",
+        `${response.saved_count || freshMpns.length} MPN(s) saved. Go to Aggregation tab to extract.`,
       );
+
       setFreshMpns([]);
-      pollBatchStatus(response.batch_id, async () => {
-  await loadSources();
-  await loadProjects();
-});
+      setCurrentFreshMpn("");
+
+      // Refresh sources and projects (no polling needed)
       await loadSources();
       await loadProjects();
     } catch (error: any) {
-      console.error("Fresh aggregation failed", error);
-      notify.error("Extraction failed", error.message);
+      console.error("Failed to save MPNs:", error);
+      const errorMessage =
+        error.response?.data?.detail || error.message || "Failed to save MPNs";
+      notify.error("Save Failed", errorMessage);
     } finally {
       setFreshAggregating(false);
     }
   };
   const handlePolling = (batchId: string) => {
-  pollBatchStatus(batchId, async () => {
-    await loadSources();
-    await loadProjects();
-  });
-};
+    pollBatchStatus(batchId, async () => {
+      await loadSources();
+      await loadProjects();
+    });
+  };
   const [manualData, setManualData] = useState<ManualProductData>({
     brand: "",
     title: "",
@@ -117,8 +126,8 @@ export default function SourcesTab({
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [structuredMpn, setStructuredMpn] = useState("");
-const [structuredPdfFile, setStructuredPdfFile] = useState<File | null>(null);
-const [structuredExtracting, setStructuredExtracting] = useState(false);
+  const [structuredPdfFile, setStructuredPdfFile] = useState<File | null>(null);
+  const [structuredExtracting, setStructuredExtracting] = useState(false);
   const [projectName, setProjectName] = useState<string>("");
   const [importResults, setImportResults] = useState<{
     success: number;
@@ -163,61 +172,74 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
   }, [selectedProject]);
 
   const handleStructuredExtraction = async () => {
-  if (!structuredPdfFile || !structuredMpn.trim()) {
-    notify.error("Please provide an MPN and a PDF file");
-    return;
-  }
-  
-  // ✅ Validate that the file is a PDF
-  const fileType = structuredPdfFile.type;
-  const fileExtension = structuredPdfFile.name.split('.').pop()?.toLowerCase();
-  
-  if (fileType !== 'application/pdf' && fileExtension !== 'pdf') {
-    notify.error("Invalid file type", "Please upload a valid PDF file");
-    return;
-  }
-  
-  if (!projectId) {
-    notify.error("Please select a project first");
-    return;
-  }
-  
-  setStructuredExtracting(true);
-  try {
-    // Only save the PDF file and MPN reference, don't extract
-    const formData = new FormData();
-    formData.append("file", structuredPdfFile);
-    formData.append("mpn", structuredMpn.trim());
-    formData.append("project_id", projectId);
-    formData.append("use_case", selectedUseCase);
-    
-    // Call a new endpoint that only saves the PDF source
-    const response = await extractionService.savePdfSource(formData);
-    
-    notify.success(
-      "PDF Saved",
-      `PDF for MPN ${structuredMpn} has been saved. Go to Aggregation tab to extract.`
-    );
-    setStructuredMpn("");
-    setStructuredPdfFile(null);
-    // Clear the file input
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-    await loadSources();
-    await loadProjects();
-  } catch (error: any) {
-    notify.error("Failed to save PDF", error.message);
-  } finally {
-    setStructuredExtracting(false);
-  }
-};
+    if (!structuredPdfFile || !structuredMpn.trim()) {
+      notify.error("Please provide an MPN and a PDF file");
+      return;
+    }
+
+    // ✅ Validate that the file is a PDF
+    const fileType = structuredPdfFile.type;
+    const fileExtension = structuredPdfFile.name
+      .split(".")
+      .pop()
+      ?.toLowerCase();
+
+    if (fileType !== "application/pdf" && fileExtension !== "pdf") {
+      notify.error("Invalid file type", "Please upload a valid PDF file");
+      return;
+    }
+
+    if (!projectId) {
+      notify.error("Please select a project first");
+      return;
+    }
+
+    setStructuredExtracting(true);
+    try {
+      // Only save the PDF file and MPN reference, don't extract
+      const formData = new FormData();
+      formData.append("file", structuredPdfFile);
+      formData.append("mpn", structuredMpn.trim());
+      formData.append("project_id", projectId);
+      formData.append("use_case", selectedUseCase);
+
+      // Call a new endpoint that only saves the PDF source
+      const response = await extractionService.savePdfSource(formData);
+
+      notify.success(
+        "PDF Saved",
+        `PDF for MPN ${structuredMpn} has been saved. Go to Aggregation tab to extract.`,
+      );
+      setStructuredMpn("");
+      setStructuredPdfFile(null);
+      // Clear the file input
+      const fileInput = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+      await loadSources();
+      await loadProjects();
+    } catch (error: any) {
+      notify.error("Failed to save PDF", error.message);
+    } finally {
+      setStructuredExtracting(false);
+    }
+  };
   const loadSourcesForProject = async (id: string) => {
     if (!id) return;
+    setLoadingSources((prev) => new Set(prev).add(id));
     try {
       const sourcesData = await extractionService.getSourcesByProject(id);
       setProjectSources((prev) => ({ ...prev, [id]: sourcesData }));
     } catch (error) {
       console.error("Failed to load sources:", error);
+      notify.error("Failed to load import history");
+    } finally {
+      setLoadingSources((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
   const toggleProject = async (projectId: string) => {
@@ -247,7 +269,6 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
     document.addEventListener("click", handleClickOutSide);
     return () => document.removeEventListener("click", handleClickOutSide);
   }, [showUseCaseDropdown]);
-  
 
   const useCaseMap: Record<OperationMode, string[]> = {
     aggregation: ["With categories", "Without categories"],
@@ -373,9 +394,9 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
       });
       setBulkFile(null);
       pollBatchStatus(result.batch_id, async () => {
-  await loadSources();
-  await loadProjects();
-});
+        await loadSources();
+        await loadProjects();
+      });
       await loadSources();
     } catch (error) {
       console.error("Bulk upload failed:", error);
@@ -659,7 +680,9 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
                   ? "Discover, extract, and enrich from external sources"
                   : operationMode === "enrichment"
                     ? "Backfill missing attributes and validate existing data"
-                    : "Clean and standardize existing product data"}
+                    : operationMode === "cleaning"
+                      ? "Clean and standardize existing product data"
+                      : "Extract product data from PDFs and web sources"}{" "}
               </p>
             </div>
 
@@ -774,9 +797,9 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
           {activeMode === "bulk" &&
           operationMode === "pdf_extraction" &&
           selectedUseCase?.startsWith("1.") &&
-            projectId &&          // ← project must exist
-  !showProjectModal ? ( 
-            // Fresh PDF Aggregation 
+          projectId && // ← project must exist
+          !showProjectModal ? (
+            // Fresh PDF Aggregation
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -837,22 +860,22 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
 
               {projectId ? (
                 <button
-                  onClick={handleFreshAggregation}
-                  disabled={freshAggregating || freshMpns.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {freshAggregating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing MPNs...
-                    </>
-                  ) : (
-                    <>
-                      <Globe className="w-4 h-4" />
-                      Fetch Product Data
-                    </>
-                  )}
-                </button>
+  onClick={handleFreshAggregation}
+  disabled={freshAggregating || freshMpns.length === 0}
+  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+>
+  {freshAggregating ? (
+    <>
+      <Loader2 className="w-4 h-4 animate-spin" />
+      Saving MPNs...
+    </>
+  ) : (
+    <>
+      <Globe className="w-4 h-4" />
+      Save MPNs for Extraction
+    </>
+  )}
+</button>
               ) : (
                 <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
@@ -860,72 +883,93 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
                 </div>
               )}
             </div>
-          ) :operationMode === "pdf_extraction" &&
- selectedUseCase?.startsWith("2.") &&
- projectId &&
- !showProjectModal ?(
-  // Structured PDF Extraction UI
-  <div className="space-y-4">
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <FileText className="w-5 h-5 text-green-600" />
-        <h4 className="font-semibold text-green-900">Structured PDF Extraction</h4>
-      </div>
-      <p className="text-sm text-green-700">
-        Upload a structured PDF (e.g., spec sheet, catalog) and provide the MPN.
-        The system will extract product data only for that MPN from the PDF.
-      </p>
-    </div>
+          ) : operationMode === "pdf_extraction" &&
+            selectedUseCase?.startsWith("2.") &&
+            projectId &&
+            !showProjectModal ? (
+            // Structured PDF Extraction UI
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-5 h-5 text-green-600" />
+                  <h4 className="font-semibold text-green-900">
+                    Structured PDF Extraction
+                  </h4>
+                </div>
+                <p className="text-sm text-green-700">
+                  Upload a structured PDF (e.g., spec sheet, catalog) and
+                  provide the MPN. The system will extract product data only for
+                  that MPN from the PDF.
+                </p>
+              </div>
 
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">MPN</label>
-      <input
-        type="text"
-        value={structuredMpn}
-        onChange={(e) => setStructuredMpn(e.target.value)}
-        placeholder="e.g., 203-602"
-        className="w-full px-3 py-2 border border-slate-300 rounded-md"
-      />
-    </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  MPN
+                </label>
+                <input
+                  type="text"
+                  value={structuredMpn}
+                  onChange={(e) => setStructuredMpn(e.target.value)}
+                  placeholder="e.g., 203-602"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                />
+              </div>
 
-    <div>
-  <label className="block text-sm font-medium text-slate-700 mb-2">PDF File</label>
-  <input
-    type="file"
-    accept=".pdf"
-    onChange={(e) => {
-      const file = e.target.files?.[0];
-      if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        notify.error("Invalid file", "Please select a valid PDF file");
-        e.target.value = '';
-        return;
-      }
-      setStructuredPdfFile(file || null);
-    }}
-    className="w-full px-3 py-2 border border-slate-300 rounded-md"
-  />
-  {structuredPdfFile && (
-    <p className="text-sm text-green-600 mt-2">Selected: {structuredPdfFile.name}</p>
-  )}
-</div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  PDF File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (
+                      file &&
+                      file.type !== "application/pdf" &&
+                      !file.name.toLowerCase().endsWith(".pdf")
+                    ) {
+                      notify.error(
+                        "Invalid file",
+                        "Please select a valid PDF file",
+                      );
+                      e.target.value = "";
+                      return;
+                    }
+                    setStructuredPdfFile(file || null);
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                />
+                {structuredPdfFile && (
+                  <p className="text-sm text-green-600 mt-2">
+                    Selected: {structuredPdfFile.name}
+                  </p>
+                )}
+              </div>
 
-    {projectId ? (
-      <button
-        onClick={handleStructuredExtraction}
-        disabled={structuredExtracting || !structuredPdfFile || !structuredMpn}
-        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md"
-      >
-        {structuredExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-        {structuredExtracting ? "Extracting..." : "Extract from PDF"}
-      </button>
-    ) : (
-      <div className="p-3 bg-amber-50 text-amber-700 text-sm rounded-md">
-        Select a project first
-      </div>
-    )}
-  </div>
-) :
-           activeMode === "bulk" ? (
+              {projectId ? (
+                <button
+                  onClick={handleStructuredExtraction}
+                  disabled={
+                    structuredExtracting || !structuredPdfFile || !structuredMpn
+                  }
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md"
+                >
+                  {structuredExtracting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  {structuredExtracting ? "Extracting..." : "Extract from PDF"}
+                </button>
+              ) : (
+                <div className="p-3 bg-amber-50 text-amber-700 text-sm rounded-md">
+                  Select a project first
+                </div>
+              )}
+            </div>
+          ) : activeMode === "bulk" ? (
             <div>
               <div className="mb-4">
                 <button
@@ -1239,7 +1283,7 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
                       setSelectedProject(project);
                       setOperationMode(project.operation_mode as OperationMode);
                       setSelectedUseCase(project.use_case || "");
-                      
+
                       loadSourcesForProject(project.id);
                       onProjectSelect?.(project.id);
                     }}
@@ -1264,11 +1308,16 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
                             project.operation_mode === "cleaning";
                           const isEnrichmentProject =
                             project.operation_mode === "enrichment";
-
+                          const isPdfExtractionProject =
+                            project.operation_mode == "pdf_extraction";
                           const processStatus = isCleaningProject
                             ? source.metadata?.cleaning_status ||
                               source.metadata?.processing_status
-                            : source.metadata?.processing_status;
+                            : isPdfExtractionProject
+                              ? source.status === "completed"
+                                ? "completed"
+                                : source.metadata?.processing_status
+                              : source.metadata?.processing_status;
 
                           const isCompleted = processStatus === "completed";
                           const isProcessing = processStatus === "processing";
@@ -1278,13 +1327,16 @@ const [structuredExtracting, setStructuredExtracting] = useState(false);
                             ? "Needs Cleaning"
                             : isEnrichmentProject
                               ? "Needs Enrichment"
-                              : "Needs Aggregation";
+                              : isPdfExtractionProject
+                                ? "Needs extraction"
+                                : "Needs Aggregation";
 
                           const processingLabel = isCleaningProject
                             ? "Cleaning..."
                             : isEnrichmentProject
                               ? "Enriching..."
                               : "Aggregating...";
+
                           // const aggStatus = source.metadata?.aggregation_status;
                           // const isEnriched = aggStatus === "completed";
                           // const isAggregating = aggStatus === "processing";
