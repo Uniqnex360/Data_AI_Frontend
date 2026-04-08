@@ -6,6 +6,7 @@ type AuthContextType = {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;  
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
 };
@@ -15,10 +16,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);  
 
   useEffect(() => {
-    setUser(getStoredUser());
-    setToken(getStoredToken());
+    
+    const storedUser = getStoredUser();
+    const storedToken = getStoredToken();
+    
+    setUser(storedUser);
+    setToken(storedToken);
+    setIsLoading(false);  
   }, []);
 
   const login = (newToken: string, newUser: AuthUser) => {
@@ -40,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         token,
         isAuthenticated: !!token,
+        isLoading,  
         login,
         logout,
       }}

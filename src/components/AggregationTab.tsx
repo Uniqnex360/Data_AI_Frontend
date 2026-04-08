@@ -1358,9 +1358,10 @@ export default function AggregationTab({
                                                 product.product_code,
                                               )
                                             }
-                                            disabled={extractingPdf.has(
-                                              product.id,
-                                            )}
+                                            disabled={
+       extractingPdf.has(product.id) || 
+       product.enrichment_status === "processing"  
+     }
                                             className="text-purple-600 hover:text-purple-700 text-sm font-medium"
                                           >
                                             {extractingPdf.has(product.id) ? (
@@ -1385,9 +1386,10 @@ export default function AggregationTab({
                                                 product.product_code,
                                               )
                                             }
-                                            disabled={extractingPdf.has(
-                                              product.id,
-                                            )}
+                                            disabled={
+       extractingPdf.has(product.id) || 
+       product.enrichment_status === "processing"  
+     }
                                             className="text-purple-600 hover:text-purple-700 text-sm font-medium"
                                           >
                                             {extractingPdf.has(product.id) ? (
@@ -1690,31 +1692,36 @@ export default function AggregationTab({
               )}
             </div>
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-              <span className="text-xs text-slate-500">
-                Last updated: {new Date().toLocaleDateString()}
-              </span>
-              <button
-                onClick={() => handleAggregate(selectedProductData.id)}
-                disabled={
-                  selectedProductData.enrichment_status === "processing"
-                }
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {selectedProductData.enrichment_status === "processing" ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-                  </>
-                ) : selectedProductData.enrichment_status === "pending" ? (
-                  <>
-                    <Play className="w-4 h-4" /> Start Aggregation
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" /> Re-Aggregate
-                  </>
-                )}
-              </button>
-            </div>
+  <span className="text-xs text-slate-500">
+    Last updated: {new Date().toLocaleDateString()}
+  </span>
+  
+  {/* ✅ Only show aggregation button for non-PDF projects */}
+  {expandedProjectId && 
+   projects.find(p => p.id === expandedProjectId)?.operation_mode !== "pdf_extraction" && (
+    <button
+      onClick={() => handleAggregate(selectedProductData.id)}
+      disabled={
+        selectedProductData.enrichment_status === "processing"
+      }
+      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+    >
+      {selectedProductData.enrichment_status === "processing" ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+        </>
+      ) : selectedProductData.enrichment_status === "pending" ? (
+        <>
+          <Play className="w-4 h-4" /> Start Aggregation
+        </>
+      ) : (
+        <>
+          <RefreshCw className="w-4 h-4" /> Re-Aggregate
+        </>
+      )}
+    </button>
+  )}
+</div>
           </div>
         </div>
       )}
