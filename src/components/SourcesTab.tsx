@@ -128,8 +128,10 @@ export default function SourcesTab({
   const [structuredMpn, setStructuredMpn] = useState("");
   const [structuredPdfFile, setStructuredPdfFile] = useState<File | null>(null);
   const [unstructuredMpn, setUnstructuredMpn] = useState("");
-const [unstructuredPdfFile, setUnstructuredPdfFile] = useState<File | null>(null);
-const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
+  const [unstructuredPdfFile, setUnstructuredPdfFile] = useState<File | null>(
+    null,
+  );
+  const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
   const [structuredExtracting, setStructuredExtracting] = useState(false);
   const [projectName, setProjectName] = useState<string>("");
   const [importResults, setImportResults] = useState<{
@@ -614,53 +616,58 @@ const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
     );
   });
   // Add after handleStructuredExtraction
-const handleUnstructuredExtraction = async () => {
-  if (!unstructuredPdfFile || !unstructuredMpn.trim()) {
-    notify.error("Please provide an MPN and a PDF file");
-    return;
-  }
-  
-  const fileType = unstructuredPdfFile.type;
-  const fileExtension = unstructuredPdfFile.name.split('.').pop()?.toLowerCase();
-  
-  if (fileType !== 'application/pdf' && fileExtension !== 'pdf') {
-    notify.error("Invalid file type", "Please upload a valid PDF file");
-    return;
-  }
-  
-  if (!projectId) {
-    notify.error("Please select a project first");
-    return;
-  }
-  
-  setUnstructuredExtracting(true);
-  try {
-    const formData = new FormData();
-    formData.append("file", unstructuredPdfFile);
-    formData.append("mpn", unstructuredMpn.trim());
-    formData.append("project_id", projectId);
-    formData.append("use_case", selectedUseCase);
-    
-    const response = await extractionService.savePdfSource(formData);
-    
-    notify.success(
-      "PDF Saved",
-      `Unstructured PDF for MPN ${unstructuredMpn} has been saved. Go to Aggregation tab to extract.`
-    );
-    setUnstructuredMpn("");
-    setUnstructuredPdfFile(null);
-    
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-    
-    await loadSources();
-    await loadProjects();
-  } catch (error: any) {
-    notify.error("Failed to save PDF", error.message);
-  } finally {
-    setUnstructuredExtracting(false);
-  }
-};
+  const handleUnstructuredExtraction = async () => {
+    if (!unstructuredPdfFile || !unstructuredMpn.trim()) {
+      notify.error("Please provide an MPN and a PDF file");
+      return;
+    }
+
+    const fileType = unstructuredPdfFile.type;
+    const fileExtension = unstructuredPdfFile.name
+      .split(".")
+      .pop()
+      ?.toLowerCase();
+
+    if (fileType !== "application/pdf" && fileExtension !== "pdf") {
+      notify.error("Invalid file type", "Please upload a valid PDF file");
+      return;
+    }
+
+    if (!projectId) {
+      notify.error("Please select a project first");
+      return;
+    }
+
+    setUnstructuredExtracting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", unstructuredPdfFile);
+      formData.append("mpn", unstructuredMpn.trim());
+      formData.append("project_id", projectId);
+      formData.append("use_case", selectedUseCase);
+
+      const response = await extractionService.savePdfSource(formData);
+
+      notify.success(
+        "PDF Saved",
+        `Unstructured PDF for MPN ${unstructuredMpn} has been saved. Go to Aggregation tab to extract.`,
+      );
+      setUnstructuredMpn("");
+      setUnstructuredPdfFile(null);
+
+      const fileInput = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+
+      await loadSources();
+      await loadProjects();
+    } catch (error: any) {
+      notify.error("Failed to save PDF", error.message);
+    } finally {
+      setUnstructuredExtracting(false);
+    }
+  };
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -846,7 +853,7 @@ const handleUnstructuredExtraction = async () => {
         <div className="p-6">
           {activeMode === "bulk" &&
           operationMode === "pdf_extraction" &&
-          selectedUseCase?.startsWith("1.") &&
+          selectedUseCase?.includes("Fresh PDF Aggregation") &&
           projectId && // ← project must exist
           !showProjectModal ? (
             // Fresh PDF Aggregation
@@ -910,22 +917,22 @@ const handleUnstructuredExtraction = async () => {
 
               {projectId ? (
                 <button
-  onClick={handleFreshAggregation}
-  disabled={freshAggregating || freshMpns.length === 0}
-  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
->
-  {freshAggregating ? (
-    <>
-      <Loader2 className="w-4 h-4 animate-spin" />
-      Saving MPNs...
-    </>
-  ) : (
-    <>
-      <Globe className="w-4 h-4" />
-      Save MPNs for Extraction
-    </>
-  )}
-</button>
+                  onClick={handleFreshAggregation}
+                  disabled={freshAggregating || freshMpns.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {freshAggregating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving MPNs...
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4" />
+                      Save MPNs for Extraction
+                    </>
+                  )}
+                </button>
               ) : (
                 <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
@@ -934,7 +941,7 @@ const handleUnstructuredExtraction = async () => {
               )}
             </div>
           ) : operationMode === "pdf_extraction" &&
-            selectedUseCase?.startsWith("2.") &&
+            selectedUseCase?.includes("Structured PDF Extraction") &&
             projectId &&
             !showProjectModal ? (
             // Structured PDF Extraction UI
@@ -1019,75 +1026,94 @@ const handleUnstructuredExtraction = async () => {
                 </div>
               )}
             </div>
-          ) : 
-           operationMode === "pdf_extraction" &&
-   selectedUseCase?.startsWith("3.") &&
-   projectId &&
-   !showProjectModal ? (
-  <div className="space-y-4">
-    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <FileText className="w-5 h-5 text-orange-600" />
-        <h4 className="font-semibold text-orange-900">Unstructured PDF Extraction</h4>
-      </div>
-      <p className="text-sm text-orange-700">
-        Upload an unstructured PDF (e.g., brochure, manual, spec sheet without tables). 
-        The system will extract product data using AI analysis of the text content.
-      </p>
-    </div>
+          ) : operationMode === "pdf_extraction" &&
+            selectedUseCase?.includes("Unstructured PDF Extraction") && 
+            projectId &&
+            !showProjectModal ? (
+            <div className="space-y-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-5 h-5 text-orange-600" />
+                  <h4 className="font-semibold text-orange-900">
+                    Unstructured PDF Extraction
+                  </h4>
+                </div>
+                <p className="text-sm text-orange-700">
+                  Upload an unstructured PDF (e.g., brochure, manual, spec sheet
+                  without tables). The system will extract product data using AI
+                  analysis of the text content.
+                </p>
+              </div>
 
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">MPN</label>
-      <input
-        type="text"
-        value={unstructuredMpn}
-        onChange={(e) => setUnstructuredMpn(e.target.value)}
-        placeholder="e.g., 203-602"
-        className="w-full px-3 py-2 border border-slate-300 rounded-md"
-      />
-    </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  MPN
+                </label>
+                <input
+                  type="text"
+                  value={unstructuredMpn}
+                  onChange={(e) => setUnstructuredMpn(e.target.value)}
+                  placeholder="e.g., 203-602"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                />
+              </div>
 
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">PDF File</label>
-      <input
-        type="file"
-        accept=".pdf"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-            notify.error("Invalid file", "Please select a valid PDF file");
-            e.target.value = '';
-            return;
-          }
-          setUnstructuredPdfFile(file || null);
-        }}
-        className="w-full px-3 py-2 border border-slate-300 rounded-md"
-      />
-      {unstructuredPdfFile && (
-        <p className="text-sm text-orange-600 mt-2">Selected: {unstructuredPdfFile.name}</p>
-      )}
-    </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  PDF File
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (
+                      file &&
+                      file.type !== "application/pdf" &&
+                      !file.name.toLowerCase().endsWith(".pdf")
+                    ) {
+                      notify.error(
+                        "Invalid file",
+                        "Please select a valid PDF file",
+                      );
+                      e.target.value = "";
+                      return;
+                    }
+                    setUnstructuredPdfFile(file || null);
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                />
+                {unstructuredPdfFile && (
+                  <p className="text-sm text-orange-600 mt-2">
+                    Selected: {unstructuredPdfFile.name}
+                  </p>
+                )}
+              </div>
 
-    {projectId ? (
-      <button
-        onClick={handleUnstructuredExtraction}
-        disabled={unstructuredExtracting || !unstructuredPdfFile || !unstructuredMpn}
-        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
-      >
-        {unstructuredExtracting ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <FileText className="w-4 h-4" />
-        )}
-        {unstructuredExtracting ? "Saving..." : "Save for Extraction"}
-      </button>
-    ) : (
-      <div className="p-3 bg-amber-50 text-amber-700 text-sm rounded-md">
-        Select a project first
-      </div>
-    )}
-  </div>
-) :activeMode === "bulk" ? (
+              {projectId ? (
+                <button
+                  onClick={handleUnstructuredExtraction}
+                  disabled={
+                    unstructuredExtracting ||
+                    !unstructuredPdfFile ||
+                    !unstructuredMpn
+                  }
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {unstructuredExtracting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  {unstructuredExtracting ? "Saving..." : "Save for Extraction"}
+                </button>
+              ) : (
+                <div className="p-3 bg-amber-50 text-amber-700 text-sm rounded-md">
+                  Select a project first
+                </div>
+              )}
+            </div>
+          ) : activeMode === "bulk" ? (
             <div>
               <div className="mb-4">
                 <button
