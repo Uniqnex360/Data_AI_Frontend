@@ -280,11 +280,11 @@ const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
     ],
     cleaning: ["Data cleaning and Standardization"],
     pdf_extraction: [
-      "1. Fresh PDF Aggregation (MPN/Model/UPC based web enrichment)",
-      "2. Structured PDF Extraction (Given MPNs)",
-      "3. Unstructured PDF Extraction (Given MPNs)",
-      "4. Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
-      "5. Blind PDF Extraction (No MPNs - Title/Description based)",
+      "Fresh PDF Aggregation (MPN/Model/UPC based web enrichment)",
+      "Structured PDF Extraction (Given MPNs)",
+      "Unstructured PDF Extraction (Given MPNs)",
+      "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
+      "Blind PDF Extraction (No MPNs - Title/Description based)",
     ],
   };
 
