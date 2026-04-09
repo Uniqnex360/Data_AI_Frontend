@@ -491,6 +491,14 @@ export default function SourcesTab({
       );
       return;
     }
+    if (multiPdFs.length > 20) {
+    notify.error(
+      "Too many PDFs",
+      "Maximum 20 PDF files allowed. Please reduce the selection.",
+    );
+    return;
+  }
+
     if (!projectId) {
       notify.error("Please select a project first");
       return;
@@ -514,6 +522,12 @@ export default function SourcesTab({
       setMultiMpns([]);
       setMultiPdFs([]);
       setCurrentMultiMpn("");
+       const fileInput = document.querySelector(
+      'input[type="file"][accept=".pdf"][multiple]',
+    ) as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
 
       await loadSources();
       await loadProjects();

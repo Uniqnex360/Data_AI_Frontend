@@ -694,7 +694,7 @@ export default function EnrichmentTab() {
   );
 
   const canDownloadSelected = useMemo(() => {
-    const downloadableStatuses = new Set(["completed", "failed"]);
+    const downloadableStatuses = new Set(["completed", "failed",'pending']);
 
     const productOk =
       selectedProductIds.size > 0 &&
@@ -729,7 +729,7 @@ export default function EnrichmentTab() {
     }
     setDownloading(true);
     try {
-      const blob = await enrichmentService.exportSelectedItems(
+      const blob = await aggregationService.exportSelectedItems(
         selectedProjects,
         selectedProducts,
       );

@@ -117,66 +117,63 @@ export default function AggregationTab({
     [expandedProjectProducts],
   );
 
- const handleExtractFreshMpn = async (productId: string, mpn: string) => {
-  if (!expandedProjectId) {
-    notify.error("No project selected");
-    return;
-  }
-  setExtractingPdf((prev) => new Set(prev).add(productId));
-  setExpandedProjectProducts((prev) =>
-    prev.map((p) =>
-      p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-    ),
-  );
-  try {
-    const project = projects.find((p) => p.id === expandedProjectId);
-    const response = await extractionService.freshAggregation({
-      mpns: [mpn],
-      project_id: expandedProjectId!,
-      use_case: project?.use_case || selectedUseCase,
-    });
-    
-    // ✅ Add to polling IDs
-    setPollingProductIds((prev) => new Set(prev).add(productId));
-    
-    notify.success("Extraction Started", `Extracting data for ${mpn}`);
-    
-    pollBatchStatus(response.batch_id, async () => {
-      const fresh = await productService.getProductsByProject(
-        expandedProjectId!,
-        "aggregation",
+  const handleExtractFreshMpn = async (productId: string, mpn: string) => {
+    if (!expandedProjectId) {
+      notify.error("No project selected");
+      return;
+    }
+    setExtractingPdf((prev) => new Set(prev).add(productId));
+    setExpandedProjectProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+      ),
+    );
+    try {
+      const project = projects.find((p) => p.id === expandedProjectId);
+      const response = await extractionService.freshAggregation({
+        mpns: [mpn],
+        project_id: expandedProjectId!,
+        use_case: project?.use_case || selectedUseCase,
+      });
+
+      setPollingProductIds((prev) => new Set(prev).add(productId));
+
+      notify.success("Extraction Started", `Extracting data for ${mpn}`);
+
+      pollBatchStatus(response.batch_id, async () => {
+        const fresh = await productService.getProductsByProject(
+          expandedProjectId!,
+          "aggregation",
+        );
+        setExpandedProjectProducts(fresh);
+        await loadProjects(); 
+
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(productId);
+          return updated;
+        });
+      });
+    } catch (error: any) {
+      notify.error("Extraction failed", error.message);
+      setExpandedProjectProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+        ),
       );
-      setExpandedProjectProducts(fresh);
-      await loadProjects(); // ✅ Refresh project status
-      
-      // ✅ Remove from polling
       setPollingProductIds((prev) => {
         const updated = new Set(prev);
         updated.delete(productId);
         return updated;
       });
-    });
-  } catch (error: any) {
-    notify.error("Extraction failed", error.message);
-    setExpandedProjectProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-      ),
-    );
-    // ✅ Remove from polling on error
-    setPollingProductIds((prev) => {
-      const updated = new Set(prev);
-      updated.delete(productId);
-      return updated;
-    });
-  } finally {
-    setExtractingPdf((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(productId);
-      return newSet;
-    });
-  }
-};
+    } finally {
+      setExtractingPdf((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
   // const handleExtractFromPdf = async (productId: string, mpn: string) => {
   //   setExtractingPdf((prev) => new Set(prev).add(productId));
   //   setExpandedProjectProducts((prev) =>
@@ -217,60 +214,57 @@ export default function AggregationTab({
   //   }
   // };
 
- const handleExtractFromPdf = async (productId: string, mpn: string) => {
-  setExtractingPdf((prev) => new Set(prev).add(productId));
-  setExpandedProjectProducts((prev) =>
-    prev.map((p) =>
-      p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-    ),
-  );
-  try {
-    const response = await extractionService.extractPdfForProduct(
-      mpn,
-      expandedProjectId!,
+  const handleExtractFromPdf = async (productId: string, mpn: string) => {
+    setExtractingPdf((prev) => new Set(prev).add(productId));
+    setExpandedProjectProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+      ),
     );
-    
-    // ✅ Add to polling IDs
-    setPollingProductIds((prev) => new Set(prev).add(productId));
-    
-    notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
-    
-    pollBatchStatus(response.batch_id, async () => {
-      const fresh = await productService.getProductsByProject(
+    try {
+      const response = await extractionService.extractPdfForProduct(
+        mpn,
         expandedProjectId!,
-        "aggregation",
       );
-      setExpandedProjectProducts(fresh);
-      await loadProjects(); // ✅ Refresh project status
-      
-      // ✅ Remove from polling
+
+      setPollingProductIds((prev) => new Set(prev).add(productId));
+
+      notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
+
+      pollBatchStatus(response.batch_id, async () => {
+        const fresh = await productService.getProductsByProject(
+          expandedProjectId!,
+          "aggregation",
+        );
+        setExpandedProjectProducts(fresh);
+        await loadProjects(); 
+
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(productId);
+          return updated;
+        });
+      });
+    } catch (error: any) {
+      notify.error("Extraction failed", error.message);
+      setExpandedProjectProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+        ),
+      );
       setPollingProductIds((prev) => {
         const updated = new Set(prev);
         updated.delete(productId);
         return updated;
       });
-    });
-  } catch (error: any) {
-    notify.error("Extraction failed", error.message);
-    setExpandedProjectProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-      ),
-    );
-    // ✅ Remove from polling on error
-    setPollingProductIds((prev) => {
-      const updated = new Set(prev);
-      updated.delete(productId);
-      return updated;
-    });
-  } finally {
-    setExtractingPdf((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(productId);
-      return newSet;
-    });
-  }
-};
+    } finally {
+      setExtractingPdf((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
   const pollProjectStatuses = useCallback(async () => {
     if (aggregatingProjects.size === 0) return;
     const newAggregatingProjects = new Set(aggregatingProjects);
@@ -792,205 +786,195 @@ export default function AggregationTab({
     setTimeout(() => setSelectedProduct(null), 300);
   };
   const handleExtractAllInExpanded = useCallback(async () => {
-  if (!expandedProjectId) return;
+    if (!expandedProjectId) return;
 
-  const selectedPendingProducts = expandedProjectProducts.filter(
-    (p) =>
-      selectedProductIds.has(p.id) &&
-      p.completeness_score === 0 &&
-      p.enrichment_status !== "processing"
-  );
+    const selectedPendingProducts = expandedProjectProducts.filter(
+      (p) =>
+        selectedProductIds.has(p.id) &&
+        p.completeness_score === 0 &&
+        p.enrichment_status !== "processing",
+    );
 
-  const pendingProducts =
-    selectedProductIds.size > 0
-      ? selectedPendingProducts
-      : expandedProjectProducts.filter(
-          (p) =>
-            p.completeness_score === 0 &&
-            p.enrichment_status !== "processing"
-        );
-
-  if (pendingProducts.length === 0) {
-    notify.info(
+    const pendingProducts =
       selectedProductIds.size > 0
-        ? "No pending selected products in this project"
-        : "No pending products in this project",
-    );
-    return;
-  }
-
-  setLoading(true);
-  
-  try {
-    // Update UI immediately
-    setExpandedProjectProducts((prev) =>
-      prev.map((p) =>
-        pendingProducts.some((pp) => pp.id === p.id)
-          ? { ...p, enrichment_status: "processing" }
-          : p
-      )
-    );
-
-    // Track polling IDs
-    const newPollingIds: string[] = [];
-
-    // Extract each product
-    for (const product of pendingProducts) {
-      const mpn = product.product_code;
-      const sourceUrl = product.source_url;
-      
-      try {
-        setExtractingPdf((prev) => new Set(prev).add(product.id));
-        
-        let response;
-        if (sourceUrl === "web_search_pending") {
-          const project = projects.find((p) => p.id === expandedProjectId);
-          response = await extractionService.freshAggregation({
-            mpns: [mpn],
-            project_id: expandedProjectId!,
-            use_case: project?.use_case || selectedUseCase,
-          });
-        } else {
-          response = await extractionService.extractPdfForProduct(
-            mpn,
-            expandedProjectId!,
+        ? selectedPendingProducts
+        : expandedProjectProducts.filter(
+            (p) =>
+              p.completeness_score === 0 &&
+              p.enrichment_status !== "processing",
           );
+
+    if (pendingProducts.length === 0) {
+      notify.info(
+        selectedProductIds.size > 0
+          ? "No pending selected products in this project"
+          : "No pending products in this project",
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      setExpandedProjectProducts((prev) =>
+        prev.map((p) =>
+          pendingProducts.some((pp) => pp.id === p.id)
+            ? { ...p, enrichment_status: "processing" }
+            : p,
+        ),
+      );
+
+      const newPollingIds: string[] = [];
+
+      for (const product of pendingProducts) {
+        const mpn = product.product_code;
+        const sourceUrl = product.source_url;
+
+        try {
+          setExtractingPdf((prev) => new Set(prev).add(product.id));
+
+          let response;
+          if (sourceUrl === "web_search_pending") {
+            const project = projects.find((p) => p.id === expandedProjectId);
+            response = await extractionService.freshAggregation({
+              mpns: [mpn],
+              project_id: expandedProjectId!,
+              use_case: project?.use_case || selectedUseCase,
+            });
+          } else {
+            response = await extractionService.extractPdfForProduct(
+              mpn,
+              expandedProjectId!,
+            );
+          }
+
+          newPollingIds.push(product.id);
+
+          pollBatchStatus(response.batch_id, async () => {
+            const fresh = await productService.getProductsByProject(
+              expandedProjectId!,
+              "aggregation",
+            );
+            setExpandedProjectProducts(fresh);
+            await loadProjects(); 
+
+            setPollingProductIds((prev) => {
+              const updated = new Set(prev);
+              updated.delete(product.id);
+              return updated;
+            });
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Failed to extract ${mpn}:`, error);
+          setExpandedProjectProducts((prev) =>
+            prev.map((p) =>
+              p.id === product.id ? { ...p, enrichment_status: "failed" } : p,
+            ),
+          );
+        } finally {
+          setExtractingPdf((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(product.id);
+            return newSet;
+          });
         }
-        
-        // ✅ Add to polling IDs
-        newPollingIds.push(product.id);
-        
-        // ✅ Start polling for this product
-        pollBatchStatus(response.batch_id, async () => {
-          // This callback runs when batch completes
-          const fresh = await productService.getProductsByProject(
-            expandedProjectId!,
+      }
+
+      setPollingProductIds((prev) => {
+        const newSet = new Set(prev);
+        newPollingIds.forEach((id) => newSet.add(id));
+        return newSet;
+      });
+
+      notify.success(
+        `Extraction started for ${pendingProducts.length} product(s)`,
+      );
+
+      setSelectedProductIds(new Set());
+    } catch (error) {
+      console.error("Batch extraction failed", error);
+      notify.error("Batch extraction failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    expandedProjectId,
+    expandedProjectProducts,
+    selectedProductIds,
+    selectedUseCase,
+    projects,
+  ]);
+  const handleExtractSelectedProjects = useCallback(async () => {
+    if (selectedProjectIds.size === 0) return;
+    const projectIdsToExtract = Array.from(selectedProjectIds);
+    setLoading(true);
+    let successCount = 0;
+
+    try {
+      for (const projectId of projectIdsToExtract) {
+        try {
+          const products = await productService.getProductsByProject(
+            projectId,
             "aggregation",
           );
-          setExpandedProjectProducts(fresh);
-          await loadProjects(); // ✅ Refresh project status
-          
-          // Remove from polling
-          setPollingProductIds((prev) => {
-            const updated = new Set(prev);
-            updated.delete(product.id);
-            return updated;
-          });
-        });
-        
-        // Small delay between requests
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-      } catch (error) {
-        console.error(`Failed to extract ${mpn}:`, error);
-        setExpandedProjectProducts((prev) =>
-          prev.map((p) =>
-            p.id === product.id
-              ? { ...p, enrichment_status: "failed" }
-              : p
-          )
-        );
-      } finally {
-        setExtractingPdf((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(product.id);
-          return newSet;
-        });
+
+          const pendingProducts = products.filter(
+            (p) =>
+              p.completeness_score === 0 &&
+              p.enrichment_status !== "processing",
+          );
+
+          for (const product of pendingProducts) {
+            try {
+              if (product.source_url === "web_search_pending") {
+                const project = projects.find((p) => p.id === projectId);
+                await extractionService.freshAggregation({
+                  mpns: [product.product_code],
+                  project_id: projectId,
+                  use_case: project?.use_case || selectedUseCase,
+                });
+              } else {
+                await extractionService.extractPdfForProduct(
+                  product.product_code,
+                  projectId,
+                );
+              }
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            } catch (e) {
+              console.error(`Failed to extract ${product.product_code}:`, e);
+            }
+          }
+
+          successCount++;
+        } catch (e) {
+          console.error(`Failed to process project ${projectId}:`, e);
+        }
       }
-    }
 
-    // ✅ Add to polling product IDs
-    setPollingProductIds((prev) => {
-      const newSet = new Set(prev);
-      newPollingIds.forEach((id) => newSet.add(id));
-      return newSet;
-    });
+      if (successCount > 0) {
+        notify.success(`Extraction started for ${successCount} project(s)`);
+      }
 
-    notify.success(
-      `Extraction started for ${pendingProducts.length} product(s)`,
-    );
-    
-    setSelectedProductIds(new Set());
-    
-  } catch (error) {
-    console.error("Batch extraction failed", error);
-    notify.error("Batch extraction failed");
-  } finally {
-    setLoading(false);
-  }
-}, [
-  expandedProjectId,
-  expandedProjectProducts,
-  selectedProductIds,
-  selectedUseCase,
-  projects,
-]);
-const handleExtractSelectedProjects = useCallback(async () => {
-  if (selectedProjectIds.size === 0) return;
-  const projectIdsToExtract = Array.from(selectedProjectIds);
-  setLoading(true);
-  let successCount = 0;
-
-  try {
-    for (const projectId of projectIdsToExtract) {
-      try {
-        // Get all pending products for this project
-        const products = await productService.getProductsByProject(
-          projectId,
+      if (
+        expandedProjectId &&
+        projectIdsToExtract.includes(expandedProjectId)
+      ) {
+        const freshData = await productService.getProductsByProject(
+          expandedProjectId,
           "aggregation",
         );
-        
-        const pendingProducts = products.filter(
-          (p) => p.completeness_score === 0 && p.enrichment_status !== "processing"
-        );
-        
-        for (const product of pendingProducts) {
-          try {
-            if (product.source_url === "web_search_pending") {
-              const project = projects.find((p) => p.id === projectId);
-              await extractionService.freshAggregation({
-                mpns: [product.product_code],
-                project_id: projectId,
-                use_case: project?.use_case || selectedUseCase,
-              });
-            } else {
-              await extractionService.extractPdfForProduct(
-                product.product_code,
-                projectId,
-              );
-            }
-            await new Promise(resolve => setTimeout(resolve, 300));
-          } catch (e) {
-            console.error(`Failed to extract ${product.product_code}:`, e);
-          }
-        }
-        
-        successCount++;
-      } catch (e) {
-        console.error(`Failed to process project ${projectId}:`, e);
+        setExpandedProjectProducts(freshData);
       }
+    } catch (error) {
+      console.error("Failed to extract projects:", error);
+      notify.error("Extraction failed");
+    } finally {
+      setLoading(false);
+      setSelectedProjectIds(new Set());
     }
-
-    if (successCount > 0) {
-      notify.success(`Extraction started for ${successCount} project(s)`);
-    }
-    
-    // Refresh if expanded project is affected
-    if (expandedProjectId && projectIdsToExtract.includes(expandedProjectId)) {
-      const freshData = await productService.getProductsByProject(
-        expandedProjectId,
-        "aggregation",
-      );
-      setExpandedProjectProducts(freshData);
-    }
-  } catch (error) {
-    console.error("Failed to extract projects:", error);
-    notify.error("Extraction failed");
-  } finally {
-    setLoading(false);
-    setSelectedProjectIds(new Set());
-  }
-}, [selectedProjectIds, expandedProjectId, selectedUseCase, projects]);
+  }, [selectedProjectIds, expandedProjectId, selectedUseCase, projects]);
   const toggleSelectAllProjects = useCallback(() => {
     setSelectedProjectIds((prev) =>
       prev.size === filteredProjects.length
@@ -1058,27 +1042,30 @@ const handleExtractSelectedProjects = useCallback(async () => {
               </button>
             )}
             {selectedProjectIds.size > 0 && (
-  <button
-    onClick={
-      projects.find(p => selectedProjectIds.has(p.id))?.operation_mode === "pdf_extraction"
-        ? handleExtractSelectedProjects
-        : handleAggregateSelectedProjects
-    }
-    disabled={loading || !hasProductsInSelectedProjects}
-    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-  >
-    {loading ? (
-      <Loader2 className="w-4 h-4 animate-spin" />
-    ) : projects.find(p => selectedProjectIds.has(p.id))?.operation_mode === "pdf_extraction" ? (
-      <FileText className="w-4 h-4" />
-    ) : (
-      <Play className="w-4 h-4" />
-    )}
-    {projects.find(p => selectedProjectIds.has(p.id))?.operation_mode === "pdf_extraction"
-      ? `Extract ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`
-      : `Aggregate ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`}
-  </button>
-)}
+              <button
+                onClick={
+                  projects.find((p) => selectedProjectIds.has(p.id))
+                    ?.operation_mode === "pdf_extraction"
+                    ? handleExtractSelectedProjects
+                    : handleAggregateSelectedProjects
+                }
+                disabled={loading || !hasProductsInSelectedProjects}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : projects.find((p) => selectedProjectIds.has(p.id))
+                    ?.operation_mode === "pdf_extraction" ? (
+                  <FileText className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                {projects.find((p) => selectedProjectIds.has(p.id))
+                  ?.operation_mode === "pdf_extraction"
+                  ? `Extract ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`
+                  : `Aggregate ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`}
+              </button>
+            )}
           </div>
         </div>
         <div
@@ -1198,51 +1185,60 @@ const handleExtractSelectedProjects = useCallback(async () => {
                 Use Case
               </label>
               <select
-                value={selectedUseCase}
-                onChange={(e) => {
-                  setSelectedUseCase(e.target.value);
-                  setSelectedProjectId("");
-                  setExpandedProjectId(null);
-                  setExpandedProjectProducts([]);
-                }}
-                disabled={projectsLoading}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All Use Case</option>
-                {useCases.map((useCase) => (
-                  <option key={useCase} value={useCase}>
-                    {useCase}
-                  </option>
-                ))}
-              </select>
+  value={selectedUseCase}
+  onChange={(e) => {
+    setSelectedUseCase(e.target.value);
+    setSelectedProjectId("");
+    setExpandedProjectId(null);
+    setExpandedProjectProducts([]);
+  }}
+  disabled={projectsLoading}
+  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+>
+  <option value="">All Use Case</option>
+  {[...new Set(
+    projects  
+      .filter((p) => !projectStatusFilter || p.source_status === projectStatusFilter)
+      .map((p) => p.use_case)
+      .filter(Boolean) as string[]
+  )].sort((a, b) => {
+    const aIsAggregation = a === "With categories" || a === "Without categories";
+    const bIsAggregation = b === "With categories" || b === "Without categories";
+    if (aIsAggregation && !bIsAggregation) return -1;
+    if (!aIsAggregation && bIsAggregation) return 1;
+    return a.localeCompare(b);
+  }).map((useCase) => (
+    <option key={useCase} value={useCase}>
+      {useCase}
+    </option>
+  ))}
+</select>
             </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Project
               </label>
-              <select
-                value={selectedProjectId}
-                onChange={async (e) => {
-                  const projectId = e.target.value;
-                  setSelectedProjectId(projectId);
-                  await loadProjectFilters(projectId);
-                }}
-                disabled={
-                  projectsLoading ||
-                  (!!selectedUseCase && filteredProjects.length === 0)
-                }
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All Project</option>
-                {(selectedUseCase
-                  ? projects.filter((p) => p.use_case === selectedUseCase)
-                  : projects
-                ).map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
+             <select
+  value={selectedProjectId}
+  onChange={async (e) => {
+    const projectId = e.target.value;
+    setSelectedProjectId(projectId);
+    await loadProjectFilters(projectId);
+  }}
+  disabled={
+    projectsLoading ||
+    (!!selectedUseCase && filteredProjects.length === 0)
+  }
+  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+>
+  <option value="">All Project</option>
+  {/* ✅ Use filteredProjects which already respects ALL filters */}
+  {filteredProjects.map((project) => (
+    <option key={project.id} value={project.id}>
+      {project.name}
+    </option>
+  ))}
+</select>
             </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
@@ -1409,65 +1405,65 @@ const handleExtractSelectedProjects = useCallback(async () => {
                 {expandedProjectId === project.id && (
                   <div className="border-t border-slate-200">
                     {project.operation_mode === "pdf_extraction" ? (
-      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
-        <button
-          onClick={handleExtractAllInExpanded}
-          disabled={
-            loading ||
-            (selectedProductIds.size > 0
-              ? !expandedProjectProducts.some((p) =>
-                  selectedProductIds.has(p.id) && 
-                  p.completeness_score === 0 &&
-                  p.enrichment_status !== "processing"
-                )
-              : expandedStats.pending === 0)
-          }
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-        >
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <FileText className="w-4 h-4" />
-          )}
-          {selectedProductIds.size > 0
-            ? `Extract Selected (${selectedProductIds.size})`
-            : "Extract All Pending"}
-        </button>
-      </div>
-    ) : (
-      /* For Aggregation projects - show Aggregate button */
-      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
-        {!(
-          statusFilter.size === 1 &&
-          statusFilter.has("completed")
-        ) && (
-          <button
-            onClick={handleAggregateAllInExpanded}
-            disabled={
-              loading ||
-              aggregatingProjects.has(project.id) ||
-              (selectedProductIds.size > 0
-                ? !expandedProjectProducts.some((p) =>
-                    selectedProductIds.has(p.id),
-                  )
-                : expandedStats.pending === 0)
-            }
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-          >
-            {loading || aggregatingProjects.has(project.id) ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
-            {aggregatingProjects.has(project.id)
-              ? "Aggregating..."
-              : selectedProductIds.size > 0
-                ? `Aggregate Selected (${selectedProductIds.size})`
-                : "Aggregate All"}
-          </button>
-        )}
-      </div>
-    )}
+                      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
+                        <button
+                          onClick={handleExtractAllInExpanded}
+                          disabled={
+                            loading ||
+                            (selectedProductIds.size > 0
+                              ? !expandedProjectProducts.some(
+                                  (p) =>
+                                    selectedProductIds.has(p.id) &&
+                                    p.completeness_score === 0 &&
+                                    p.enrichment_status !== "processing",
+                                )
+                              : expandedStats.pending === 0)
+                          }
+                          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+                        >
+                          {loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {selectedProductIds.size > 0
+                            ? `Extract Selected (${selectedProductIds.size})`
+                            : "Extract All Pending"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
+                        {!(
+                          statusFilter.size === 1 &&
+                          statusFilter.has("completed")
+                        ) && (
+                          <button
+                            onClick={handleAggregateAllInExpanded}
+                            disabled={
+                              loading ||
+                              aggregatingProjects.has(project.id) ||
+                              (selectedProductIds.size > 0
+                                ? !expandedProjectProducts.some((p) =>
+                                    selectedProductIds.has(p.id),
+                                  )
+                                : expandedStats.pending === 0)
+                            }
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                          >
+                            {loading || aggregatingProjects.has(project.id) ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                            {aggregatingProjects.has(project.id)
+                              ? "Aggregating..."
+                              : selectedProductIds.size > 0
+                                ? `Aggregate Selected (${selectedProductIds.size})`
+                                : "Aggregate All"}
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     <div className="overflow-x-auto max-h-[600px]">
                       <table className="w-full border-separate border-spacing-0">
