@@ -1013,6 +1013,7 @@ export default function EnrichmentTab() {
                 <option value="">All Status</option>
                 <option value="Yet to Start">Yet to Start</option>
                 <option value="In Progress">In Progress</option>
+                 <option value="Partially Completed">Partially Completed</option>
                 <option value="Completed">Completed</option>
               </select>
             </div>

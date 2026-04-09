@@ -49,6 +49,8 @@ export default function AggregationTab({
   const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
+  const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<string, number>>({});
+
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
     null,
@@ -116,6 +118,30 @@ export default function AggregationTab({
     }),
     [expandedProjectProducts],
   );
+  // Add this function after loadProjects (around line 470)
+const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => {
+  try {
+    const counts: Record<string, number> = {};
+    
+    await Promise.all(
+      projectIds.map(async (projectId) => {
+        try {
+          const products = await productService.getProductsByProject(projectId, "enrichment");
+          counts[projectId] = products.filter(p => 
+            p.workflow_stage === 'enrichment' && 
+            p.enrichment_status === 'pending'
+          ).length;
+        } catch (error) {
+          counts[projectId] = 0;
+        }
+      })
+    );
+    
+    setProjectEnrichmentCounts(prev => ({ ...prev, ...counts }));
+  } catch (error) {
+    console.error("Failed to load enrichment counts:", error);
+  }
+}, []);
 
   const handleExtractFreshMpn = async (productId: string, mpn: string) => {
     if (!expandedProjectId) {
@@ -372,6 +398,10 @@ export default function AggregationTab({
           p.operation_mode === "pdf_extraction",
       );
       setProjects(aggregationData);
+      const projectIds = aggregationData.map(p => p.id);
+    if (projectIds.length > 0) {
+      await loadProjectEnrichmentCounts(projectIds);
+    }
       const uniqueUseCases = [
         ...new Set(
           aggregationData
@@ -677,6 +707,14 @@ export default function AggregationTab({
         productService.getProductsByProject(expandedProjectId, "aggregation"),
         productService.getProductsByProject(expandedProjectId, "enrichment"),
       ]);
+      const enrichmentPendingCount = enrichmentData.filter(p => 
+      p.workflow_stage === 'enrichment' && 
+      p.enrichment_status === 'pending'
+    ).length;
+    setProjectEnrichmentCounts(prev => ({
+      ...prev,
+      [expandedProjectId]: enrichmentPendingCount
+    }));
       const completedOrFailed: string[] = [];
       pollingProductIds.forEach((productId) => {
         const productInAggregation = aggregationData.find(
@@ -1254,6 +1292,7 @@ export default function AggregationTab({
               >
                 <option value="">All Status</option>
                 <option value="Yet to Start">Yet to Start</option>
+                 <option value="Partially Completed">Partially Completed</option>
                 <option value="Completed">Completed</option>
                 <option value="Failed">Failed</option>
               </select>
@@ -1378,6 +1417,7 @@ export default function AggregationTab({
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
                         {project.product_count ?? 0} products
                       </span>
+                     
                       {project.use_case && (
                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
                           {project.use_case}
@@ -1393,6 +1433,12 @@ export default function AggregationTab({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                     {projectEnrichmentCounts[project.id] > 0 && (
+    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
+      <ChevronRight className="w-3 h-3" />
+      {projectEnrichmentCounts[project.id]} in Enrichment
+    </span>
+  )}
                     {aggregatingProjects.has(project.id) ? (
                       <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
                     ) : expandedProjectId === project.id ? (
