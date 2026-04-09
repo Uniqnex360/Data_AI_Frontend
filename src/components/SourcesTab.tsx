@@ -39,6 +39,10 @@ export default function SourcesTab({
   const [loading, setLoading] = useState(false);
   const [operationMode, setOperationMode] =
     useState<OperationMode>("aggregation");
+  const [multiPdFs, setMultiPdFs] = useState<File[]>([]);
+  const [multiMpns, setMultiMpns] = useState<string[]>([]);
+  const [currentMultiMpn, setCurrentMultiMpn] = useState("");
+  const [multiExtracting, setMultiExtracting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMode, setActiveMode] = useState<"manual" | "bulk">("bulk");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -229,6 +233,7 @@ export default function SourcesTab({
       setStructuredExtracting(false);
     }
   };
+
   const loadSourcesForProject = async (id: string) => {
     if (!id) return;
     setLoadingSources((prev) => new Set(prev).add(id));
@@ -417,6 +422,105 @@ export default function SourcesTab({
       notify.error("Bulk upload failed", errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+  const handleAddMultiMpn = () => {
+    const trimmed = currentMultiMpn.trim();
+    if (!trimmed) return;
+
+    // ✅ Split by commas and process each MPN
+    const mpnsToAdd = trimmed
+      .split(",")
+      .map((m) => m.trim())
+      .filter((m) => m.length > 0);
+
+    const newMpns: string[] = [];
+    const duplicates: string[] = [];
+
+    for (const mpn of mpnsToAdd) {
+      if (multiMpns.includes(mpn)) {
+        duplicates.push(mpn);
+      } else {
+        newMpns.push(mpn);
+      }
+    }
+
+    if (newMpns.length > 0) {
+      setMultiMpns([...multiMpns, ...newMpns]);
+    }
+
+    if (duplicates.length > 0) {
+      notify.info(
+        "Duplicate MPNs skipped",
+        `${duplicates.length} MPN(s) already in the list`,
+      );
+    }
+
+    setCurrentMultiMpn("");
+  };
+  const handleRemoveMultiMpn = (mpn: string) => {
+    setMultiMpns(multiMpns.filter((m) => m !== mpn));
+  };
+  const handleAddMultiPdFs = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).filter(
+      (f) => f.type === "application/pdf" || f.name.endsWith(".pdf"),
+    );
+    if (newFiles.length !== files.length) {
+      notify.warning("Some files were skipped", "Only PDF files are allowed");
+    }
+    setMultiPdFs((prev) => [...prev, ...newFiles]);
+  };
+  const handleRemoveMultiPdf = (index: number) => {
+    setMultiPdFs((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMultiExtraction = async () => {
+    if (multiPdFs.length === 0) {
+      notify.error("Please upload at least one PDF file");
+      return;
+    }
+    if (multiMpns.length === 0) {
+      notify.error("Please add at least one MPN");
+      return;
+    }
+    if (multiMpns.length > 50) {
+      notify.error(
+        "Too many MPNs",
+        "Maximum 50 MPNs allowed. Please reduce the list.",
+      );
+      return;
+    }
+    if (!projectId) {
+      notify.error("Please select a project first");
+      return;
+    }
+
+    setMultiExtracting(true);
+    try {
+      const formData = new FormData();
+      multiPdFs.forEach((file) => formData.append("files", file));
+      formData.append("mpns", multiMpns.join(","));
+      formData.append("project_id", projectId);
+      formData.append("use_case", selectedUseCase);
+
+      const response = await extractionService.multiPdfExtraction(formData);
+
+      notify.success(
+        "PDFs & MPNs Saved",
+        `Saved ${multiMpns.length} MPN(s) and ${multiPdFs.length} PDF(s). Go to Aggregation tab to extract.`,
+      );
+
+      setMultiMpns([]);
+      setMultiPdFs([]);
+      setCurrentMultiMpn("");
+
+      await loadSources();
+      await loadProjects();
+    } catch (error: any) {
+      notify.error("Extraction failed", error.message);
+    } finally {
+      setMultiExtracting(false);
     }
   };
   const downloadTemplate = () => {
@@ -1027,7 +1131,155 @@ export default function SourcesTab({
               )}
             </div>
           ) : operationMode === "pdf_extraction" &&
-            selectedUseCase?.includes("Unstructured PDF Extraction") && 
+            selectedUseCase?.includes("Multi-PDF") &&
+            projectId &&
+            !showProjectModal ? (
+            // Multi-PDF + Multi-MPN Extraction UI
+            <div className="space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-5 h-5 text-purple-600" />
+                  <h4 className="font-semibold text-purple-900">
+                    Multi-PDF + Multi-MPN Extraction
+                  </h4>
+                </div>
+                <p className="text-sm text-purple-700">
+                  Upload multiple PDFs and provide multiple MPNs. The system
+                  will intelligently match each MPN to the correct PDF and
+                  extract the relevant product data.
+                </p>
+              </div>
+
+              {/* MPNs Section */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  MPNs / Model Numbers (Comma or Enter separated)
+                  {multiMpns.length > 0 && (
+                    <span
+                      className={`ml-2 text-xs ${multiMpns.length >= 50 ? "text-red-500" : "text-slate-500"}`}
+                    >
+                      ({multiMpns.length}/50)
+                    </span>
+                  )}
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+  type="text"
+  value={currentMultiMpn}
+  onChange={(e) => setCurrentMultiMpn(e.target.value)}
+  onKeyPress={(e) => e.key === "Enter" && handleAddMultiMpn()}
+  placeholder="e.g., T19T, T20EL4, T24R (comma-separated supported)"
+  className="flex-1 px-3 py-2 border border-slate-300 rounded-md"
+/>
+                  <button
+                    onClick={handleAddMultiMpn}
+                    disabled={multiMpns.length >= 50}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+  Tip: You can paste a comma-separated list of MPNs and click + to add all at once.
+</p>
+
+                {multiMpns.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2 p-2 bg-slate-50 rounded-md border border-slate-200">
+                    {multiMpns.map((mpn) => (
+                      <span
+                        key={mpn}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md text-sm border border-slate-200"
+                      >
+                        {mpn}
+                        <button onClick={() => handleRemoveMultiMpn(mpn)}>
+                          <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-slate-500 mt-1">
+                  {multiMpns.length} MPN(s) added
+                </p>
+              </div>
+
+              {/* PDFs Section */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  PDF Files (Select multiple)
+                  {multiPdFs.length > 0 && (
+                    <span
+                      className={`ml-2 text-xs ${multiPdFs.length >= 20 ? "text-red-500" : "text-slate-500"}`}
+                    >
+                      ({multiPdFs.length}/20)
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  multiple
+                  disabled={multiPdFs.length >= 20}
+                  onChange={(e) => handleAddMultiPdFs(e.target.files)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+
+                {multiPdFs.length > 0 && (
+                  <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 max-h-40 overflow-y-auto">
+                    <p className="text-xs font-medium text-slate-600 mb-1">
+                      {multiPdFs.length} PDF(s) selected:
+                    </p>
+                    {multiPdFs.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between text-xs py-1"
+                      >
+                        <span className="truncate flex-1">{file.name}</span>
+                        <span className="text-slate-400 ml-2">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </span>
+                        <button
+                          onClick={() => handleRemoveMultiPdf(index)}
+                          className="ml-2"
+                        >
+                          <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {projectId ? (
+                <button
+                  onClick={handleMultiExtraction}
+                  disabled={
+                    multiExtracting ||
+                    multiPdFs.length === 0 ||
+                    multiMpns.length === 0
+                  }
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {multiExtracting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4" />
+                      Save for Extraction
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="p-3 bg-amber-50 text-amber-700 text-sm rounded-md">
+                  Select a project first
+                </div>
+              )}
+            </div>
+          ) : operationMode === "pdf_extraction" &&
+            selectedUseCase?.includes("Unstructured PDF Extraction") &&
             projectId &&
             !showProjectModal ? (
             <div className="space-y-4">

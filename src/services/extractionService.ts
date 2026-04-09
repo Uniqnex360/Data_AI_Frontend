@@ -11,6 +11,23 @@ export const extractionService = {
       throw new Error("AI extraction failed to process source");
     }
   },
+ async multiPdfExtraction(formData: FormData) {
+  try {
+    const response = await api.post('/extraction/pdf/multi-pdf-extraction', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Multi PDF Extraction failed", error);
+    
+    const errorMessage = error.response?.data?.detail || 
+                         error.response?.data?.message || 
+                         error.message || 
+                         "Multi-PDF extraction failed";
+    
+    throw new Error(errorMessage);
+  }
+},
   savePdfSource: async (formData: FormData) => {
     const response = await api.post(
       "/extraction/pdf/save-pdf-source",
