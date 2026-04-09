@@ -936,56 +936,67 @@ export default function EnrichmentTab() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                Use Case
-              </label>
-              <select
-                value={selectedUseCase}
-                onChange={(e) => {
-                  setSelectedUseCase(e.target.value);
-                  setSelectedProjectId("");
-                  setExpandedProjectId(null);
-                  setExpandedProjectProducts([]);
-                  setSelectedProduct(null);
-                  setAttributes([]);
-                }}
-                disabled={projectsLoading}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All Use Case</option>
-                {useCases.map((useCase) => (
-                  <option key={useCase} value={useCase}>
-                    {useCase}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label className="block text-sm text-slate-700 mb-2">
+    Use Case
+  </label>
+  <select
+    value={selectedUseCase}
+    onChange={(e) => {
+      setSelectedUseCase(e.target.value);
+      setSelectedProjectId("");
+      setExpandedProjectId(null);
+      setExpandedProjectProducts([]);
+      setSelectedProduct(null);
+      setAttributes([]);
+    }}
+    disabled={projectsLoading}
+    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+  >
+    <option value="">All Use Case</option>
+    {[...new Set(
+      projects  
+        .filter((p) => !statusFilter || p.source_status === statusFilter)
+        .map((p) => p.use_case)
+        .filter(Boolean) as string[]
+    )].sort((a, b) => {
+      const aIsAggregation = a === "With categories" || a === "Without categories";
+      const bIsAggregation = b === "With categories" || b === "Without categories";
+      if (aIsAggregation && !bIsAggregation) return -1;
+      if (!aIsAggregation && bIsAggregation) return 1;
+      return a.localeCompare(b);
+    }).map((useCase) => (
+      <option key={useCase} value={useCase}>
+        {useCase}
+      </option>
+    ))}
+  </select>
+</div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                Project
-              </label>
-              <select
-                value={selectedProjectId}
-                onChange={async (e) => {
-                  const projectId = e.target.value;
-                  setSelectedProjectId(projectId);
-                  await loadProjectFilters(projectId);
-                }}
-                disabled={projectsLoading}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All Project</option>
-                {(selectedUseCase
-                  ? projects.filter((p) => p.use_case === selectedUseCase)
-                  : projects
-                ).map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label className="block text-sm text-slate-700 mb-2">
+    Project
+  </label>
+  <select
+    value={selectedProjectId}
+    onChange={async (e) => {
+      const projectId = e.target.value;
+      setSelectedProjectId(projectId);
+      await loadProjectFilters(projectId);
+    }}
+    disabled={
+      projectsLoading ||
+      (!!selectedUseCase && filteredProjects.length === 0)
+    }
+    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+  >
+    <option value="">All Project</option>
+    {filteredProjects.map((project) => (
+      <option key={project.id} value={project.id}>
+        {project.name}
+      </option>
+    ))}
+  </select>
+</div>
 
             <div>
               <label className="block text-sm text-slate-700 mb-2">
