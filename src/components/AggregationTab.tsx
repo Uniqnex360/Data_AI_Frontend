@@ -543,16 +543,7 @@ const handleBlindExtract = async (productId: string) => {
         const processingProductIds = data
           .filter((p) => p.enrichment_status === "processing")
           .map((p) => p.id);
-          const blindProductIds = data
-        .filter((p) => 
-          p.source_url?.startsWith("blind_pdf") && 
-          ["pending", "processing"].includes(p.enrichment_status) &&
-          p.completeness_score === 0
-        )
-        .map((p) => p.id);
-              const allPollingIds = [...new Set([...processingProductIds, ...blindProductIds])];
-
-        if (allPollingIds.length > 0) {
+        if (processingProductIds.length > 0) {
           setPollingProductIds((prev) => {
             const newSet = new Set(prev);
             processingProductIds.forEach((id) => newSet.add(id));
@@ -569,6 +560,19 @@ const handleBlindExtract = async (productId: string) => {
     },
     [expandedProjectId, resetFilters],
   );
+   useEffect(() => {
+  const hasActiveProjects = projects.some(
+    (p) => p.source_status === "In Progress" || p.processing_status === "processing"
+  );
+  
+  if (hasActiveProjects) {
+    const interval = setInterval(() => {
+      loadProjects();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }
+}, [projects, loadProjects]);
   useEffect(() => {
   if (!expandedProjectId || expandedProjectProducts.length === 0) return;
   
