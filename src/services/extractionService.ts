@@ -11,23 +11,43 @@ export const extractionService = {
       throw new Error("AI extraction failed to process source");
     }
   },
- async multiPdfExtraction(formData: FormData) {
+  async blindPdfExtraction(formData: FormData): Promise<{ status: string; batch_id: string; message: string; pdfs_count: number, products_created?: number; }> {
   try {
-    const response = await api.post('/extraction/pdf/multi-pdf-extraction', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+    const response = await api.post('/extraction/pdf/blind-pdf-extraction', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   } catch (error: any) {
-    console.error("Multi PDF Extraction failed", error);
-    
-    const errorMessage = error.response?.data?.detail || 
-                         error.response?.data?.message || 
-                         error.message || 
-                         "Multi-PDF extraction failed";
-    
+    console.error("Failed to upload blind PDF extraction:", error);
+    const errorMessage = 
+      error.response?.data?.detail || 
+      error.message || 
+      "Failed to upload PDFs for blind extraction";
     throw new Error(errorMessage);
   }
 },
+  async multiPdfExtraction(formData: FormData) {
+    try {
+      const response = await api.post(
+        "/extraction/pdf/multi-pdf-extraction",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Multi PDF Extraction failed", error);
+
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message ||
+        "Multi-PDF extraction failed";
+
+      throw new Error(errorMessage);
+    }
+  },
   savePdfSource: async (formData: FormData) => {
     const response = await api.post(
       "/extraction/pdf/save-pdf-source",
@@ -41,7 +61,10 @@ export const extractionService = {
     use_case: string;
   }) {
     try {
-     const response = await api.post('/extraction/pdf/save-pending-mpns', data);
+      const response = await api.post(
+        "/extraction/pdf/save-pending-mpns",
+        data,
+      );
       return response.data;
     } catch (error) {
       console.error(error);
@@ -71,10 +94,14 @@ export const extractionService = {
       throw new Error(error);
     }
   },
-  async freshAggregation(data: { mpns: string[]; project_id: string; use_case: string }) {
-  const response = await api.post('/extraction/pdf/fresh-aggregation', data);
-  return response.data;
-},
+  async freshAggregation(data: {
+    mpns: string[];
+    project_id: string;
+    use_case: string;
+  }) {
+    const response = await api.post("/extraction/pdf/fresh-aggregation", data);
+    return response.data;
+  },
   async getBatchStatus(batchId: string) {
     try {
       const response = await api.get(`/extraction/pdf/batch-status/${batchId}`);
@@ -227,6 +254,7 @@ export const extractionService = {
       return [];
     }
   },
+ 
   async triggerAggregation(sourceId: string) {
     try {
       if (!sourceId) throw new Error("Source Id is missing");

@@ -49,7 +49,9 @@ export default function AggregationTab({
   const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
-  const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<string, number>>({});
+  const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
+    Record<string, number>
+  >({});
 
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
@@ -118,30 +120,36 @@ export default function AggregationTab({
     }),
     [expandedProjectProducts],
   );
-  // Add this function after loadProjects (around line 470)
-const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => {
-  try {
-    const counts: Record<string, number> = {};
-    
-    await Promise.all(
-      projectIds.map(async (projectId) => {
-        try {
-          const products = await productService.getProductsByProject(projectId, "enrichment");
-          counts[projectId] = products.filter(p => 
-            p.workflow_stage === 'enrichment' && 
-            p.enrichment_status === 'pending'
-          ).length;
-        } catch (error) {
-          counts[projectId] = 0;
-        }
-      })
-    );
-    
-    setProjectEnrichmentCounts(prev => ({ ...prev, ...counts }));
-  } catch (error) {
-    console.error("Failed to load enrichment counts:", error);
-  }
-}, []);
+  const loadProjectEnrichmentCounts = useCallback(
+    async (projectIds: string[]) => {
+      try {
+        const counts: Record<string, number> = {};
+
+        await Promise.all(
+          projectIds.map(async (projectId) => {
+            try {
+              const products = await productService.getProductsByProject(
+                projectId,
+                "enrichment",
+              );
+              counts[projectId] = products.filter(
+                (p) =>
+                  p.workflow_stage === "enrichment" &&
+                  p.enrichment_status === "pending",
+              ).length;
+            } catch (error) {
+              counts[projectId] = 0;
+            }
+          }),
+        );
+
+        setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
+      } catch (error) {
+        console.error("Failed to load enrichment counts:", error);
+      }
+    },
+    [],
+  );
 
   const handleExtractFreshMpn = async (productId: string, mpn: string) => {
     if (!expandedProjectId) {
@@ -172,7 +180,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
           "aggregation",
         );
         setExpandedProjectProducts(fresh);
-        await loadProjects(); 
+        await loadProjects();
 
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -263,7 +271,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
           "aggregation",
         );
         setExpandedProjectProducts(fresh);
-        await loadProjects(); 
+        await loadProjects();
 
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -291,6 +299,79 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
       });
     }
   };
+const handleBlindExtract = async (productId: string) => {
+  if (!expandedProjectId) {
+    notify.error("No project selected");
+    return;
+  }
+  
+  // Check concurrent extraction limit
+  if (extractingPdf.size >= 5) {
+    notify.warning(
+      "Extraction Limit",
+      "Maximum 5 concurrent extractions allowed. Please wait for some to complete."
+    );
+    return;
+  }
+  
+  const product = expandedProjectProducts.find(p => p.id === productId);
+  if (!product) {
+    notify.error("Product not found");
+    return;
+  }
+  
+  setExtractingPdf((prev) => new Set(prev).add(productId));
+  setExpandedProjectProducts((prev) =>
+    prev.map((p) =>
+      p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+    ),
+  );
+  
+  try {
+    // ✅ Reuse existing service method
+    const response = await extractionService.extractPdfForProduct(
+      product.product_code,
+      expandedProjectId,
+    );
+
+    setPollingProductIds((prev) => new Set(prev).add(productId));
+
+    notify.success("Extraction Started", "Extracting product data from PDF");
+
+    pollBatchStatus(response.batch_id, async () => {
+      const fresh = await productService.getProductsByProject(
+        expandedProjectId!,
+        "aggregation",
+      );
+      setExpandedProjectProducts(fresh);
+      await loadProjects();
+
+      setPollingProductIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(productId);
+        return updated;
+      });
+    });
+  } catch (error: any) {
+    notify.error("Extraction failed", error.message);
+    setExpandedProjectProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+      ),
+    );
+    setPollingProductIds((prev) => {
+      const updated = new Set(prev);
+      updated.delete(productId);
+      return updated;
+    });
+  } finally {
+    setExtractingPdf((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(productId);
+      return newSet;
+    });
+  }
+};
   const pollProjectStatuses = useCallback(async () => {
     if (aggregatingProjects.size === 0) return;
     const newAggregatingProjects = new Set(aggregatingProjects);
@@ -398,10 +479,10 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
           p.operation_mode === "pdf_extraction",
       );
       setProjects(aggregationData);
-      const projectIds = aggregationData.map(p => p.id);
-    if (projectIds.length > 0) {
-      await loadProjectEnrichmentCounts(projectIds);
-    }
+      const projectIds = aggregationData.map((p) => p.id);
+      if (projectIds.length > 0) {
+        await loadProjectEnrichmentCounts(projectIds);
+      }
       const uniqueUseCases = [
         ...new Set(
           aggregationData
@@ -416,7 +497,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
     } finally {
       setProjectsLoading(false);
     }
-  }, []);
+  }, [loadProjectEnrichmentCounts]);
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -462,7 +543,16 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
         const processingProductIds = data
           .filter((p) => p.enrichment_status === "processing")
           .map((p) => p.id);
-        if (processingProductIds.length > 0) {
+          const blindProductIds = data
+        .filter((p) => 
+          p.source_url?.startsWith("blind_pdf") && 
+          ["pending", "processing"].includes(p.enrichment_status) &&
+          p.completeness_score === 0
+        )
+        .map((p) => p.id);
+              const allPollingIds = [...new Set([...processingProductIds, ...blindProductIds])];
+
+        if (allPollingIds.length > 0) {
           setPollingProductIds((prev) => {
             const newSet = new Set(prev);
             processingProductIds.forEach((id) => newSet.add(id));
@@ -479,6 +569,24 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
     },
     [expandedProjectId, resetFilters],
   );
+  useEffect(() => {
+  if (!expandedProjectId || expandedProjectProducts.length === 0) return;
+  
+  const blindProductsNeedingPolling = expandedProjectProducts.filter(
+    (p) => 
+      p.source_url?.startsWith("blind_pdf") && 
+      ["pending", "processing"].includes(p.enrichment_status) &&
+      p.completeness_score === 0
+  );
+  
+  if (blindProductsNeedingPolling.length > 0) {
+    setPollingProductIds((prev) => {
+      const newSet = new Set(prev);
+      blindProductsNeedingPolling.forEach((p) => newSet.add(p.id));
+      return newSet;
+    });
+  }
+}, [expandedProjectId, expandedProjectProducts]);
   const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
     setStatusFilter((prev) => {
       const newSet = new Set(prev);
@@ -700,6 +808,11 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
       setAttributesLoading(false);
     }
   }, []);
+  useEffect(() => {
+  return () => {
+    setProjectEnrichmentCounts({});
+  };
+}, []);
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
     try {
@@ -707,14 +820,15 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
         productService.getProductsByProject(expandedProjectId, "aggregation"),
         productService.getProductsByProject(expandedProjectId, "enrichment"),
       ]);
-      const enrichmentPendingCount = enrichmentData.filter(p => 
-      p.workflow_stage === 'enrichment' && 
-      p.enrichment_status === 'pending'
-    ).length;
-    setProjectEnrichmentCounts(prev => ({
-      ...prev,
-      [expandedProjectId]: enrichmentPendingCount
-    }));
+      const enrichmentPendingCount = enrichmentData.filter(
+        (p) =>
+          p.workflow_stage === "enrichment" &&
+          p.enrichment_status === "pending",
+      ).length;
+      setProjectEnrichmentCounts((prev) => ({
+        ...prev,
+        [expandedProjectId]: enrichmentPendingCount,
+      }));
       const completedOrFailed: string[] = [];
       pollingProductIds.forEach((productId) => {
         const productInAggregation = aggregationData.find(
@@ -764,7 +878,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes,]);
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
     const selectedProducts = Array.from(selectedProductIds);
@@ -894,7 +1008,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
               "aggregation",
             );
             setExpandedProjectProducts(fresh);
-            await loadProjects(); 
+            await loadProjects();
 
             setPollingProductIds((prev) => {
               const updated = new Set(prev);
@@ -1223,60 +1337,70 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
                 Use Case
               </label>
               <select
-  value={selectedUseCase}
-  onChange={(e) => {
-    setSelectedUseCase(e.target.value);
-    setSelectedProjectId("");
-    setExpandedProjectId(null);
-    setExpandedProjectProducts([]);
-  }}
-  disabled={projectsLoading}
-  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
->
-  <option value="">All Use Case</option>
-  {[...new Set(
-    projects  
-      .filter((p) => !projectStatusFilter || p.source_status === projectStatusFilter)
-      .map((p) => p.use_case)
-      .filter(Boolean) as string[]
-  )].sort((a, b) => {
-    const aIsAggregation = a === "With categories" || a === "Without categories";
-    const bIsAggregation = b === "With categories" || b === "Without categories";
-    if (aIsAggregation && !bIsAggregation) return -1;
-    if (!aIsAggregation && bIsAggregation) return 1;
-    return a.localeCompare(b);
-  }).map((useCase) => (
-    <option key={useCase} value={useCase}>
-      {useCase}
-    </option>
-  ))}
-</select>
+                value={selectedUseCase}
+                onChange={(e) => {
+                  setSelectedUseCase(e.target.value);
+                  setSelectedProjectId("");
+                  setExpandedProjectId(null);
+                  setExpandedProjectProducts([]);
+                }}
+                disabled={projectsLoading}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Use Case</option>
+                {[
+                  ...new Set(
+                    projects
+                      .filter(
+                        (p) =>
+                          !projectStatusFilter ||
+                          p.source_status === projectStatusFilter,
+                      )
+                      .map((p) => p.use_case)
+                      .filter(Boolean) as string[],
+                  ),
+                ]
+                  .sort((a, b) => {
+                    const aIsAggregation =
+                      a === "With categories" || a === "Without categories";
+                    const bIsAggregation =
+                      b === "With categories" || b === "Without categories";
+                    if (aIsAggregation && !bIsAggregation) return -1;
+                    if (!aIsAggregation && bIsAggregation) return 1;
+                    return a.localeCompare(b);
+                  })
+                  .map((useCase) => (
+                    <option key={useCase} value={useCase}>
+                      {useCase}
+                    </option>
+                  ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Project
               </label>
-             <select
-  value={selectedProjectId}
-  onChange={async (e) => {
-    const projectId = e.target.value;
-    setSelectedProjectId(projectId);
-    await loadProjectFilters(projectId);
-  }}
-  disabled={
-    projectsLoading ||
-    (!!selectedUseCase && filteredProjects.length === 0)
-  }
-  className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
->
-  <option value="">All Project</option>
-  {/* ✅ Use filteredProjects which already respects ALL filters */}
-  {filteredProjects.map((project) => (
-    <option key={project.id} value={project.id}>
-      {project.name}
-    </option>
-  ))}
-</select>
+              <select
+                value={selectedProjectId}
+                onChange={async (e) => {
+                  const projectId = e.target.value;
+                  setSelectedProjectId(projectId);
+                  await loadProjectFilters(projectId);
+                }}
+                disabled={
+                  projectsLoading ||
+                  (!!selectedUseCase && filteredProjects.length === 0)
+                }
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Project</option>
+                {/* ✅ Use filteredProjects which already respects ALL filters */}
+                {filteredProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
@@ -1292,7 +1416,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
               >
                 <option value="">All Status</option>
                 <option value="Yet to Start">Yet to Start</option>
-                 <option value="Partially Completed">Partially Completed</option>
+                <option value="Partially Completed">Partially Completed</option>
                 <option value="Completed">Completed</option>
                 <option value="Failed">Failed</option>
               </select>
@@ -1417,7 +1541,7 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
                         {project.product_count ?? 0} products
                       </span>
-                     
+
                       {project.use_case && (
                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
                           {project.use_case}
@@ -1433,12 +1557,12 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                     {projectEnrichmentCounts[project.id] > 0 && (
-    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
-      <ChevronRight className="w-3 h-3" />
-      {projectEnrichmentCounts[project.id]} in Enrichment
-    </span>
-  )}
+                    {projectEnrichmentCounts[project.id] > 0 && (
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
+                        <ChevronRight className="w-3 h-3" />
+                        {projectEnrichmentCounts[project.id]} in Enrichment
+                      </span>
+                    )}
                     {aggregatingProjects.has(project.id) ? (
                       <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
                     ) : expandedProjectId === project.id ? (
@@ -1702,6 +1826,29 @@ const loadProjectEnrichmentCounts = useCallback(async (projectIds: string[]) => 
                                   {project.operation_mode ===
                                   "pdf_extraction" ? (
                                     <>
+                                      {product.source_url?.startsWith(
+                                        "blind_pdf",
+                                      ) &&
+                                        product.completeness_score === 0 && (
+                                          <button
+                                            onClick={() =>
+                                              handleBlindExtract(product.id)
+                                            }
+                                            disabled={extractingPdf.has(
+                                              product.id,
+                                            )}
+                                            className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+                                          >
+                                            {extractingPdf.has(product.id) ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <>
+                                                <FileText className="w-4 h-4 inline mr-1" />
+                                                Extract
+                                              </>
+                                            )}
+                                          </button>
+                                        )}
                                       {(product.source_url?.endsWith(".pdf") ||
                                         product.source_url?.startsWith(
                                           "multi_pdf_batch_",
