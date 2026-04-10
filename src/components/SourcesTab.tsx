@@ -36,9 +36,12 @@ export default function SourcesTab({
   onProjectSelect?: (projectId: string) => void;
 }) {
   const [sources, setSources] = useState<Source[]>([]);
-  const [blindPdFs, setBlindPdFs] = useState<File[]>([]);
+  const [blindPdf, setBlindPdf] = useState<File | null>(null); 
+
   const [blindExtracting, setBlindExtracting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [blindProductHint, setBlindProductHint] = useState("");
+
   const [operationMode, setOperationMode] =
     useState<OperationMode>("aggregation");
   const [multiPdFs, setMultiPdFs] = useState<File[]>([]);
@@ -72,95 +75,52 @@ export default function SourcesTab({
   const handleRemoveFreshMpn = (mpn: string) => {
     setFreshMpns(freshMpns.filter((m) => m !== mpn));
   };
-  // Blind PDF Extraction handlers
-  const handleAddBlindPdFs = (files: FileList | null) => {
-    if (!files) return;
+ 
 
-    const newFiles = Array.from(files).filter(
-      (f) =>
-        f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
-    );
+ 
 
-    if (newFiles.length !== files.length) {
-      notify.warning("Some files were skipped", "Only PDF files are allowed");
-    }
+ const handleBlindExtraction = async () => {
+  if (!blindPdf) {
+    notify.error("Please upload a PDF file");
+    return;
+  }
+  if (!projectId) {
+    notify.error("Please select a project first");
+    return;
+  }
+  if (!blindProductHint.trim()) {
+    notify.error("Product hint is required", "Please describe what product to extract");
+    return;
+  }
 
-    // Check total limit
-    if (blindPdFs.length + newFiles.length > 10) {
-      notify.error(
-        "Too many PDFs",
-        `Maximum 10 PDF files allowed. You already have ${blindPdFs.length} selected.`,
-      );
-      return;
-    }
+  setBlindExtracting(true);
+  try {
+    const formData = new FormData();
+    formData.append("files", blindPdf);
+    formData.append("project_id", projectId);
+    formData.append("use_case", selectedUseCase);
+    formData.append("product_hint", blindProductHint.trim());
 
-    // Check for duplicates
-    const existingNames = new Set(blindPdFs.map((f) => f.name));
-    const duplicates = newFiles.filter((f) => existingNames.has(f.name));
-    const uniqueFiles = newFiles.filter((f) => !existingNames.has(f.name));
+    const response = await extractionService.blindPdfExtraction(formData);
 
-    if (duplicates.length > 0) {
-      notify.info(
-        "Duplicate files skipped",
-        `${duplicates.length} file(s) already in the list`,
-      );
-    }
+    notify.success("Extraction Started", "Processing PDF. Product will appear in the Aggregation tab shortly.");
 
-    setBlindPdFs((prev) => [...prev, ...uniqueFiles]);
-  };
+    setBlindPdf(null);
+    setBlindProductHint("");
 
-  const handleRemoveBlindPdf = (index: number) => {
-    setBlindPdFs((prev) => prev.filter((_, i) => i !== index));
-  };
+    const fileInput = document.querySelector('input[type="file"][accept=".pdf"]') as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
 
-  const handleBlindExtraction = async () => {
-    if (blindPdFs.length === 0) {
-      notify.error("Please upload at least one PDF file");
-      return;
-    }
-
-    if (!projectId) {
-      notify.error("Please select a project first");
-      return;
-    }
-
-    setBlindExtracting(true);
-    try {
-      const formData = new FormData();
-      blindPdFs.forEach((file) => formData.append("files", file));
-      formData.append("project_id", projectId);
-      formData.append("use_case", selectedUseCase);
-
-      const response = await extractionService.blindPdfExtraction(formData);
-
-     notify.success(
-      "Extraction Started",
-      `Processing ${response.pdfs_count} PDF(s). Products will appear in the Aggregation tab shortly.`,
-    );
-
-
-      // Clear state
-      setBlindPdFs([]);
-
-      // Clear file input
-      const fileInput = document.querySelector(
-        'input[type="file"][accept=".pdf"][multiple]',
-      ) as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = "";
-      }
-
-      await loadSources();
-      await loadProjects();
-    } catch (error: any) {
-      console.error("Failed to save blind PDF extraction:", error);
-      const errorMessage =
-        error.response?.data?.detail || error.message || "Failed to save PDFs";
-      notify.error("Save Failed", errorMessage);
-    } finally {
-      setBlindExtracting(false);
-    }
-  };
+    await loadSources();
+    await loadProjects();
+  } catch (error: any) {
+    console.error("Failed to save blind PDF extraction:", error);
+    const errorMessage = error.response?.data?.detail || error.message || "Failed to process PDF";
+    notify.error("Extraction Failed", errorMessage);
+  } finally {
+    setBlindExtracting(false);
+  }
+};
   const handleFreshAggregation = async () => {
     if (freshMpns.length === 0) {
       notify.error("Please add at least one MPN/Model/UPC");
@@ -877,6 +837,7 @@ export default function SourcesTab({
       setUnstructuredExtracting(false);
     }
   };
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -1149,91 +1110,90 @@ export default function SourcesTab({
                 </div>
               )}
             </div>
-          ) : operationMode === "pdf_extraction" &&
-            selectedUseCase?.includes("Blind PDF Extraction") &&
-            projectId &&
-            !showProjectModal ? (
-            // Blind PDF Extraction UI
-            <div className="space-y-4">
-              <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-5 h-5 text-teal-600" />
-                  <h4 className="font-semibold text-teal-900">
-                    Blind PDF Extraction
-                  </h4>
-                </div>
-                <p className="text-sm text-teal-700">
-                  Upload PDFs without providing MPNs. The system will
-                  automatically detect products based on titles, headings, and
-                  descriptions within the document.
-                </p>
-              </div>
+           ) : operationMode === "pdf_extraction" &&
+  selectedUseCase?.includes("Blind PDF Extraction") &&
+  projectId &&
+  !showProjectModal ? (
+  // Blind PDF Extraction UI - Single PDF Only
+  <div className="space-y-4">
+    <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText className="w-5 h-5 text-teal-600" />
+        <h4 className="font-semibold text-teal-900">
+          Blind PDF Extraction
+        </h4>
+      </div>
+      <p className="text-sm text-teal-700">
+        Upload a single PDF and provide a product description. The system will extract the product matching your hint.
+      </p>
+    </div>
+    
+    {/* Product Hint - Required */}
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        Product Hint <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        value={blindProductHint}
+        onChange={(e) => setBlindProductHint(e.target.value)}
+        placeholder="e.g., 'VISE-GRIP locking pliers', 'iPhone 14 Pro', 'ThinkPad X1'"
+        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+        required
+      />
+      <p className="text-xs text-slate-500 mt-1">
+        Describe the product to extract. AI will extract the matching product from the PDF.
+      </p>
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  PDF Files (Select multiple)
-                  {blindPdFs.length > 0 && (
-                    <span
-                      className={`ml-2 text-xs ${blindPdFs.length >= 10 ? "text-red-500" : "text-slate-500"}`}
-                    >
-                      ({blindPdFs.length}/10)
-                    </span>
-                  )}
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  multiple
-                  disabled={blindPdFs.length >= 10}
-                  onChange={(e) => handleAddBlindPdFs(e.target.files)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  Max 10 PDF files. System will auto-detect products.
-                </p>
+    {/* Single PDF File */}
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        PDF File <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="file"
+        accept=".pdf"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+              notify.error("Invalid file", "Please select a valid PDF file");
+              e.target.value = "";
+              return;
+            }
+            setBlindPdf(file);
 
-                {blindPdFs.length > 0 && (
-                  <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 max-h-40 overflow-y-auto">
-                    {blindPdFs.map((file, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between text-xs py-1"
-                      >
-                        <span className="truncate flex-1">{file.name}</span>
-                        <span className="text-slate-400 ml-2">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </span>
-                        <button
-                          onClick={() => handleRemoveBlindPdf(index)}
-                          className="ml-2"
-                        >
-                          <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+          }
+        }}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md"
+      />
+       {blindPdf && (
+        <p className="text-sm text-teal-600 mt-2">
+          Selected: {blindPdf.name} ({(blindPdf.size / 1024).toFixed(1)} KB)
+        </p>
+      )}
+    </div>
 
-              <button
-                onClick={handleBlindExtraction}
-                disabled={blindExtracting || blindPdFs.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
-              >
-                {blindExtracting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    Save for Extraction
-                  </>
-                )}
-              </button>
-            </div>
-          ) : operationMode === "pdf_extraction" &&
+    <button
+      onClick={handleBlindExtraction}
+      disabled={blindExtracting || !blindPdf || !blindProductHint.trim()}
+      className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
+    >
+      {blindExtracting ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Processing...
+        </>
+      ) : (
+        <>
+          <FileText className="w-4 h-4" />
+          Extract Product
+        </>
+      )}
+    </button>
+  </div>
+): operationMode === "pdf_extraction" &&
             selectedUseCase?.includes("Structured PDF Extraction") &&
             projectId &&
             !showProjectModal ? (
@@ -1392,7 +1352,7 @@ export default function SourcesTab({
                   {multiMpns.length} MPN(s) added
                 </p>
               </div>
-
+                
               {/* PDFs Section */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
