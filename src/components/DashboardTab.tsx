@@ -283,7 +283,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       const data = projectId
         ? await dashboardService.getProjectMetrics(projectId, rangeParams)
         : await dashboardService.getGlobalMetrics(rangeParams);
-
+      console.log("Dashboard API Response:", data);
       setGlobalStats(data);
 
       // previous range (for KPI deltas)

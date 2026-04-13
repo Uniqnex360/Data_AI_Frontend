@@ -17,7 +17,15 @@ export const dashboardService = {
       return { totalProducts: 0, activeProjects: 0, totalProjects: 0, publishedProducts: 0, catalogHealth: 0 };
     }
   },
+  async getNeedsAttention(params?: { projectId?: string } & DateRangeParams) {
+  const { data } = await api.get("/dashboard/needs-attention", { params });
+  return data;
+},
 
+async getRecentActivity(params?: { projectId?: string; limit?: number } & DateRangeParams) {
+  const { data } = await api.get("/dashboard/recent-activity", { params });
+  return data;
+},
   async getProjectMetrics(projectId: string, params?: DateRangeParams) {
     try {
       const { data } = await api.get(`/dashboard/metrics/${projectId}`, { params });
