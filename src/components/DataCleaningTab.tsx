@@ -149,9 +149,16 @@ function AttrHeader({
     sort === "asc" ? ArrowUp : sort === "desc" ? ArrowDown : ArrowUpDown;
   return (
     <th
-      style={{ width: COL_ATTR, minWidth: COL_ATTR }}
-      className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
-    >
+  style={{ 
+    width: COL_ATTR, 
+    minWidth: COL_ATTR,
+    position: 'sticky', // ADD THIS
+    top: 0,             // ADD THIS (critical for vertical stickiness)
+    zIndex: 30,         // ADD THIS (must be > body sticky columns)
+    backgroundColor: 'white' // Prevent content bleed-through
+  }}
+  className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
+>
       <div ref={ref} className="flex items-center gap-1 px-3 py-3">
         <span className="truncate flex-1" title={attr}>
           {attr}
@@ -726,7 +733,6 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
   return (
     <div className="p-1 bg-slate-50 min-h-screen font-sans">
-       <div className="sticky top-0 z-40 bg-slate-50 pb-2">
       <div className="mb-4">
         <h3 className="text-xl font-semibold text-slate-900">
           Data Cleaning & Validation
@@ -1034,7 +1040,6 @@ export default function DataCleaningTab() {
           </div>
         </div>
       )}
-      </div>
       {!selectedProjectId ? (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-1">
@@ -1129,7 +1134,7 @@ export default function DataCleaningTab() {
           </div>
           <div
             className="overflow-auto"
-            style={{ maxHeight: "calc(100vh - 320px)" }}
+            style={{ maxHeight: "calc(100vh - 280px)" }}
           >
             <table
               className="border-collapse"
@@ -1480,6 +1485,6 @@ export default function DataCleaningTab() {
           </div>
         </div>
       )}
-        </div>    
+    </div>
   );
 }
