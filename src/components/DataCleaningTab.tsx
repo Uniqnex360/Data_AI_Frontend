@@ -725,7 +725,8 @@ export default function DataCleaningTab() {
     return availableAttributes.filter((a) => a.toLowerCase().includes(q));
   }, [availableAttributes, bulkSearch]);
   return (
-    <div className="p-1 bg-slate-50 min-h-screen font-sans flex flex-col">
+    <div className="p-1 bg-slate-50 h-screen font-sans flex flex-col overflow-y-auto">
+
 
       <div className="mb-4">
         <h3 className="text-xl font-semibold text-slate-900">
@@ -735,9 +736,9 @@ export default function DataCleaningTab() {
           Select a project, then clean and standardise product attributes
         </p>
       </div>
-        <div className="sticky top-0 z-40 bg-slate-50">
+       <div className="sticky top-0 z-40 bg-slate-50 pb-1">
 
-      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3 shadow-sm">
         <div className="flex items-end gap-3 flex-wrap">
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
@@ -1131,7 +1132,6 @@ export default function DataCleaningTab() {
           </div>
           <div
             className="overflow-auto"
-            style={{ maxHeight: "calc(100vh - 320px)" }}
           >
             <table
               className="border-collapse"
@@ -1149,8 +1149,9 @@ export default function DataCleaningTab() {
                   availableAttributes.length * COL_ATTR,
               }}
             >
-              <thead>
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
+              <thead className="sticky top-0 z-30">
+                                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
+
                   <th
                     style={{
                       width: COL_CHECKBOX,
