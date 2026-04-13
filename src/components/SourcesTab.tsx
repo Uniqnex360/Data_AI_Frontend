@@ -1069,7 +1069,21 @@ export default function SourcesTab({
     a.click();
     window.URL.revokeObjectURL(url);
   };
+  const activeProject = useMemo(
+  () => projects.find((p) => p.id === projectId),
+  [projects, projectId],
+);
 
+const activeProjectCreatedAt = useMemo(() => {
+  if (!activeProject) return "";
+  const dt = new Date((activeProject as any).created_at); // use activeProject.created_at if your TS type has it
+  if (isNaN(dt.getTime())) return "";
+  return dt.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}, [activeProject]);
   // ---------------------------
   // Render
   // ---------------------------
@@ -1097,22 +1111,24 @@ export default function SourcesTab({
 
       {/* Active project bar */}
       {projectId && (
-        <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
-              <FolderOpen className="w-5 h-5 text-blue-700" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-blue-600">
-                Active Project
-              </div>
-              <div className="text-sm font-semibold text-slate-900 truncate">
-                {projects.find((p) => p.id === projectId)?.name || "Unknown"}
-              </div>
-            </div>
-          </div>
+  <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+    <div className="flex items-center gap-3 min-w-0">
+      <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
+        <FolderOpen className="w-5 h-5 text-blue-700" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs font-semibold text-blue-600">Active Project</div>
+        <div className="text-sm font-semibold text-slate-900 truncate">
+          {activeProject?.name || "Unknown"}
         </div>
-      )}
+      </div>
+    </div>
+
+    <div className="text-xs text-slate-500 whitespace-nowrap">
+      {activeProjectCreatedAt ? `Created: ${activeProjectCreatedAt}` : ""}
+    </div>
+  </div>
+)}
 
       {/* Create project modal */}
       {showProjectModal && (
