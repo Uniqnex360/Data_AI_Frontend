@@ -1,4 +1,4 @@
-// src/components/DashboardTab.tsx
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -42,9 +42,9 @@ const endOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 
 const startOfWeek = (d: Date) => {
-  // Monday start
+  
   const date = startOfDay(d);
-  const day = date.getDay(); // Sun=0
+  const day = date.getDay(); 
   const diff = (day + 6) % 7;
   date.setDate(date.getDate() - diff);
   return date;
@@ -209,11 +209,11 @@ function ProgressCard({
 export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
 
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>("week"); // screenshot activity shows weekdays
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("week"); 
   const [preset, setPreset] = useState<Preset>("month");
   const [startDate, setStartDate] = useState<string>(toYMD(startOfMonth(new Date())));
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
-  const [dateField, setDateField] = useState<DateField>("updated_at"); // production default for “activity”
+  const [dateField, setDateField] = useState<DateField>("updated_at"); 
 
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [metrics, setMetrics] = useState<any[]>([]);
@@ -237,12 +237,12 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
 
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
-  // previous range metrics (for deltas like screenshot)
+  
   const [prevStats, setPrevStats] = useState<DashboardStats | null>(null);
 
   const todayYMD = useMemo(() => toYMD(new Date()), []);
 
-  // preset -> dates
+  
   useEffect(() => {
     const now = new Date();
     if (preset === "today") {
@@ -257,7 +257,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     }
   }, [preset]);
 
-  // normalize custom range (start <= end)
   useEffect(() => {
     if (!startDate || !endDate) return;
     if (startDate > endDate) setEndDate(startDate);
@@ -270,7 +269,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [projectId, selectedPeriod, rangeParams.start_date, rangeParams.end_date, rangeParams.date_field]);
 
   const getMetricValue = (type: string): number =>
@@ -279,14 +278,14 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const loadData = async () => {
     setLoading(true);
     try {
-      // current metrics
+      
       const data = projectId
         ? await dashboardService.getProjectMetrics(projectId, rangeParams)
         : await dashboardService.getGlobalMetrics(rangeParams);
       console.log("Dashboard API Response:", data);
       setGlobalStats(data);
 
-      // previous range (for KPI deltas)
+      
       const prev = shiftRangeBack(startDate, endDate);
       const prevData = projectId
         ? await dashboardService.getProjectMetrics(projectId, {
@@ -302,7 +301,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
 
       setPrevStats(prevData);
 
-      // timeline (for “Custom Range Activity” card)
+      
       const timeline = await dashboardService.getTimeline({
         projectId,
         period: selectedPeriod,
@@ -310,7 +309,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       } as any);
       setTimelineStats(timeline);
 
-      // top lists
+      
       const brandFlow = await dashboardService.getBrandFlow({
         projectId,
         ...rangeParams,
@@ -323,7 +322,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       } as any);
       setCategoryFlowStats(categoryFlow);
 
-      // screenshot widgets (optional endpoints; service returns safe defaults)
+      
       const na = await dashboardService.getNeedsAttention({
         projectId,
         ...rangeParams,
@@ -337,7 +336,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       } as any);
       setRecentActivity(ra);
 
-      // existing “problem products” (kept as in your original code)
+      
       if (projectId) {
         const failedRes = await aggregationService.getProductsByProject(
           projectId,
@@ -363,7 +362,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         setProblemProducts([]);
       }
 
-      // map into metrics array (preserve getMetricValue usage)
+      
       setMetrics([
         { metric_type: "total_products", metric_value: data.totalProducts || 0 },
         { metric_type: "aggregated", metric_value: (data as any).aggregatedProducts || 0 },
@@ -390,7 +389,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const failed = getMetricValue("failed");
   const avgCompleteness = getMetricValue("catalog_health");
 
-  // KPI deltas (for screenshot footers)
+  
   const totalDelta = (globalStats?.totalProducts ?? 0) - (prevStats?.totalProducts ?? 0);
   const processedPct = prevStats?.aggregatedProducts
     ? ((globalStats?.aggregatedProducts ?? 0) - (prevStats?.aggregatedProducts ?? 0)) /
@@ -408,17 +407,17 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       100
     : 0;
 
-  // Secondary progress cards
+  
   const enrichmentRatePct = total > 0 ? (enriched / total) * 100 : 0;
   const uncategorized = needsAttention?.uncategorized ?? 0;
   const categoryCoveragePct = total > 0 ? ((total - uncategorized) / total) * 100 : 0;
 
-  // Attr validity: we don’t have full denominator, so show “100 - invalid% of total products” as a proxy.
-  // If you add a better backend metric later, replace this.
+  
+  
   const invalidAttributes = needsAttention?.invalidAttributes ?? 0;
   const attrValidityPct = total > 0 ? ((total - invalidAttributes) / total) * 100 : 100;
 
-  // Custom Range Activity card numbers
+  
   const activityAgg = processed;
   const activityEnrich = enriched;
   const activityClean = cleaned;
@@ -444,7 +443,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     };
   }, [projectId, total, enriched, failed]);
 
-  // Activity list icon map (best-effort)
+  
   const ActivityIcon = ({ type }: { type: string }) => {
     const t = (type || "").toLowerCase();
     if (t.includes("completed")) return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
@@ -700,7 +699,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                   ? Math.round((row.enrichmentProducts / row.totalProducts) * 100)
                   : 0;
 
-              // delta placeholder (screenshot shows +% / -%)
+              
               const delta = 0;
 
               return (
