@@ -725,9 +725,8 @@ export default function DataCleaningTab() {
     return availableAttributes.filter((a) => a.toLowerCase().includes(q));
   }, [availableAttributes, bulkSearch]);
   return (
-    <div className="p-1 bg-slate-50 h-screen font-sans flex flex-col overflow-y-auto">
-
-
+    <div className="p-1 bg-slate-50 min-h-screen font-sans">
+       <div className="sticky top-0 z-40 bg-slate-50 pb-2">
       <div className="mb-4">
         <h3 className="text-xl font-semibold text-slate-900">
           Data Cleaning & Validation
@@ -736,13 +735,11 @@ export default function DataCleaningTab() {
           Select a project, then clean and standardise product attributes
         </p>
       </div>
-       <div className="sticky top-0 z-40 bg-slate-50 pb-1">
-
-      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3">
         <div className="flex items-end gap-3 flex-wrap">
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-              LLM Provider
+              Algorithm
             </label>
             <select
               value={selectedLLM}
@@ -877,7 +874,7 @@ export default function DataCleaningTab() {
               </button>
             </div>
           )}
-          </div>
+        </div>
         {selectedProject && (
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
@@ -1037,7 +1034,6 @@ export default function DataCleaningTab() {
           </div>
         </div>
       )}
-       </div>
       {!selectedProjectId ? (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-1">
@@ -1132,6 +1128,7 @@ export default function DataCleaningTab() {
           </div>
           <div
             className="overflow-auto"
+            style={{ maxHeight: "calc(100vh - 320px)" }}
           >
             <table
               className="border-collapse"
@@ -1149,9 +1146,8 @@ export default function DataCleaningTab() {
                   availableAttributes.length * COL_ATTR,
               }}
             >
-              <thead className="sticky top-0 z-30">
-                                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
-
+              <thead>
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
                   <th
                     style={{
                       width: COL_CHECKBOX,
@@ -1483,6 +1479,7 @@ export default function DataCleaningTab() {
           </div>
         </div>
       )}
-    </div>
+        </div>    
+      </div>
   );
 }
