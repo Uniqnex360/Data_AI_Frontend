@@ -63,7 +63,7 @@ export default function AddRuleModal({ onClose, onSuccess }: Props) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="rule-title" className="block text-sm font-medium text-slate-700 mb-1">
-            Rule Title
+            Rule/Scenario Name
           </label>
           <input
             id="rule-title"
@@ -79,7 +79,7 @@ export default function AddRuleModal({ onClose, onSuccess }: Props) {
 
         <div>
           <label htmlFor="rule-category" className="block text-sm font-medium text-slate-700 mb-1">
-            Category
+            Scenario Type
           </label>
           <select
             id="rule-category"

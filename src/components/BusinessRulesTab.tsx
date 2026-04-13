@@ -60,6 +60,7 @@ function StatCard({
 export default function BusinessRulesTab() {
   const [rules, setRules] = useState<BusinessRule[]>([]);
   const [allRules, setAllRules] = useState<BusinessRule[]>([]);
+  const [enabled, setEnabled] = useState(true); 
   const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
   const [promptNameFilter, setPromptNameFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -466,7 +467,6 @@ export default function BusinessRulesTab() {
                                     {enabled ? "Enabled" : "Disabled"}
                                   </span>
 
-                                  {/* Toggle with confirm modal (keeps your existing status-confirm flow) */}
                                   <button
                                     type="button"
                                     onClick={() => {

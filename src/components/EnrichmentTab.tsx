@@ -126,8 +126,8 @@ export default function EnrichmentTab() {
       ),
     ];
     const sortedUseCases = uniqueUseCases.sort((a, b) => {
-      const aIsAggregation = a === "With categories" || a === "Without categories";
-      const bIsAggregation = b === "With categories" || b === "Without categories";
+      const aIsAggregation = a === "Products with Category Assignments" || a === "Products without Category Assignments";
+      const bIsAggregation = b === "Products with Category Assignments" || b === "Products without Category Assignments";
       
       if (aIsAggregation && !bIsAggregation) return -1;
       if (!aIsAggregation && bIsAggregation) return 1;
@@ -959,8 +959,8 @@ export default function EnrichmentTab() {
         .map((p) => p.use_case)
         .filter(Boolean) as string[]
     )].sort((a, b) => {
-      const aIsAggregation = a === "With categories" || a === "Without categories";
-      const bIsAggregation = b === "With categories" || b === "Without categories";
+      const aIsAggregation = a === "Products with Category Assignments" || a === "Products without Category Assignments";
+      const bIsAggregation = b === "Products with Category Assignments" || b === "Products without Category Assignments";
       if (aIsAggregation && !bIsAggregation) return -1;
       if (!aIsAggregation && bIsAggregation) return 1;
       return a.localeCompare(b);

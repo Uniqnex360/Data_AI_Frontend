@@ -44,7 +44,7 @@ export const extractionService = {
         error.response?.data?.detail ||
         error.response?.data?.message ||
         error.message ||
-        "Multi-PDF extraction failed";
+        "Multi-PDF & Multi-MPN Data Extraction.";
 
       throw new Error(errorMessage);
     }

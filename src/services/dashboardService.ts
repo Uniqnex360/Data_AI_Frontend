@@ -1,94 +1,60 @@
 import api from "../lib/api.ts";
-import { 
-  BrandFlowParams, 
-  DashboardStats, 
-  TimelineParams, 
-  BrandAttributesParams,
-  CategoryParams 
-} from '../types/business-rules.types';
+import { BrandAttributesParams, BrandFlowParams, CategoryParams, DashboardStats, TimelineParams } from "../types/business-rules.types.ts";
+
+type DateRangeParams = {
+  start_date?: string; // "YYYY-MM-DD" or ISO
+  end_date?: string;
+  date_field?: "created_at" | "updated_at";
+};
 
 export const dashboardService = {
-  async getGlobalMetrics(): Promise<DashboardStats> {
+  async getGlobalMetrics(params?: DateRangeParams): Promise<DashboardStats> {
     try {
-      const { data } = await api.get<DashboardStats>('/dashboard/metrics'); 
+      const { data } = await api.get<DashboardStats>("/dashboard/metrics", { params });
       return data;
     } catch (error) {
-      console.error("Failed to fetch dashboard metrics", error); 
-      return { totalProducts: 0, activeProjects: 0, totalProjects: 0, publishedProducts: 0, catalogHealth: 0 };
-    }
-  },
-  
-  async getProjectMetrics(projectId: string) {
-    try {
-      const { data } = await api.get(`/dashboard/metrics/${projectId}`); 
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch project metrics', error);
+      console.error("Failed to fetch dashboard metrics", error);
       return { totalProducts: 0, activeProjects: 0, totalProjects: 0, publishedProducts: 0, catalogHealth: 0 };
     }
   },
 
-  async getTimeline(params: TimelineParams) {
+  async getProjectMetrics(projectId: string, params?: DateRangeParams) {
     try {
-      const { data } = await api.get('/dashboard/timeline', { params });
+      const { data } = await api.get(`/dashboard/metrics/${projectId}`, { params });
       return data;
     } catch (error) {
-      console.error('Failed to fetch timeline', error);
-      return [];
+      console.error("Failed to fetch project metrics", error);
+      return { totalProducts: 0, activeProjects: 0, totalProjects: 0, publishedProducts: 0, catalogHealth: 0 };
     }
   },
 
-  async getBrandFlow(params: BrandFlowParams) {
-    try {
-      const { data } = await api.get('/dashboard/brand-flow', { params });
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch brand flow', error);
-      return [];
-    }
+  async getTimeline(params: TimelineParams & DateRangeParams) {
+    const { data } = await api.get("/dashboard/timeline", { params });
+    return data;
   },
 
-  async getBrandAttributes(params: BrandAttributesParams) {
-    try {
-      const { data } = await api.get('/dashboard/brand-attributes', { params });
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch brand attributes', error);
-      return [];
-    }
+  async getBrandFlow(params: BrandFlowParams & DateRangeParams) {
+    const { data } = await api.get("/dashboard/brand-flow", { params });
+    return data;
   },
 
-  // ==========================================
-  // CATEGORY WISE ENDPOINTS
-  // ==========================================
-
-  async getCategoryDistribution(params: CategoryParams) {
-    try {
-      const { data } = await api.get('/dashboard/category-distribution', { params });
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch category distribution', error);
-      return [];
-    }
+  async getBrandAttributes(params: BrandAttributesParams & DateRangeParams) {
+    const { data } = await api.get("/dashboard/brand-attributes", { params });
+    return data;
   },
 
-  async getCategoryFlow(params: CategoryParams) {
-    try {
-      const { data } = await api.get('/dashboard/category-flow', { params });
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch category flow', error);
-      return [];
-    }
+  async getCategoryDistribution(params: CategoryParams   & DateRangeParams) {
+    const { data } = await api.get("/dashboard/category-distribution", { params });
+    return data;
   },
 
-  async getCategoryAttributes(params: CategoryParams) {
-    try {
-      const { data } = await api.get('/dashboard/category-attributes', { params });
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch category attributes', error);
-      return [];
-    }
-  }
+  async getCategoryFlow(params: CategoryParams & DateRangeParams) {
+    const { data } = await api.get("/dashboard/category-flow", { params });
+    return data;
+  },
+
+  async getCategoryAttributes(params: CategoryParams & DateRangeParams) {
+    const { data } = await api.get("/dashboard/category-attributes", { params });
+    return data;
+  },
 };

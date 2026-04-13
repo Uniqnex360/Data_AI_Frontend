@@ -30,38 +30,29 @@ import {
   OperationMode,
 } from "../types/business-rules.types.ts";
 type DateFilterMode = "all" | "day" | "week" | "month";
-
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-
 const endOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
-
 const endOfMonth = (d: Date) =>
   endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-
 const startOfWeek = (d: Date, weekStartsOn: 0 | 1 = 1) => {
   const date = startOfDay(d);
-  const day = date.getDay(); // 0..6
+  const day = date.getDay(); 
   const diff = (day - weekStartsOn + 7) % 7;
   date.setDate(date.getDate() - diff);
   return date;
 };
-
 const endOfWeek = (d: Date, weekStartsOn: 0 | 1 = 1) => {
   const s = startOfWeek(d, weekStartsOn);
   const e = new Date(s);
   e.setDate(s.getDate() + 6);
   return endOfDay(e);
 };
-
 const fmt = (d: Date) =>
   d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
-
 const formatRange = (start: Date, end: Date) => `${fmt(start)} – ${fmt(end)}`;
-
 const toDateInputValue = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),
@@ -75,47 +66,28 @@ export default function SourcesTab({
 }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // --- Import PDF (formerly Blind PDF) ---
   const [importPdfFiles, setImportPdfFiles] = useState<File[]>([]);
   const importPdfInputRef = useRef<HTMLInputElement>(null);
   const [importExtracting, setImportExtracting] = useState(false);
-
-  // Product Details (optional)
   const [productDetails, setProductDetails] = useState("");
-
-  // Multiple identifiers (MPNs or titles)
   const [importIdentifiers, setImportIdentifiers] = useState<string[]>([]);
   const [currentImportIdentifier, setCurrentImportIdentifier] = useState("");
-
-  // --- Existing modes/state ---
   const [operationMode, setOperationMode] =
     useState<OperationMode>("aggregation");
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMode, setActiveMode] = useState<"manual" | "bulk">("bulk");
-
-  // Presentation tab state (Bulk / Import PDF / Manual)
   const [uiTab, setUiTab] = useState<"bulk" | "importPdf" | "manual">("bulk");
-
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Fresh PDF Aggregation (MPNs)
   const [freshMpns, setFreshMpns] = useState<string[]>([]);
   const [currentFreshMpn, setCurrentFreshMpn] = useState("");
   const [freshAggregating, setFreshAggregating] = useState(false);
-
-  // Multi PDF + Multi MPN
   const [multiPdFs, setMultiPdFs] = useState<File[]>([]);
   const [multiMpns, setMultiMpns] = useState<string[]>([]);
   const [currentMultiMpn, setCurrentMultiMpn] = useState("");
   const [multiExtracting, setMultiExtracting] = useState(false);
-
   const [selectedUseCase, setSelectedUseCase] = useState<string>("");
   const [showUseCaseDropdown, setShowUseCaseDropdown] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-
-  // Manual
   const [manualData, setManualData] = useState<ManualProductData>({
     brand: "",
     title: "",
@@ -131,12 +103,9 @@ export default function SourcesTab({
     price: "",
     stock: "",
   });
-
-  // Bulk file
   const [bulkFile, setBulkFile] = useState<File | null>(null);
-
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
-  const [dateAnchor, setDateAnchor] = useState<Date>(new Date()); // used when mode != all
+  const [dateAnchor, setDateAnchor] = useState<Date>(new Date()); 
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
   const [structuredMpn, setStructuredMpn] = useState("");
@@ -147,8 +116,6 @@ export default function SourcesTab({
   );
   const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
   const [structuredExtracting, setStructuredExtracting] = useState(false);
-
-  // Projects
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
@@ -159,17 +126,11 @@ export default function SourcesTab({
   >({});
   const [loadingSources, setLoadingSources] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-
   const [projectName, setProjectName] = useState<string>("");
-
-  // ---------------------------
-  // Loaders
-  // ---------------------------
   useEffect(() => {
     loadSources();
     loadProjects();
   }, []);
-
   const loadSources = async () => {
     try {
       const data = await extractionService.getAllSources();
@@ -178,7 +139,6 @@ export default function SourcesTab({
       console.error("Failed to load sources:", error);
     }
   };
-
   const loadProjects = async () => {
     try {
       const data = await projectService.getAllProjects();
@@ -187,33 +147,26 @@ export default function SourcesTab({
       console.error("Failed to load projects:", error);
     }
   };
-
   useEffect(() => {
     if (selectedProject) {
       setOperationMode(selectedProject.operation_mode as OperationMode);
       setSelectedUseCase(selectedProject.use_case || "");
     }
   }, [selectedProject]);
-
-  // Keep UI tab aligned with existing behavior
   useEffect(() => {
     if (activeMode === "manual") {
       setUiTab("manual");
       return;
     }
-
     if (
       operationMode === "pdf_extraction" &&
-      selectedUseCase?.includes("Blind PDF Extraction")
+      selectedUseCase?.includes("Title & Description Based PDF Extraction")
     ) {
       setUiTab("importPdf");
       return;
     }
-
     setUiTab("bulk");
   }, [activeMode, operationMode, selectedUseCase]);
-
-  // Close usecase dropdown on outside click (keeps your existing behavior)
   useEffect(() => {
     const handleClickOutSide = () => {
       if (showUseCaseDropdown) setShowUseCaseDropdown(false);
@@ -232,7 +185,6 @@ export default function SourcesTab({
   }, []);
   const dateRange = useMemo(() => {
     if (dateFilterMode === "all") return null;
-
     if (dateFilterMode === "day") {
       return { start: startOfDay(dateAnchor), end: endOfDay(dateAnchor) };
     }
@@ -240,42 +192,35 @@ export default function SourcesTab({
       return {
         start: startOfWeek(dateAnchor, 1),
         end: endOfWeek(dateAnchor, 1),
-      }; // Monday start
+      }; 
     }
     return { start: startOfMonth(dateAnchor), end: endOfMonth(dateAnchor) };
   }, [dateFilterMode, dateAnchor]);
   const useCaseMap: Record<OperationMode, string[]> = {
-    aggregation: ["With categories", "Without categories"],
+    aggregation: ["Products with Category Assignments", "Products without Category Assignments"],
     enrichment: [
       "With Categories with attribute (back filling)",
       "With Categories with attribute (back filling) and existing attribute validation",
     ],
     cleaning: ["Data cleaning and Standardization"],
     pdf_extraction: [
-      "Fresh PDF Aggregation (MPN/Model/UPC based web enrichment)",
+      "MPN/UPC based PDF Extraction",
       "Structured PDF Extraction (Given MPNs)",
       "Unstructured PDF Extraction (Given MPNs)",
-      "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
-      "Blind PDF Extraction (No MPNs - Title/Description based)",
+      "Multi-PDF & Multi-MPN Data Extraction.",
+      "Title & Description Based PDF Extraction",
     ],
   };
-
   const useCaseOptions = useCaseMap[operationMode];
-
   useEffect(() => {
     setSelectedUseCase((prev) =>
       prev && useCaseMap[operationMode].includes(prev) ? prev : "",
     );
   }, [operationMode]);
-
   const handleSelectUseCase = (useCase: string) => {
     setSelectedUseCase(useCase);
     setShowUseCaseDropdown(false);
   };
-
-  // ---------------------------
-  // Projects panel logic
-  // ---------------------------
   const loadSourcesForProject = async (id: string) => {
     if (!id) return;
     setLoadingSources((prev) => new Set(prev).add(id));
@@ -293,7 +238,6 @@ export default function SourcesTab({
       });
     }
   };
-
   const toggleProject = async (pid: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(pid)) {
@@ -304,36 +248,24 @@ export default function SourcesTab({
     }
     setExpandedProjects(newExpanded);
   };
-  
   const filteredProjects = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-
     return projects.filter((project) => {
       const matchesSearch =
         project.name.toLowerCase().includes(q) ||
         project.client?.toLowerCase().includes(q);
-
       if (!matchesSearch) return false;
-
       if (!dateRange) return true;
-
-      // created_at comes from backend (datetime). In frontend it will be ISO string.
       const createdAt = new Date((project as any).created_at);
       if (isNaN(createdAt.getTime())) return false;
-
       const t = createdAt.getTime();
       return t >= dateRange.start.getTime() && t <= dateRange.end.getTime();
     });
   }, [projects, searchQuery, dateRange]);
-
-  // ---------------------------
-  // Create project modal
-  // ---------------------------
   const handleCancel = () => {
     setProjectName("");
     setSelectedUseCase("");
   };
-
   const handleCreate = async () => {
     if (!projectName.trim()) {
       notify.error("Project name is required");
@@ -351,13 +283,11 @@ export default function SourcesTab({
         operation_mode: operationMode,
         status: "draft",
       });
-
       notify.success("Project created successfully!");
       setProjectName("");
       setSelectedUseCase("");
       setShowUseCaseDropdown(false);
       setShowProjectModal(false);
-
       await loadProjects();
       if (createdProject?.id) {
         setSelectedProject(createdProject);
@@ -376,10 +306,6 @@ export default function SourcesTab({
       setLoading(false);
     }
   };
-
-  // ---------------------------
-  // Bulk Import (Excel)
-  // ---------------------------
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       notify.info("Please select a file");
@@ -389,7 +315,6 @@ export default function SourcesTab({
       notify.info("Please select a project first");
       return;
     }
-
     const validTypes = [
       "text/csv",
       "application/vnd.ms-excel",
@@ -399,7 +324,6 @@ export default function SourcesTab({
     const fileExtension = bulkFile.name
       .substring(bulkFile.name.lastIndexOf("."))
       .toLowerCase();
-
     if (
       !validTypes.includes(bulkFile.type) &&
       !validExtensions.includes(fileExtension)
@@ -407,29 +331,24 @@ export default function SourcesTab({
       notify.error("Invalid file type", "Please upload Excel/CSV files only");
       return;
     }
-
     setLoading(true);
     try {
       const result = await extractionService.batchAggregate(
         bulkFile,
         projectId,
       );
-
       setBulkFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-
       notify.success(
         "Upload Successful",
         result?.summary
           ? `${result.summary.valid_rows} valid rows • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
           : "File uploaded successfully",
       );
-
       pollBatchStatus(result.batch_id, async () => {
         await loadSources();
         await loadProjects();
       });
-
       await loadSources();
     } catch (error: any) {
       console.error("Bulk upload failed:", error);
@@ -448,41 +367,28 @@ export default function SourcesTab({
       setLoading(false);
     }
   };
-
-  // ---------------------------
-  // Import PDF (formerly Blind PDF)
-  // Product Details optional + multiple identifiers + multiple PDFs
-  // ---------------------------
   const handleAddImportIdentifier = () => {
     const trimmed = currentImportIdentifier.trim();
     if (!trimmed) return;
-
-    // allow comma/newline paste
     const items = trimmed
       .split(/[,|\n]/g)
       .map((x) => x.trim())
       .filter(Boolean);
-
     const next = [...importIdentifiers];
     const duplicates: string[] = [];
-
     for (const it of items) {
       if (next.includes(it)) duplicates.push(it);
       else next.push(it);
     }
-
     setImportIdentifiers(next);
     setCurrentImportIdentifier("");
-
     if (duplicates.length) {
       notify.info("Duplicate skipped", `${duplicates.length} already added`);
     }
   };
-
   const handleRemoveImportIdentifier = (value: string) => {
     setImportIdentifiers((prev) => prev.filter((x) => x !== value));
   };
-
   const handleAddImportPdfs = (files: FileList | null) => {
     if (!files) return;
     const newFiles = Array.from(files).filter(
@@ -494,11 +400,9 @@ export default function SourcesTab({
     }
     setImportPdfFiles((prev) => [...prev, ...newFiles]);
   };
-
   const handleRemoveImportPdf = (index: number) => {
     setImportPdfFiles((prev) => prev.filter((_, i) => i !== index));
   };
-
   const handleImportPdfExtraction = async () => {
     if (importPdfFiles.length === 0) {
       notify.error("Please upload at least one PDF file");
@@ -508,50 +412,35 @@ export default function SourcesTab({
       notify.error("Please select a project first");
       return;
     }
-
-    // Product Details is optional by request.
-    // Identifiers list is optional too, but helps target extraction.
     setImportExtracting(true);
-
     try {
       const identifiers =
         importIdentifiers.length > 0 ? importIdentifiers : [""];
-
       let jobs = 0;
-
       for (const pdf of importPdfFiles) {
         for (const identifier of identifiers) {
           const hint = identifier.trim();
           const details = productDetails.trim();
-
-          // Preserve backend key "product_hint"
-          // If both are present, combine them to keep backend unchanged.
           const product_hint =
             hint && details ? `${hint} | ${details}` : hint || details || "";
-
           const formData = new FormData();
           formData.append("files", pdf);
           formData.append("project_id", projectId);
           formData.append("use_case", selectedUseCase);
           formData.append("product_hint", product_hint);
-
           await extractionService.blindPdfExtraction(formData);
           jobs += 1;
         }
       }
-
       notify.success(
         "Import Started",
         `Queued ${jobs} extraction job(s). Products will appear in the Aggregation tab shortly.`,
       );
-
       setImportPdfFiles([]);
       setImportIdentifiers([]);
       setCurrentImportIdentifier("");
       setProductDetails("");
-
       if (importPdfInputRef.current) importPdfInputRef.current.value = "";
-
       await loadSources();
       await loadProjects();
     } catch (error: any) {
@@ -565,27 +454,19 @@ export default function SourcesTab({
       setImportExtracting(false);
     }
   };
-
-  // ---------------------------
-  // Fresh PDF Aggregation
-  // ---------------------------
   const handleAddFreshMpn = () => {
     const trimmed = currentFreshMpn.trim();
     if (!trimmed) return;
-
     if (freshMpns.includes(trimmed)) {
       notify.info("Duplicate MPN", `${trimmed} is already in the list`);
       return;
     }
-
     setFreshMpns([...freshMpns, trimmed]);
     setCurrentFreshMpn("");
   };
-
   const handleRemoveFreshMpn = (mpn: string) => {
     setFreshMpns(freshMpns.filter((m) => m !== mpn));
   };
-
   const handleFreshAggregation = async () => {
     if (freshMpns.length === 0) {
       notify.error("Please add at least one MPN/Model/UPC");
@@ -602,15 +483,12 @@ export default function SourcesTab({
         project_id: projectId,
         use_case: selectedUseCase,
       });
-
       notify.success(
         "MPNs Saved",
         `${response.saved_count || freshMpns.length} MPN(s) saved. Go to Aggregation tab to extract.`,
       );
-
       setFreshMpns([]);
       setCurrentFreshMpn("");
-
       await loadSources();
       await loadProjects();
     } catch (error: any) {
@@ -622,32 +500,24 @@ export default function SourcesTab({
       setFreshAggregating(false);
     }
   };
-
-  // ---------------------------
-  // Structured / Unstructured
-  // ---------------------------
   const handleStructuredExtraction = async () => {
     if (!structuredPdfFile || !structuredMpn.trim()) {
       notify.error("Please provide an MPN and a PDF file");
       return;
     }
-
     const fileType = structuredPdfFile.type;
     const fileExtension = structuredPdfFile.name
       .split(".")
       .pop()
       ?.toLowerCase();
-
     if (fileType !== "application/pdf" && fileExtension !== "pdf") {
       notify.error("Invalid file type", "Please upload a valid PDF file");
       return;
     }
-
     if (!projectId) {
       notify.error("Please select a project first");
       return;
     }
-
     setStructuredExtracting(true);
     try {
       const formData = new FormData();
@@ -655,22 +525,17 @@ export default function SourcesTab({
       formData.append("mpn", structuredMpn.trim());
       formData.append("project_id", projectId);
       formData.append("use_case", selectedUseCase);
-
       await extractionService.savePdfSource(formData);
-
       notify.success(
         "PDF Saved",
         `PDF for MPN ${structuredMpn} has been saved. Go to Aggregation tab to extract.`,
       );
-
       setStructuredMpn("");
       setStructuredPdfFile(null);
-
       const fileInput = document.querySelector(
         'input[type="file"]',
       ) as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-
       await loadSources();
       await loadProjects();
     } catch (error: any) {
@@ -679,29 +544,24 @@ export default function SourcesTab({
       setStructuredExtracting(false);
     }
   };
-
   const handleUnstructuredExtraction = async () => {
     if (!unstructuredPdfFile || !unstructuredMpn.trim()) {
       notify.error("Please provide an MPN and a PDF file");
       return;
     }
-
     const fileType = unstructuredPdfFile.type;
     const fileExtension = unstructuredPdfFile.name
       .split(".")
       .pop()
       ?.toLowerCase();
-
     if (fileType !== "application/pdf" && fileExtension !== "pdf") {
       notify.error("Invalid file type", "Please upload a valid PDF file");
       return;
     }
-
     if (!projectId) {
       notify.error("Please select a project first");
       return;
     }
-
     setUnstructuredExtracting(true);
     try {
       const formData = new FormData();
@@ -709,22 +569,17 @@ export default function SourcesTab({
       formData.append("mpn", unstructuredMpn.trim());
       formData.append("project_id", projectId);
       formData.append("use_case", selectedUseCase);
-
       await extractionService.savePdfSource(formData);
-
       notify.success(
         "PDF Saved",
         `Unstructured PDF for MPN ${unstructuredMpn} has been saved. Go to Aggregation tab to extract.`,
       );
-
       setUnstructuredMpn("");
       setUnstructuredPdfFile(null);
-
       const fileInput = document.querySelector(
         'input[type="file"]',
       ) as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-
       await loadSources();
       await loadProjects();
     } catch (error: any) {
@@ -733,43 +588,31 @@ export default function SourcesTab({
       setUnstructuredExtracting(false);
     }
   };
-
-  // ---------------------------
-  // Multi PDF + Multi MPN
-  // ---------------------------
   const handleAddMultiMpn = () => {
     const trimmed = currentMultiMpn.trim();
     if (!trimmed) return;
-
     const mpnsToAdd = trimmed
       .split(",")
       .map((m) => m.trim())
       .filter((m) => m.length > 0);
-
     const newMpns: string[] = [];
     const duplicates: string[] = [];
-
     for (const mpn of mpnsToAdd) {
       if (multiMpns.includes(mpn)) duplicates.push(mpn);
       else newMpns.push(mpn);
     }
-
     if (newMpns.length > 0) setMultiMpns([...multiMpns, ...newMpns]);
-
     if (duplicates.length > 0) {
       notify.info(
         "Duplicate MPNs skipped",
         `${duplicates.length} MPN(s) already in the list`,
       );
     }
-
     setCurrentMultiMpn("");
   };
-
   const handleRemoveMultiMpn = (mpn: string) => {
     setMultiMpns(multiMpns.filter((m) => m !== mpn));
   };
-
   const handleAddMultiPdFs = (files: FileList | null) => {
     if (!files) return;
     const newFiles = Array.from(files).filter(
@@ -780,11 +623,9 @@ export default function SourcesTab({
     }
     setMultiPdFs((prev) => [...prev, ...newFiles]);
   };
-
   const handleRemoveMultiPdf = (index: number) => {
     setMultiPdFs((prev) => prev.filter((_, i) => i !== index));
   };
-
   const handleMultiExtraction = async () => {
     if (multiPdFs.length === 0) {
       notify.error("Please upload at least one PDF file");
@@ -808,12 +649,10 @@ export default function SourcesTab({
       );
       return;
     }
-
     if (!projectId) {
       notify.error("Please select a project first");
       return;
     }
-
     setMultiExtracting(true);
     try {
       const formData = new FormData();
@@ -821,23 +660,18 @@ export default function SourcesTab({
       formData.append("mpns", multiMpns.join(","));
       formData.append("project_id", projectId);
       formData.append("use_case", selectedUseCase);
-
       await extractionService.multiPdfExtraction(formData);
-
       notify.success(
         "PDFs & MPNs Saved",
         `Saved ${multiMpns.length} MPN(s) and ${multiPdFs.length} PDF(s). Go to Aggregation tab to extract.`,
       );
-
       setMultiMpns([]);
       setMultiPdFs([]);
       setCurrentMultiMpn("");
-
       const fileInput = document.querySelector(
         'input[type="file"][accept=".pdf"][multiple]',
       ) as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-
       await loadSources();
       await loadProjects();
     } catch (error: any) {
@@ -846,47 +680,35 @@ export default function SourcesTab({
       setMultiExtracting(false);
     }
   };
-
-  // ---------------------------
-  // Manual Input (unique identifier mandatory)
-  // ---------------------------
   const handleManualSubmit = async () => {
     const newErrors: Record<string, string> = {};
-
-    // Any unique identifier mandatory (at least one)
     const hasUniqueId =
       !!manualData.mpn?.trim() ||
       !!manualData.sku?.trim() ||
       !!manualData.upc_ean_gtin?.trim() ||
       !!manualData.model?.trim();
-
     if (!hasUniqueId) {
       newErrors.unique_identifier =
         "Provide at least one: MPN, SKU, UPC/EAN/GTIN, or Model";
     }
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       notify.error("Missing required field", "Add a unique identifier");
       return;
     }
-
     setErrors({});
     setLoading(true);
-
     try {
       const content = Object.entries(manualData)
         .filter(([_, value]) => value)
         .map(([key, value]) => `${key}: ${value}`)
         .join("\n");
-
       await extractionService.extractFromSource({
         sourceType: "excel",
         content,
         sourceUrl: `manual-input-${manualData.sku || manualData.mpn || ""}`,
         projectId: projectId,
       });
-
       setManualData({
         brand: "",
         title: "",
@@ -902,7 +724,6 @@ export default function SourcesTab({
         price: "",
         stock: "",
       });
-
       await loadSources();
       notify.success("Product added successfully!");
     } catch (error) {
@@ -912,10 +733,6 @@ export default function SourcesTab({
       setLoading(false);
     }
   };
-
-  // ---------------------------
-  // Download cleaned project
-  // ---------------------------
   const handleDownloadCleanedProject = async (pid: string) => {
     try {
       const blob = await cleansingService.downloadCleanedProject(pid);
@@ -933,12 +750,7 @@ export default function SourcesTab({
       notify.error("Failed to download cleaned project");
     }
   };
-
-  // ---------------------------
-  // Template download (kept)
-  // ---------------------------
   const downloadTemplate = () => {
-    // kept exactly as your previous behavior
     const coreHeaders = [
       "Prod ID",
       "SKU",
@@ -987,7 +799,6 @@ export default function SourcesTab({
       "Vendor_Name",
       "Vendor_SKU",
     ];
-
     const imageHeaders: string[] = [];
     for (let i = 1; i <= 8; i++)
       imageHeaders.push(`image_name_${i}`, `image_url_${i}`);
@@ -997,7 +808,6 @@ export default function SourcesTab({
     const docHeaders: string[] = [];
     for (let i = 1; i <= 5; i++)
       docHeaders.push(`document_name_${i}`, `document_url_${i}`);
-
     const contentHeaders = [
       "3D_Model_URL",
       "Short_Description",
@@ -1020,7 +830,6 @@ export default function SourcesTab({
       "Hazardous_Material",
       "Prop65_Warning",
     ];
-
     const attrHeaders: string[] = [];
     for (let i = 1; i <= 40; i++) {
       attrHeaders.push(
@@ -1031,7 +840,6 @@ export default function SourcesTab({
         `validation_uom${i}`,
       );
     }
-
     const headers = [
       ...coreHeaders,
       ...catHeaders,
@@ -1043,13 +851,11 @@ export default function SourcesTab({
       ...contentHeaders,
       ...attrHeaders,
     ];
-
     const sampleRow = new Array(headers.length).fill("");
     const setVal = (headerName: string, val: string) => {
       const idx = headers.indexOf(headerName);
       if (idx !== -1) sampleRow[idx] = val;
     };
-
     setVal("SKU", "DEMO-1001");
     setVal("Product_Name", "High Performance LED Light");
     setVal("Brand", "DemoBrand");
@@ -1059,7 +865,6 @@ export default function SourcesTab({
     setVal("attribute_name1", "Lumens");
     setVal("attribute_value1", "15000");
     setVal("attribute_uom1", "lm");
-
     const csv = [headers.join(","), sampleRow.join(",")].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -1073,10 +878,9 @@ export default function SourcesTab({
   () => projects.find((p) => p.id === projectId),
   [projects, projectId],
 );
-
 const activeProjectCreatedAt = useMemo(() => {
   if (!activeProject) return "";
-  const dt = new Date((activeProject as any).created_at); // use activeProject.created_at if your TS type has it
+  const dt = new Date((activeProject as any).created_at); 
   if (isNaN(dt.getTime())) return "";
   return dt.toLocaleDateString(undefined, {
     day: "2-digit",
@@ -1084,9 +888,6 @@ const activeProjectCreatedAt = useMemo(() => {
     year: "numeric",
   });
 }, [activeProject]);
-  // ---------------------------
-  // Render
-  // ---------------------------
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1099,7 +900,6 @@ const activeProjectCreatedAt = useMemo(() => {
             Import in bulk via Excel/PDF or add products manually
           </p>
         </div>
-
         <button
           onClick={() => setShowProjectModal(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
@@ -1108,7 +908,6 @@ const activeProjectCreatedAt = useMemo(() => {
           Add Project
         </button>
       </div>
-
       {/* Active project bar */}
       {projectId && (
   <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
@@ -1123,20 +922,17 @@ const activeProjectCreatedAt = useMemo(() => {
         </div>
       </div>
     </div>
-
     <div className="text-xs text-slate-500 whitespace-nowrap">
       {activeProjectCreatedAt ? `Created: ${activeProjectCreatedAt}` : ""}
     </div>
   </div>
 )}
-
       {/* Create project modal */}
       {showProjectModal && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h4 className="text-lg font-semibold text-slate-900 mb-4">
             Create New Project
           </h4>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-start">
             <div className="w-full">
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1150,7 +946,6 @@ const activeProjectCreatedAt = useMemo(() => {
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
             <div className="w-full">
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Operation Mode
@@ -1178,12 +973,10 @@ const activeProjectCreatedAt = useMemo(() => {
                       : "Extract product data from PDFs and web sources"}{" "}
               </p>
             </div>
-
             <div className="w-full">
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Select Use Cases
               </label>
-
               <div className="relative">
                 <button
                   onClick={(e) => {
@@ -1208,14 +1001,12 @@ const activeProjectCreatedAt = useMemo(() => {
                               : "Cleaning"
                       } Use Case`}
                   </span>
-
                   <ChevronDown
                     className={`w-4 h-4 text-slate-400 transition-transform ${
                       showUseCaseDropdown ? "rotate-180" : ""
                     }`}
                   />
                 </button>
-
                 {showUseCaseDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {useCaseOptions.map((useCase) => (
@@ -1237,7 +1028,6 @@ const activeProjectCreatedAt = useMemo(() => {
               </div>
             </div>
           </div>
-
           <div className="flex gap-3">
             <button
               onClick={handleCreate}
@@ -1246,7 +1036,6 @@ const activeProjectCreatedAt = useMemo(() => {
             >
               {loading ? "Creating..." : "Create Project"}
             </button>
-
             <button
               onClick={() => {
                 setShowProjectModal(false);
@@ -1259,7 +1048,6 @@ const activeProjectCreatedAt = useMemo(() => {
           </div>
         </div>
       )}
-
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
         {/* LEFT: Input card */}
@@ -1282,7 +1070,6 @@ const activeProjectCreatedAt = useMemo(() => {
                 <Upload className="w-4 h-4" />
                 Bulk Import
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -1298,7 +1085,6 @@ const activeProjectCreatedAt = useMemo(() => {
                 <FileText className="w-4 h-4" />
                 Import PDF
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -1316,13 +1102,12 @@ const activeProjectCreatedAt = useMemo(() => {
               </button>
             </div>
           </div>
-
           <div className="p-6">
             {/* IMPORT PDF TAB */}
             {uiTab === "importPdf" && (
               <>
                 {operationMode === "pdf_extraction" &&
-                selectedUseCase?.includes("Blind PDF Extraction") &&
+                selectedUseCase?.includes("Title & Description Based PDF Extraction") &&
                 projectId &&
                 !showProjectModal ? (
                   <div className="space-y-5">
@@ -1339,7 +1124,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         titles). The system will extract matching products.
                       </p>
                     </div>
-
                     {/* Multiple identifiers */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1369,7 +1153,6 @@ const activeProjectCreatedAt = useMemo(() => {
                           <Plus className="w-4 h-4" />
                         </button>
                       </div>
-
                       {importIdentifiers.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {importIdentifiers.map((id) => (
@@ -1389,7 +1172,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </div>
                       )}
                     </div>
-
                     {/* Product Details (optional) */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1407,25 +1189,21 @@ const activeProjectCreatedAt = useMemo(() => {
                         MPNs/titles, details will be combined with each item.
                       </p>
                     </div>
-
                     {/* PDF files */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         PDF File(s) <span className="text-red-500">*</span>
                       </label>
-
                       <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 bg-slate-50 text-center">
                         <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-3">
                           <Upload className="w-5 h-5 text-slate-500" />
                         </div>
-
                         <div className="text-sm font-semibold text-slate-700">
                           Drop PDF(s) here or click to browse
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
                           Only PDF files are supported
                         </div>
-
                         <input
                           ref={importPdfInputRef}
                           type="file"
@@ -1435,7 +1213,6 @@ const activeProjectCreatedAt = useMemo(() => {
                           className="mt-4 block w-full text-sm"
                         />
                       </div>
-
                       {importPdfFiles.length > 0 && (
                         <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-44 overflow-auto">
                           <p className="text-xs font-semibold text-slate-600 mb-2">
@@ -1463,7 +1240,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </div>
                       )}
                     </div>
-
                     <button
                       onClick={handleImportPdfExtraction}
                       disabled={importExtracting || importPdfFiles.length === 0}
@@ -1486,12 +1262,11 @@ const activeProjectCreatedAt = useMemo(() => {
                   <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
                     Select a project configured with{" "}
-                    <strong>PDF Extraction → Blind PDF Extraction</strong>.
+                    <strong>Title & Description Based PDF Extraction</strong>.
                   </div>
                 )}
               </>
             )}
-
             {/* BULK TAB */}
             {uiTab === "bulk" && (
               <>
@@ -1500,7 +1275,6 @@ const activeProjectCreatedAt = useMemo(() => {
                 selectedUseCase?.includes("Fresh PDF Aggregation") &&
                 projectId &&
                 !showProjectModal ? (
-                  // Fresh PDF Aggregation
                   <div className="space-y-4">
                     <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-2">
@@ -1516,7 +1290,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         aggregation.
                       </p>
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         MPN / Model Number / UPC
@@ -1540,7 +1313,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </button>
                       </div>
                     </div>
-
                     {freshMpns.length > 0 && (
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1561,7 +1333,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </div>
                       </div>
                     )}
-
                     <button
                       onClick={handleFreshAggregation}
                       disabled={freshAggregating || freshMpns.length === 0}
@@ -1584,7 +1355,6 @@ const activeProjectCreatedAt = useMemo(() => {
                   selectedUseCase?.includes("Structured PDF Extraction") &&
                   projectId &&
                   !showProjectModal ? (
-                  // Structured PDF Extraction
                   <div className="space-y-4">
                     <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-2">
@@ -1599,7 +1369,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         PDF.
                       </p>
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         MPN
@@ -1612,7 +1381,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         className="w-full px-3 py-2 border border-slate-300 rounded-md"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         PDF File
@@ -1644,7 +1412,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </p>
                       )}
                     </div>
-
                     <button
                       onClick={handleStructuredExtraction}
                       disabled={
@@ -1665,16 +1432,15 @@ const activeProjectCreatedAt = useMemo(() => {
                     </button>
                   </div>
                 ) : operationMode === "pdf_extraction" &&
-                  selectedUseCase?.includes("Multi-PDF") &&
+                  selectedUseCase?.includes("Multi-PDF & Multi-MPN Data Extraction.") &&
                   projectId &&
                   !showProjectModal ? (
-                  // Multi-PDF + Multi-MPN
                   <div className="space-y-4">
                     <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText className="w-5 h-5 text-purple-600" />
                         <h4 className="font-semibold text-purple-900">
-                          Multi-PDF + Multi-MPN Extraction
+                          Multi-PDF & Multi-MPN Data Extraction.
                         </h4>
                       </div>
                       <p className="text-sm text-purple-700">
@@ -1683,7 +1449,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         extract product data.
                       </p>
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         MPNs / Model Numbers (Comma or Enter separated)
@@ -1718,7 +1483,6 @@ const activeProjectCreatedAt = useMemo(() => {
                           <Plus className="w-4 h-4" />
                         </button>
                       </div>
-
                       {multiMpns.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2 p-2 bg-slate-50 rounded-md border border-slate-200">
                           {multiMpns.map((mpn) => (
@@ -1735,7 +1499,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </div>
                       )}
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         PDF Files (Select multiple)
@@ -1783,7 +1546,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </div>
                       )}
                     </div>
-
                     <button
                       onClick={handleMultiExtraction}
                       disabled={
@@ -1810,7 +1572,6 @@ const activeProjectCreatedAt = useMemo(() => {
                   selectedUseCase?.includes("Unstructured PDF Extraction") &&
                   projectId &&
                   !showProjectModal ? (
-                  // Unstructured PDF Extraction
                   <div className="space-y-4">
                     <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-2">
@@ -1825,7 +1586,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         the text.
                       </p>
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         MPN
@@ -1838,7 +1598,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         className="w-full px-3 py-2 border border-slate-300 rounded-md"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         PDF File
@@ -1864,14 +1623,12 @@ const activeProjectCreatedAt = useMemo(() => {
                         }}
                         className="w-full px-3 py-2 border border-slate-300 rounded-md"
                       />
-
                       {unstructuredPdfFile && (
                         <p className="text-sm text-orange-600 mt-2">
                           Selected: {unstructuredPdfFile.name}
                         </p>
                       )}
                     </div>
-
                     <button
                       onClick={handleUnstructuredExtraction}
                       disabled={
@@ -1892,7 +1649,6 @@ const activeProjectCreatedAt = useMemo(() => {
                     </button>
                   </div>
                 ) : (
-                  // Default: Excel bulk import
                   <div>
                     <div className="mb-4">
                       <button
@@ -1907,7 +1663,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         and upload it below
                       </p>
                     </div>
-
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Upload Excel file
@@ -1928,7 +1683,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         </p>
                       )}
                     </div>
-
                     {projectId ? (
                       <button
                         onClick={handleBulkUpload}
@@ -1948,7 +1702,6 @@ const activeProjectCreatedAt = useMemo(() => {
                 )}
               </>
             )}
-
             {/* MANUAL TAB */}
             {uiTab === "manual" && (
               <div>
@@ -1958,13 +1711,11 @@ const activeProjectCreatedAt = useMemo(() => {
                   <strong>UPC/EAN/GTIN</strong>, or <strong>Model</strong>.
                   Everything else is optional.
                 </div> */}
-
                 {errors.unique_identifier && (
                   <p className="text-red-600 text-sm mb-3">
                     {errors.unique_identifier}
                   </p>
                 )}
-
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1980,7 +1731,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., iPhone 16 pro"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Brand
@@ -1995,7 +1745,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., Apple"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Manufacturer
@@ -2013,7 +1762,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., Foxconn"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       SKU (unique identifier)
@@ -2028,7 +1776,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., IPHN14-BLK-128"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       MPN (unique identifier)
@@ -2043,7 +1790,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., MPN123456"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Model (unique identifier)
@@ -2058,7 +1804,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., iPhone 14"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       UPC/EAN/GTIN (unique identifier)
@@ -2076,7 +1821,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., 123456789012"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Taxonomy
@@ -2094,7 +1838,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., Electronics > Mobile Phones"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Price
@@ -2109,7 +1852,6 @@ const activeProjectCreatedAt = useMemo(() => {
                       placeholder="e.g., 999.99"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Stock
@@ -2125,7 +1867,6 @@ const activeProjectCreatedAt = useMemo(() => {
                     />
                   </div>
                 </div>
-
                 {projectId ? (
                   <button
                     onClick={handleManualSubmit}
@@ -2145,7 +1886,6 @@ const activeProjectCreatedAt = useMemo(() => {
             )}
           </div>
         </div>
-
         {/* RIGHT: Projects */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -2155,7 +1895,6 @@ const activeProjectCreatedAt = useMemo(() => {
       {filteredProjects.length}
     </span>
   </div>
-
   <div className="relative" ref={calendarRef}>
     <button
       type="button"
@@ -2176,7 +1915,6 @@ const activeProjectCreatedAt = useMemo(() => {
             : "Month"}
       <ChevronDown className="w-4 h-4 text-slate-400" />
     </button>
-
     {calendarOpen && (
       <div className="absolute right-0 mt-2 w-[320px] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50">
         <div className="flex items-center justify-between gap-2">
@@ -2192,7 +1930,6 @@ const activeProjectCreatedAt = useMemo(() => {
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
-
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
@@ -2212,7 +1949,6 @@ const activeProjectCreatedAt = useMemo(() => {
               <option value="month">Month</option>
             </select>
           </div>
-
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
               Pick date
@@ -2224,14 +1960,10 @@ const activeProjectCreatedAt = useMemo(() => {
   onChange={(e) => {
     const v = e.target.value;
     if (!v) return;
-
     const [yy, mm, dd] = v.split("-").map(Number);
     const picked = new Date(yy, mm - 1, dd);
-
     const today = new Date();
     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-    // clamp if somehow future date is entered
     setDateAnchor(picked > todayOnly ? todayOnly : picked);
   }}
   disabled={dateFilterMode === "all"}
@@ -2239,7 +1971,6 @@ const activeProjectCreatedAt = useMemo(() => {
 />
           </div>
         </div>
-
         {dateRange && (
           <div className="mt-3 text-xs text-slate-600">
             Showing projects created:{" "}
@@ -2248,7 +1979,6 @@ const activeProjectCreatedAt = useMemo(() => {
             </span>
           </div>
         )}
-
         <div className="mt-3 flex items-center gap-2">
           <button
             type="button"
@@ -2272,7 +2002,6 @@ const activeProjectCreatedAt = useMemo(() => {
     )}
   </div>
 </div>
-
           <div className="relative mb-4">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -2283,7 +2012,6 @@ const activeProjectCreatedAt = useMemo(() => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-
           <div className="space-y-3">
             {filteredProjects.length === 0 ? (
               <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
@@ -2298,7 +2026,6 @@ const activeProjectCreatedAt = useMemo(() => {
               filteredProjects.map((project, index) => {
                 const selected = project.id === projectId;
                 const expanded = expandedProjects.has(project.id);
-
                 return (
                   <div
                     key={project.id}
@@ -2319,7 +2046,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         >
                           {index + 1}
                         </div>
-
                         <div className="min-w-0">
                           <div className="text-[11px] font-bold text-slate-400 tracking-widest uppercase">
                             Project {index + 1}
@@ -2327,7 +2053,6 @@ const activeProjectCreatedAt = useMemo(() => {
                           <div className="text-sm font-semibold text-slate-900 truncate">
                             {project.name}
                           </div>
-
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize">
                               {project.operation_mode}
@@ -2345,7 +2070,6 @@ const activeProjectCreatedAt = useMemo(() => {
                           </div>
                         </div>
                       </div>
-
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
@@ -2365,7 +2089,6 @@ const activeProjectCreatedAt = useMemo(() => {
                         >
                           {selected ? "Selected" : "Select"}
                         </button>
-
                         <button
                           onClick={() => toggleProject(project.id)}
                           className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50"
@@ -2380,13 +2103,11 @@ const activeProjectCreatedAt = useMemo(() => {
                         </button>
                       </div>
                     </div>
-
                     {expanded && (
                       <div className="mt-4 border-t border-slate-200/70 pt-4">
                         <h6 className="text-sm font-medium text-slate-700 mb-3">
                           Import History
                         </h6>
-
                         <div className="space-y-2">
                           {projectSources[project.id]?.length === 0 ? (
                             <div className="text-center py-4 bg-slate-50 rounded-md text-sm text-slate-500">
@@ -2400,7 +2121,6 @@ const activeProjectCreatedAt = useMemo(() => {
                                 project.operation_mode === "enrichment";
                               const isPdfExtractionProject =
                                 project.operation_mode == "pdf_extraction";
-
                               const processStatus = isCleaningProject
                                 ? source.metadata?.cleaning_status ||
                                   source.metadata?.processing_status
@@ -2409,12 +2129,10 @@ const activeProjectCreatedAt = useMemo(() => {
                                     ? "completed"
                                     : source.metadata?.processing_status
                                   : source.metadata?.processing_status;
-
                               const isCompleted = processStatus === "completed";
                               const isProcessing =
                                 processStatus === "processing";
                               const isFailed = processStatus === "failed";
-
                               const pendingLabel = isCleaningProject
                                 ? "Needs Cleaning"
                                 : isEnrichmentProject
@@ -2422,13 +2140,11 @@ const activeProjectCreatedAt = useMemo(() => {
                                   : isPdfExtractionProject
                                     ? "Needs extraction"
                                     : "Needs Aggregation";
-
                               const processingLabel = isCleaningProject
                                 ? "Cleaning..."
                                 : isEnrichmentProject
                                   ? "Enriching..."
                                   : "Aggregating...";
-
                               return (
                                 <div
                                   key={source.id}
@@ -2440,7 +2156,6 @@ const activeProjectCreatedAt = useMemo(() => {
                                       {source.source_url}
                                     </span>
                                   </div>
-
                                   <div className="flex items-center gap-3">
                                     <button
                                       onClick={() =>
@@ -2453,7 +2168,6 @@ const activeProjectCreatedAt = useMemo(() => {
                                     >
                                       <Download className="w-3.5 h-3.5" /> Input
                                     </button>
-
                                     {isCompleted ? (
                                       <button
                                         onClick={() =>
@@ -2490,7 +2204,6 @@ const activeProjectCreatedAt = useMemo(() => {
                                         {pendingLabel}
                                       </div>
                                     )}
-
                                     {getStatusIcon(source.status)}
                                   </div>
                                 </div>
@@ -2505,7 +2218,6 @@ const activeProjectCreatedAt = useMemo(() => {
               })
             )}
           </div>
-
           <button
             type="button"
             onClick={() => setShowProjectModal(true)}
