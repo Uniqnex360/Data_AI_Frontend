@@ -725,8 +725,9 @@ export default function DataCleaningTab() {
     return availableAttributes.filter((a) => a.toLowerCase().includes(q));
   }, [availableAttributes, bulkSearch]);
   return (
-    <div className="p-1 bg-slate-50 min-h-screen font-sans">
-      <div className="mb-4">
+    <div className="flex flex-col h-full bg-slate-50" style={{ minHeight: 0 }}>
+      <div className="flex-none bg-slate-50 z-40 pb-2">
+      <div className="mb-2 pt-1">
         <h3 className="text-xl font-semibold text-slate-900">
           Data Cleaning & Validation
         </h3>
@@ -734,305 +735,306 @@ export default function DataCleaningTab() {
           Select a project, then clean and standardise product attributes
         </p>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3">
-        <div className="flex items-end gap-3 flex-wrap">
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-              Algorithm
-            </label>
-            <select
-              value={selectedLLM}
-              onChange={(e) => setSelectedLLM(e.target.value)}
-              className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {llmOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+        <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 mb-2">
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+                LLM Provider
+              </label>
+              <select
+                value={selectedLLM}
+                onChange={(e) => setSelectedLLM(e.target.value)}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {llmOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+                Project
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={async (e) => {
+                  const id = e.target.value;
+                  setSelectedProjectId(id);
+                  setColSorts([]);
+                  setColFilters([]);
+                  await loadProjectFilters(id || undefined);
+                  await loadProjectAttributes(id);
+                }}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Projects</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+                Brand
+              </label>
+              <select
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                disabled={availableBrands.length === 0}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+              >
+                <option value="">All Brands</option>
+                {availableBrands.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+                Category
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={async (e) => {
+                  const cat = e.target.value;
+                  setCategoryFilter(cat);
+                  setColSorts([]);
+                  setColFilters([]);
+                  await loadProjectAttributes(
+                    selectedProjectId,
+                    cat || undefined,
+                  );
+                }}
+                disabled={availableCategories.length === 0}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+              >
+                <option value="">All Categories</option>
+                {availableCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleReset}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-1"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear filters
+              </button>
+            )}
+            {selectedProjectId && (
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={handleCleanSelected}
+                  disabled={cleaning || selectedProductIds.size === 0}
+                  className="h-9 flex items-center gap-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 text-sm font-medium transition-colors"
+                >
+                  {cleaning ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5" />
+                  )}
+                  Clean ({selectedProductIds.size})
+                </button>
+                <button
+                  onClick={handleDownloadSelected}
+                  disabled={downloading || !canDownload}
+                  className="h-9 flex items-center gap-2 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 text-sm font-medium transition-colors"
+                >
+                  {downloading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                  Download
+                </button>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-              Project
-            </label>
-            <select
-              value={selectedProjectId}
-              onChange={async (e) => {
-                const id = e.target.value;
-                setSelectedProjectId(id);
-                setColSorts([]);
-                setColFilters([]);
-                await loadProjectFilters(id || undefined);
-                await loadProjectAttributes(id);
-              }}
-              className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Projects</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-              Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-              Brand
-            </label>
-            <select
-              value={brandFilter}
-              onChange={(e) => setBrandFilter(e.target.value)}
-              disabled={availableBrands.length === 0}
-              className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
-            >
-              <option value="">All Brands</option>
-              {availableBrands.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-              Category
-            </label>
-            <select
-              value={categoryFilter}
-              onChange={async (e) => {
-                const cat = e.target.value;
-                setCategoryFilter(cat);
-                setColSorts([]);
-                setColFilters([]);
-                await loadProjectAttributes(
-                  selectedProjectId,
-                  cat || undefined,
-                );
-              }}
-              disabled={availableCategories.length === 0}
-              className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
-            >
-              <option value="">All Categories</option>
-              {availableCategories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={handleReset}
-              className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-1"
-            >
-              <X className="w-3.5 h-3.5" />
-              Clear filters
-            </button>
+          {selectedProject && (
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-semibold text-slate-900">
+                  {selectedProject.name}
+                </span>
+                {getStatusBadge(getProjectSourceStatus(selectedProject))}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Completed: {projectStatusSummary.completed}
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                  <Clock className="w-3.5 h-3.5" />
+                  Pending: {projectStatusSummary.pending}
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                  <XCircle className="w-3.5 h-3.5" />
+                  Failed: {projectStatusSummary.failed}
+                </span>
+              </div>
+            </div>
           )}
-          {selectedProjectId && (
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={handleCleanSelected}
-                disabled={cleaning || selectedProductIds.size === 0}
-                className="h-9 flex items-center gap-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 text-sm font-medium transition-colors"
-              >
-                {cleaning ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Play className="w-3.5 h-3.5" />
-                )}
-                Clean ({selectedProductIds.size})
-              </button>
-              <button
-                onClick={handleDownloadSelected}
-                disabled={downloading || !canDownload}
-                className="h-9 flex items-center gap-2 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 text-sm font-medium transition-colors"
-              >
-                {downloading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Download className="w-3.5 h-3.5" />
-                )}
-                Download
-              </button>
+          {colFilters.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-slate-100">
+              {colFilters.map(({ attr, value }) => (
+                <span
+                  key={attr}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200"
+                >
+                  <Filter className="w-2.5 h-2.5" />
+                  {attr}: <strong>{value}</strong>
+                  <button
+                    onClick={() => setColFilter(attr, "")}
+                    className="ml-0.5 hover:text-blue-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              {colSorts.map(({ attr, dir }) => (
+                <span
+                  key={attr}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-200"
+                >
+                  {dir === "asc" ? (
+                    <ArrowUp className="w-2.5 h-2.5" />
+                  ) : (
+                    <ArrowDown className="w-2.5 h-2.5" />
+                  )}
+                  {attr}
+                  <button
+                    onClick={() =>
+                      setColSorts((p) => p.filter((s) => s.attr !== attr))
+                    }
+                    className="ml-0.5 hover:text-violet-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
             </div>
           )}
         </div>
-        {selectedProject && (
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-semibold text-slate-900">
-                {selectedProject.name}
+        {selectedProjectId && availableAttributes.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Bulk Update Attributes
+            </p>
+            {selectedBulkAttributes.length > 0 && (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                Showing {filteredSortedProducts.length} products with selected
+                attributes
               </span>
-              {getStatusBadge(getProjectSourceStatus(selectedProject))}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Completed: {projectStatusSummary.completed}
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
-                <Clock className="w-3.5 h-3.5" />
-                Pending: {projectStatusSummary.pending}
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-                <XCircle className="w-3.5 h-3.5" />
-                Failed: {projectStatusSummary.failed}
-              </span>
-            </div>
-          </div>
-        )}
-        {colFilters.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-slate-100">
-            {colFilters.map(({ attr, value }) => (
-              <span
-                key={attr}
-                className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200"
+            )}
+            {selectedBulkAttributes.length > 0 && (
+              <button
+                onClick={() => {
+                  setSelectedBulkAttributes([]);
+                  setBulkAttributeValues({});
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
               >
-                <Filter className="w-2.5 h-2.5" />
-                {attr}: <strong>{value}</strong>
-                <button
-                  onClick={() => setColFilter(attr, "")}
-                  className="ml-0.5 hover:text-blue-900"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
-            {colSorts.map(({ attr, dir }) => (
-              <span
-                key={attr}
-                className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-200"
+                Clear all
+              </button>
+            )}
+            <div className="relative mb-2 max-w-sm">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={bulkSearch}
+                onChange={(e) => setBulkSearch(e.target.value)}
+                placeholder="Search attributes..."
+                className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="border border-slate-200 rounded-lg bg-slate-50 p-2 max-h-44 overflow-y-auto flex flex-wrap gap-2 min-w-[320px] flex-1">
+                {filteredBulkAttributes.map((attr) => {
+                  const checked = selectedBulkAttributes.includes(attr);
+                  return (
+                    <div
+                      key={attr}
+                      className="flex items-center gap-1.5 border border-slate-200 bg-white rounded-lg px-2 py-1"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedBulkAttributes((p) => [...p, attr]);
+                          } else {
+                            setSelectedBulkAttributes((p) =>
+                              p.filter((a) => a !== attr),
+                            );
+                            setBulkAttributeValues((p) => {
+                              const n = { ...p };
+                              delete n[attr];
+                              return n;
+                            });
+                          }
+                        }}
+                        className="rounded border-slate-300 text-blue-600"
+                      />
+                      <span className="text-xs text-slate-700">{attr}</span>
+                      {checked && (
+                        <input
+                          type="text"
+                          value={bulkAttributeValues[attr] || ""}
+                          onChange={(e) =>
+                            setBulkAttributeValues((p) => ({
+                              ...p,
+                              [attr]: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter value"
+                          className="ml-1 h-7 w-32 px-2 border border-slate-300 rounded text-xs"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                onClick={handleBulkUpdate}
+                disabled={
+                  bulkUpdating ||
+                  selectedProductIds.size === 0 ||
+                  selectedBulkAttributes.length === 0
+                }
+                className="h-9 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 text-sm font-medium"
               >
-                {dir === "asc" ? (
-                  <ArrowUp className="w-2.5 h-2.5" />
-                ) : (
-                  <ArrowDown className="w-2.5 h-2.5" />
-                )}
-                {attr}
-                <button
-                  onClick={() =>
-                    setColSorts((p) => p.filter((s) => s.attr !== attr))
-                  }
-                  className="ml-0.5 hover:text-violet-900"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
+                {bulkUpdating
+                  ? "Updating…"
+                  : `Update ${selectedProductIds.size} selected`}
+              </button>
+            </div>
           </div>
         )}
       </div>
-      {selectedProjectId && availableAttributes.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-3 mb-3">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Bulk Update Attributes
-          </p>
-          {selectedBulkAttributes.length > 0 && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-              Showing {filteredSortedProducts.length} products with selected
-              attributes
-            </span>
-          )}
-          {selectedBulkAttributes.length > 0 && (
-            <button
-              onClick={() => {
-                setSelectedBulkAttributes([]);
-                setBulkAttributeValues({});
-              }}
-              className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-            >
-              Clear all
-            </button>
-          )}
-          <div className="relative mb-2 max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={bulkSearch}
-              onChange={(e) => setBulkSearch(e.target.value)}
-              placeholder="Search attributes..."
-              className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
-            />
-          </div>
-          <div className="flex items-end gap-3 flex-wrap">
-            <div className="border border-slate-200 rounded-lg bg-slate-50 p-2 max-h-44 overflow-y-auto flex flex-wrap gap-2 min-w-[320px] flex-1">
-              {filteredBulkAttributes.map((attr) => {
-                const checked = selectedBulkAttributes.includes(attr);
-                return (
-                  <div
-                    key={attr}
-                    className="flex items-center gap-1.5 border border-slate-200 bg-white rounded-lg px-2 py-1"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedBulkAttributes((p) => [...p, attr]);
-                        } else {
-                          setSelectedBulkAttributes((p) =>
-                            p.filter((a) => a !== attr),
-                          );
-                          setBulkAttributeValues((p) => {
-                            const n = { ...p };
-                            delete n[attr];
-                            return n;
-                          });
-                        }
-                      }}
-                      className="rounded border-slate-300 text-blue-600"
-                    />
-                    <span className="text-xs text-slate-700">{attr}</span>
-                    {checked && (
-                      <input
-                        type="text"
-                        value={bulkAttributeValues[attr] || ""}
-                        onChange={(e) =>
-                          setBulkAttributeValues((p) => ({
-                            ...p,
-                            [attr]: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter value"
-                        className="ml-1 h-7 w-32 px-2 border border-slate-300 rounded text-xs"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <button
-              onClick={handleBulkUpdate}
-              disabled={
-                bulkUpdating ||
-                selectedProductIds.size === 0 ||
-                selectedBulkAttributes.length === 0
-              }
-              className="h-9 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 text-sm font-medium"
-            >
-              {bulkUpdating
-                ? "Updating…"
-                : `Update ${selectedProductIds.size} selected`}
-            </button>
-          </div>
-        </div>
-      )}
       {!selectedProjectId ? (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-1">
@@ -1097,7 +1099,8 @@ export default function DataCleaningTab() {
           <p className="text-slate-500">No products found</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col h-full">
           <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
             <div className="flex items-center gap-3">
               <input
@@ -1125,10 +1128,7 @@ export default function DataCleaningTab() {
               Total {filteredSortedProducts.length} products
             </span>
           </div>
-          <div
-            className="overflow-auto"
-            style={{ maxHeight: "calc(100vh - 280px)" }}
-          >
+         <div className="overflow-auto flex-1 min-h-0">
             <table
               className="border-collapse"
               style={{
@@ -1476,7 +1476,8 @@ export default function DataCleaningTab() {
               </tbody>
             </table>
           </div>
-        </div>
+         </div>
+
       )}
     </div>
   );

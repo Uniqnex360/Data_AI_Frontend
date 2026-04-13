@@ -89,13 +89,13 @@ const tabs: Tab[] = [
     component: EnrichmentTab,
     roles: ["admin", "editor", "viewer"],
   },
-  {
-    id: "golden",
-    label: "Golden Records",
-    icon: Database,
-    component: GoldenRecordsTab,
-    roles: ["admin", "editor", "viewer"],
-  },
+  // {
+  //   id: "golden",
+  //   label: "Golden Records",
+  //   icon: Database,
+  //   component: GoldenRecordsTab,
+  //   roles: ["admin", "editor", "viewer"],
+  // },
 ];
 
 function AppShell() {
