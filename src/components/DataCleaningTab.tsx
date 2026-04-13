@@ -149,16 +149,9 @@ function AttrHeader({
     sort === "asc" ? ArrowUp : sort === "desc" ? ArrowDown : ArrowUpDown;
   return (
     <th
-  style={{ 
-    width: COL_ATTR, 
-    minWidth: COL_ATTR,
-    position: 'sticky', // ADD THIS
-    top: 0,             // ADD THIS (critical for vertical stickiness)
-    zIndex: 30,         // ADD THIS (must be > body sticky columns)
-    backgroundColor: 'white' // Prevent content bleed-through
-  }}
-  className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
->
+      style={{ width: COL_ATTR, minWidth: COL_ATTR,zIndex: 40  }}
+      className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
+    >
       <div ref={ref} className="flex items-center gap-1 px-3 py-3">
         <span className="truncate flex-1" title={attr}>
           {attr}
@@ -1133,9 +1126,13 @@ export default function DataCleaningTab() {
             </span>
           </div>
           <div
-            className="overflow-auto"
-            style={{ maxHeight: "calc(100vh - 280px)" }}
-          >
+  className="overflow-auto relative"
+  style={{ 
+    maxHeight: "calc(100vh - 280px)",
+    overflowY: "auto",
+    overflowX: "auto"
+  }}
+>
             <table
               className="border-collapse"
               style={{
@@ -1152,7 +1149,8 @@ export default function DataCleaningTab() {
                   availableAttributes.length * COL_ATTR,
               }}
             >
-              <thead>
+              <thead className="sticky top-0 z-40">
+
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
                   <th
                     style={{
@@ -1160,7 +1158,7 @@ export default function DataCleaningTab() {
                       minWidth: COL_CHECKBOX,
                       left: 0,
                       position: "sticky",
-                      zIndex: 30,
+                       zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
@@ -1181,7 +1179,7 @@ export default function DataCleaningTab() {
                       minWidth: COL_STATUS,
                       left: LEFT_STATUS,
                       position: "sticky",
-                      zIndex: 30,
+                       zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
@@ -1193,7 +1191,7 @@ export default function DataCleaningTab() {
                       minWidth: COL_THUMB,
                       left: LEFT_THUMB,
                       position: "sticky",
-                      zIndex: 30,
+                       zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
@@ -1205,7 +1203,7 @@ export default function DataCleaningTab() {
                       minWidth: COL_MPN,
                       left: LEFT_MPN,
                       position: "sticky",
-                      zIndex: 30,
+                      zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
@@ -1217,20 +1215,20 @@ export default function DataCleaningTab() {
                       minWidth: COL_NAME,
                       left: LEFT_NAME,
                       position: "sticky",
-                      zIndex: 30,
+                      zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Name (Product)
                   </th>
                   <th
-                    style={{ width: COL_BRAND, minWidth: COL_BRAND }}
+                    style={{ width: COL_BRAND, minWidth: COL_BRAND,zIndex: 40}}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Brand
                   </th>
                   <th
-                    style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }}
+                    style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY,zIndex: 40 }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Category
@@ -1251,7 +1249,7 @@ export default function DataCleaningTab() {
                       minWidth: COL_ACTION,
                       right: 0,
                       position: "sticky",
-                      zIndex: 30,
+                      zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center"
                   >
