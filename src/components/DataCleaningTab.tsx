@@ -1034,6 +1034,7 @@ export default function DataCleaningTab() {
           </div>
         </div>
       )}
+      </div>
       {!selectedProjectId ? (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-1">
@@ -1480,6 +1481,5 @@ export default function DataCleaningTab() {
         </div>
       )}
         </div>    
-      </div>
   );
 }
