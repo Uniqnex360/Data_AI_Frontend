@@ -141,7 +141,7 @@ export default function BusinessRulesTab() {
     setSearchQuery("");
     setCategoryFilter("all");
     setPromptNameFilter("");
-    // keep statusFilter unchanged as per your current behavior (no UI for it)
+    
   }, []);
 
   const handleUpdateRuleStatus = async (rule: BusinessRule, status: RuleStatus) => {
@@ -171,7 +171,7 @@ export default function BusinessRulesTab() {
     }
   };
 
-  // Stats (based on current displayed rules list)
+  
   const stats = useMemo(() => {
     const prompts = rules.flatMap((r) => r.prompts || []);
     const active = prompts.filter((p) => p.status === RuleStatus.ACTIVE).length;

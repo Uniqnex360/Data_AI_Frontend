@@ -1,12 +1,5 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
   AlertTriangle,
   Box,
   ChevronDown,
@@ -19,25 +12,17 @@ import {
   Loader2,
   Play,
   RefreshCw,
-  Search,
   Sparkles,
-  Tag,
-  Target,
   X,
+  Zap,
+  Target,
 } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
-import { enrichmentService } from "../services/enrichmentService";
 import { notify } from "../lib/notifications";
-import type { Product, Enrichment } from "../types/database.types";
-import type {
-  AggregatedAttribute,
-  Project,
-} from "../types/business-rules.types.ts";
-import {
-  getProductStatusBadge,
-  getStatusBadge,
-} from "../utils/projectStatusColorizer";
+import type { Product } from "../types/database.types";
+import type { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
+import { getProductStatusBadge, getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { aggregationService } from "../services/aggregationService";
 import { formatValue } from "../utils/valueParser.tsx";
@@ -53,12 +38,8 @@ export default function EnrichmentTab() {
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [useCases, setUseCases] = useState<string[]>([]);
 
-  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
-    null,
-  );
-  const [expandedProjectProducts, setExpandedProjectProducts] = useState<
-    Product[]
-  >([]);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [expandedProjectProducts, setExpandedProjectProducts] = useState<Product[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
 
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -75,19 +56,11 @@ export default function EnrichmentTab() {
   const [brandFilter, setBrandFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
-  const [enrichingProjects, setEnrichingProjects] = useState<Set<string>>(
-    new Set(),
-  );
-  const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [enrichingProjects, setEnrichingProjects] = useState<Set<string>>(new Set());
+  const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(new Set());
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
@@ -97,8 +70,7 @@ export default function EnrichmentTab() {
     { value: "claude", label: "Datavio Algo-3" },
   ]);
 
-  const { availableBrands, availableCategories, loadProjectFilters } =
-    useProjectFilters();
+  const { availableBrands, availableCategories, loadProjectFilters } = useProjectFilters();
 
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
@@ -107,32 +79,33 @@ export default function EnrichmentTab() {
         operation_mode: "aggregation,pdf_extraction,enrichment",
         tab: "enrichment",
       });
-      console.log("loadProjects", data);
 
       const enrichmentProjects = data.filter(
-  (p: Project) => p.operation_mode === "aggregation" || 
-                 p.operation_mode === "pdf_extraction" || 
-                 p.operation_mode === "enrichment"
-);
+        (p: Project) =>
+          p.operation_mode === "aggregation" ||
+          p.operation_mode === "pdf_extraction" ||
+          p.operation_mode === "enrichment",
+      );
 
       setProjects(enrichmentProjects);
-      
 
       const uniqueUseCases = [
-      ...new Set(
-        enrichmentProjects
-          .map((p: Project) => p.use_case)
-          .filter(Boolean) as string[],
-      ),
-    ];
-    const sortedUseCases = uniqueUseCases.sort((a, b) => {
-      const aIsAggregation = a === "Products with Category Assignments" || a === "Products without Category Assignments";
-      const bIsAggregation = b === "Products with Category Assignments" || b === "Products without Category Assignments";
-      
-      if (aIsAggregation && !bIsAggregation) return -1;
-      if (!aIsAggregation && bIsAggregation) return 1;
-      return a.localeCompare(b);
-    });
+        ...new Set(
+          enrichmentProjects.map((p: Project) => p.use_case).filter(Boolean) as string[],
+        ),
+      ];
+      const sortedUseCases = uniqueUseCases.sort((a, b) => {
+        const aIsAggregation =
+          a === "Products with Category Assignments" ||
+          a === "Products without Category Assignments";
+        const bIsAggregation =
+          b === "Products with Category Assignments" ||
+          b === "Products without Category Assignments";
+
+        if (aIsAggregation && !bIsAggregation) return -1;
+        if (!aIsAggregation && bIsAggregation) return 1;
+        return a.localeCompare(b);
+      });
       setUseCases(sortedUseCases);
     } catch (error) {
       console.error("Failed to load enrichment projects:", error);
@@ -209,10 +182,7 @@ export default function EnrichmentTab() {
       resetLocalFilters();
 
       try {
-        const data = await productService.getProductsByProject(
-          projectId,
-          "enrichment",
-        );
+        const data = await productService.getProductsByProject(projectId, "enrichment");
         setExpandedProjectProducts(data);
         setCurrentPage(1);
         await loadProjectFilters(projectId);
@@ -249,7 +219,7 @@ export default function EnrichmentTab() {
           p.product_code?.toLowerCase().includes(query) ||
           p.sku?.toLowerCase().includes(query) ||
           p.brand_name?.toLowerCase().includes(query) ||
-          p.mpn?.toLowerCase().includes(query),
+          (p as any).mpn?.toLowerCase().includes(query),
       );
     }
 
@@ -262,17 +232,9 @@ export default function EnrichmentTab() {
     }
 
     return filtered;
-  }, [
-    expandedProjectProducts,
-    searchQuery,
-    statusFilter,
-    categoryFilter,
-    brandFilter,
-  ]);
+  }, [expandedProjectProducts, searchQuery, statusFilter, categoryFilter, brandFilter]);
 
-  const totalPages = Math.ceil(
-    filteredExpandedProducts.length / ITEMS_PER_PAGE,
-  );
+  const totalPages = Math.ceil(filteredExpandedProducts.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedProducts = filteredExpandedProducts.slice(
     startIndex,
@@ -281,15 +243,12 @@ export default function EnrichmentTab() {
 
   const expandedStats = useMemo(
     () => ({
-      success: expandedProjectProducts.filter(
-        (p) => p.enrichment_status === "completed",
-      ).length,
-      failed: expandedProjectProducts.filter(
-        (p) => p.enrichment_status === "failed",
-      ).length,
-      pending: expandedProjectProducts.filter(
-        (p) => p.enrichment_status === "pending",
-      ).length,
+      success: expandedProjectProducts.filter((p) => p.enrichment_status === "completed")
+        .length,
+      failed: expandedProjectProducts.filter((p) => p.enrichment_status === "failed")
+        .length,
+      pending: expandedProjectProducts.filter((p) => p.enrichment_status === "pending")
+        .length,
     }),
     [expandedProjectProducts],
   );
@@ -316,6 +275,7 @@ export default function EnrichmentTab() {
       setIsDrawerOpen(false);
     }
   }, [selectedProduct, loadAttributes]);
+
   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
     projectId: expandedProjectId,
     currentTab: "enrichment",
@@ -343,20 +303,14 @@ export default function EnrichmentTab() {
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("Enrichment started");
 
-      // await loadEnrichment(productId);
-
       if (expandedProjectId) {
-        const fresh = await productService.getProductsByProject(
-          expandedProjectId,
-          "enrichment",
-        );
+        const fresh = await productService.getProductsByProject(expandedProjectId, "enrichment");
         setExpandedProjectProducts(fresh);
       }
     } catch (error: any) {
       console.error("Enrichment failed:", error);
-      removeTrackingProduct(productId)
-      const errorMessage =
-        error.response?.data?.detail || error.message || "Enrichment failed";
+      removeTrackingProduct(productId);
+      const errorMessage = error.response?.data?.detail || error.message || "Enrichment failed";
       notify.error("Enrichment Failed", errorMessage);
 
       setPollingProductIds((prev) => {
@@ -366,9 +320,7 @@ export default function EnrichmentTab() {
       });
 
       setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-        ),
+        prev.map((p) => (p.id === productId ? { ...p, enrichment_status: "failed" } : p)),
       );
     } finally {
       setLoading(false);
@@ -388,9 +340,7 @@ export default function EnrichmentTab() {
       selectedProductIds.size > 0
         ? selectedPendingProducts
         : expandedProjectProducts.filter(
-            (p) =>
-              p.enrichment_status === "pending" ||
-              p.enrichment_status === "failed",
+            (p) => p.enrichment_status === "pending" || p.enrichment_status === "failed",
           );
 
     if (pendingProducts.length === 0) {
@@ -404,11 +354,9 @@ export default function EnrichmentTab() {
 
     setLoading(true);
     try {
-      pendingProducts.forEach(p=>trackProcessingProduct(p.id))
+      pendingProducts.forEach((p) => trackProcessingProduct(p.id));
       await Promise.allSettled(
-        pendingProducts.map((p) =>
-          aggregationService.aggregateProduct(p.id, selectedLLM),
-        ),
+        pendingProducts.map((p) => aggregationService.aggregateProduct(p.id, selectedLLM)),
       );
 
       const newPollingIds = pendingProducts.map((p) => p.id);
@@ -426,84 +374,72 @@ export default function EnrichmentTab() {
         ),
       );
 
-      notify.success(
-        `Enrichment started for ${pendingProducts.length} product(s)`,
-      );
+      notify.success(`Enrichment started for ${pendingProducts.length} product(s)`);
     } catch (error) {
       console.error("Batch enrichment failed", error);
       notify.error("Batch enrichment failed");
-      pendingProducts.forEach(p=>removeTrackingProduct(p.id))
+      pendingProducts.forEach((p) => removeTrackingProduct(p.id));
     } finally {
       setLoading(false);
     }
-  }, [
-    expandedProjectId,
-    expandedProjectProducts,
-    selectedProductIds,
-    selectedLLM,
-  ]);
+  }, [expandedProjectId, expandedProjectProducts, selectedProductIds, selectedLLM]);
+
   const pollProductStatuses = useCallback(async () => {
-  if (pollingProductIds.size === 0 || !expandedProjectId) return;
-  try {
-    // Fetch from BOTH tabs
-    const [enrichmentData, aggregationData] = await Promise.all([
-      productService.getProductsByProject(expandedProjectId, 'enrichment'),
-      productService.getProductsByProject(expandedProjectId, 'aggregation'),
-    ]);
-    
-    const completedOrFailed: string[] = [];
-    
-    pollingProductIds.forEach((productId) => {
-      // Check if product still in enrichment tab
-      const productInEnrichment = enrichmentData.find(p => p.id === productId);
-      const productInAggregation = aggregationData.find(p => p.id === productId);
-      
-      // Case 1: Product moved to Aggregation tab (score >= 90)
-      if (!productInEnrichment && productInAggregation) {
-        const score = productInAggregation.completeness_score || 0;
-        completedOrFailed.push(productId);
-        notify.success(
-          "Ready for Export",
-          `${productInAggregation.product_name || productInAggregation.product_code} has reached ${score}% completeness and is ready in the Aggregation tab.`
-        );
-      }
-      // Case 2: Product completed and still in enrichment (but score >= 90 - should not happen normally)
-      else if (productInEnrichment && productInEnrichment.enrichment_status === "completed") {
-        const score = productInEnrichment.completeness_score || 0;
-        if (score >= 90) {
+    if (pollingProductIds.size === 0 || !expandedProjectId) return;
+    try {
+      const [enrichmentData, aggregationData] = await Promise.all([
+        productService.getProductsByProject(expandedProjectId, "enrichment"),
+        productService.getProductsByProject(expandedProjectId, "aggregation"),
+      ]);
+
+      const completedOrFailed: string[] = [];
+
+      pollingProductIds.forEach((productId) => {
+        const productInEnrichment = enrichmentData.find((p) => p.id === productId);
+        const productInAggregation = aggregationData.find((p) => p.id === productId);
+
+        if (!productInEnrichment && productInAggregation) {
+          const score = productInAggregation.completeness_score || 0;
           completedOrFailed.push(productId);
-          notify.success("Enrichment Complete", productInEnrichment.product_name);
-        } else {
+          notify.success(
+            "Ready for Export",
+            `${productInAggregation.product_name || productInAggregation.product_code} has reached ${score}% completeness and is ready in the Aggregation tab.`,
+          );
+        } else if (productInEnrichment && productInEnrichment.enrichment_status === "completed") {
+          const score = productInEnrichment.completeness_score || 0;
           completedOrFailed.push(productId);
-          notify.info("Enrichment Complete", `${productInEnrichment.product_name} has been processed.`);
+          if (score >= 90) {
+            notify.success("Enrichment Complete", productInEnrichment.product_name);
+          } else {
+            notify.info(
+              "Enrichment Complete",
+              `${productInEnrichment.product_name} has been processed.`,
+            );
+          }
+        } else if (productInEnrichment && productInEnrichment.enrichment_status === "failed") {
+          completedOrFailed.push(productId);
+          notify.error("Enrichment Failed", productInEnrichment.product_name);
         }
-      }
-      // Case 3: Product failed
-      else if (productInEnrichment && productInEnrichment.enrichment_status === "failed") {
-        completedOrFailed.push(productId);
-        notify.error("Enrichment Failed", productInEnrichment.product_name);
-      }
-      // Case 4: Still processing - do nothing
-    });
-    
-    // Update current tab view only
-    setExpandedProjectProducts(enrichmentData);
-    
-    if (completedOrFailed.length > 0) {
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        completedOrFailed.forEach((id) => updated.delete(id));
-        return updated;
       });
+
+      setExpandedProjectProducts(enrichmentData);
+
+      if (completedOrFailed.length > 0) {
+        setPollingProductIds((prev) => {
+          const updated = new Set(prev);
+          completedOrFailed.forEach((id) => updated.delete(id));
+          return updated;
+        });
+      }
+
+      if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
+        await loadAttributes(selectedProduct);
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
     }
-    
-    if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
-      await loadAttributes(selectedProduct);
-    }
-  } catch (error) {
-    console.error("Polling error:", error);
-  }
-}, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+
   const handleEnrichSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToEnrich = Array.from(selectedProjectIds);
@@ -517,16 +453,8 @@ export default function EnrichmentTab() {
         const promises = batch.map((projectId) =>
           aggregationService
             .aggregateProject(projectId, selectedLLM)
-            .then((result) => ({
-              status: "fulfilled" as const,
-              projectId,
-              result,
-            }))
-            .catch((error) => ({
-              status: "rejected" as const,
-              projectId,
-              error,
-            })),
+            .then((result) => ({ status: "fulfilled" as const, projectId, result }))
+            .catch((error) => ({ status: "rejected" as const, projectId, error })),
         );
 
         const results = await Promise.all(promises);
@@ -545,10 +473,7 @@ export default function EnrichmentTab() {
       }
 
       if (expandedProjectId && projectIdsToEnrich.includes(expandedProjectId)) {
-        const freshData = await productService.getProductsByProject(
-          expandedProjectId,
-          "enrichment",
-        );
+        const freshData = await productService.getProductsByProject(expandedProjectId, "enrichment");
         setExpandedProjectProducts(freshData);
 
         const processingIds = freshData
@@ -582,14 +507,12 @@ export default function EnrichmentTab() {
 
     for (const projectId of enrichingProjects) {
       try {
-        const job =
-          await aggregationService.getProjectAggregationStatus(projectId);
+        const job = await aggregationService.getProjectAggregationStatus(projectId);
 
         if (job.status === "completed" || job.status === "failed") {
           newEnrichingProjects.delete(projectId);
           completedProjects.push(projectId);
-          const projectName =
-            projects.find((p) => p.id === projectId)?.name || projectId;
+          const projectName = projects.find((p) => p.id === projectId)?.name || projectId;
           if (job.status === "completed") {
             notify.success(`Enrichment completed for "${projectName}"`);
           } else {
@@ -605,10 +528,7 @@ export default function EnrichmentTab() {
       setEnrichingProjects(newEnrichingProjects);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
-          const fresh = await productService.getProductsByProject(
-            expandedProjectId,
-            "enrichment",
-          );
+          const fresh = await productService.getProductsByProject(expandedProjectId, "enrichment");
           setExpandedProjectProducts(fresh);
         } catch (error) {
           console.error("Failed to refresh expanded project:", error);
@@ -668,9 +588,7 @@ export default function EnrichmentTab() {
 
   const toggleSelectAllProjects = useCallback(() => {
     setSelectedProjectIds((prev) =>
-      prev.size === filteredProjects.length
-        ? new Set()
-        : new Set(filteredProjects.map((p) => p.id)),
+      prev.size === filteredProjects.length ? new Set() : new Set(filteredProjects.map((p) => p.id)),
     );
   }, [filteredProjects]);
 
@@ -694,31 +612,24 @@ export default function EnrichmentTab() {
   );
 
   const canDownloadSelected = useMemo(() => {
-    const downloadableStatuses = new Set(["completed", "failed",'pending']);
+    const downloadableStatuses = new Set(["completed", "failed", "pending"]);
 
     const productOk =
       selectedProductIds.size > 0 &&
       expandedProjectProducts.some(
         (p) =>
-          selectedProductIds.has(p.id) &&
-          downloadableStatuses.has(p.enrichment_status),
+          selectedProductIds.has(p.id) && downloadableStatuses.has(p.enrichment_status as any),
       );
 
     const projectOk =
       selectedProjectIds.size > 0 &&
       projects.some(
         (pr) =>
-          selectedProjectIds.has(pr.id) &&
-          downloadableStatuses.has(pr.processing_status ?? ""),
+          selectedProjectIds.has(pr.id) && downloadableStatuses.has((pr.processing_status ?? "") as any),
       );
 
     return productOk || projectOk;
-  }, [
-    selectedProductIds,
-    expandedProjectProducts,
-    selectedProjectIds,
-    projects,
-  ]);
+  }, [selectedProductIds, expandedProjectProducts, selectedProjectIds, projects]);
 
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
@@ -729,10 +640,7 @@ export default function EnrichmentTab() {
     }
     setDownloading(true);
     try {
-      const blob = await aggregationService.exportSelectedItems(
-        selectedProjects,
-        selectedProducts,
-      );
+      const blob = await aggregationService.exportSelectedItems(selectedProjects, selectedProducts);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -756,27 +664,37 @@ export default function EnrichmentTab() {
 
   const hasProductsInSelectedProjects = useMemo(() => {
     if (selectedProjectIds.size === 0) return false;
-    const selectedProjectsList = projects.filter((p) =>
-      selectedProjectIds.has(p.id),
-    );
+    const selectedProjectsList = projects.filter((p) => selectedProjectIds.has(p.id));
     return selectedProjectsList.some((p) => (p.product_count ?? 0) > 0);
   }, [selectedProjectIds, projects]);
 
-  const selectedProductData = expandedProjectProducts.find(
-    (p) => p.id === selectedProduct,
-  );
+  const selectedProductData = expandedProjectProducts.find((p) => p.id === selectedProduct);
+
+  // UI helper only (safe optional access, no functionality changes)
+  const getMissingAttributes = useCallback((product: Product): string[] => {
+    const raw =
+      (product as any).missing_attributes ??
+      (product as any).missingAttributes ??
+      (product as any).missing_fields ??
+      (product as any).missingFields;
+
+    if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
+    if (typeof raw === "string") {
+      return raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
 
   return (
     <div className="space-y-4">
       <div className="relative">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-1">
-              Product Enrichment
-            </h3>
-            <p className="text-sm text-slate-600">
-              Select projects to manage product enrichment
-            </p>
+            <h3 className="text-xl font-semibold text-slate-900 mb-1">Product Enrichment</h3>
+            <p className="text-sm text-slate-600">Select projects to manage product enrichment</p>
           </div>
 
           <div
@@ -805,13 +723,8 @@ export default function EnrichmentTab() {
                 disabled={loading || !hasProductsInSelectedProjects}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
               >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-                Enrich {selectedProjectIds.size} Project
-                {selectedProjectIds.size !== 1 ? "s" : ""}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                Enrich {selectedProjectIds.size} Project{selectedProjectIds.size !== 1 ? "s" : ""}
               </button>
             )}
           </div>
@@ -819,17 +732,14 @@ export default function EnrichmentTab() {
 
         <div
           className={`absolute right-0 top-0 w-[420px] z-10 transition-all duration-200 ${
-            expandedProjectId
-              ? "opacity-100 translate-x-0"
-              : "opacity-0 translate-x-4 pointer-events-none"
+            expandedProjectId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"
           }`}
         >
           <div className="bg-white border border-slate-200 rounded-[12px] py-1.5 px-3 shadow-xs">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-semibold text-slate-900 truncate max-w-[150px]">
-                  {projects.find((p) => p.id === expandedProjectId)?.name ||
-                    "Project"}
+                  {projects.find((p) => p.id === expandedProjectId)?.name || "Project"}
                 </h4>
                 <div className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full">
                   <Clock className="w-3 h-3" />
@@ -843,9 +753,7 @@ export default function EnrichmentTab() {
                     className="h-full bg-blue-600 rounded-full transition-all duration-500"
                     style={{
                       width: `${
-                        (expandedStats.success /
-                          (expandedProjectProducts.length || 1)) *
-                        100
+                        (expandedStats.success / (expandedProjectProducts.length || 1)) * 100
                       }%`,
                     }}
                   />
@@ -862,12 +770,8 @@ export default function EnrichmentTab() {
                     : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100"
                 }`}
               >
-                <span className="text-xs font-bold text-emerald-600">
-                  {expandedStats.success}
-                </span>
-                <span className="text-[10px] font-medium text-emerald-700">
-                  Completed
-                </span>
+                <span className="text-xs font-bold text-emerald-600">{expandedStats.success}</span>
+                <span className="text-[10px] font-medium text-emerald-700">Completed</span>
               </button>
 
               <button
@@ -878,12 +782,8 @@ export default function EnrichmentTab() {
                     : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
                 }`}
               >
-                <span className="text-xs font-bold text-rose-600">
-                  {expandedStats.failed}
-                </span>
-                <span className="text-[10px] font-medium text-rose-700">
-                  Failed
-                </span>
+                <span className="text-xs font-bold text-rose-600">{expandedStats.failed}</span>
+                <span className="text-[10px] font-medium text-rose-700">Failed</span>
               </button>
 
               <button
@@ -894,12 +794,8 @@ export default function EnrichmentTab() {
                     : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
                 }`}
               >
-                <span className="text-xs font-bold text-amber-500">
-                  {expandedStats.pending}
-                </span>
-                <span className="text-[10px] font-medium text-amber-600">
-                  Pending
-                </span>
+                <span className="text-xs font-bold text-amber-500">{expandedStats.pending}</span>
+                <span className="text-[10px] font-medium text-amber-600">Pending</span>
               </button>
             </div>
           </div>
@@ -910,9 +806,7 @@ export default function EnrichmentTab() {
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 flex-1">
             <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                LLM Provider
-              </label>
+              <label className="block text-sm text-slate-700 mb-2">LLM Provider</label>
               <select
                 value={selectedLLM}
                 onChange={(e) => setSelectedLLM(e.target.value)}
@@ -921,9 +815,8 @@ export default function EnrichmentTab() {
                   (selectedProjectIds.size === 0 &&
                     selectedProductIds.size === 0 &&
                     (!expandedProjectId ||
-                      expandedProjectProducts.filter(
-                        (p) => p.enrichment_status === "pending",
-                      ).length === 0))
+                      expandedProjectProducts.filter((p) => p.enrichment_status === "pending")
+                        .length === 0))
                 }
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
@@ -936,72 +829,71 @@ export default function EnrichmentTab() {
             </div>
 
             <div>
-  <label className="block text-sm text-slate-700 mb-2">
-    Use Case
-  </label>
-  <select
-    value={selectedUseCase}
-    onChange={(e) => {
-      setSelectedUseCase(e.target.value);
-      setSelectedProjectId("");
-      setExpandedProjectId(null);
-      setExpandedProjectProducts([]);
-      setSelectedProduct(null);
-      setAttributes([]);
-    }}
-    disabled={projectsLoading}
-    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-  >
-    <option value="">All Use Case</option>
-    {[...new Set(
-      projects  
-        .filter((p) => !statusFilter || p.source_status === statusFilter)
-        .map((p) => p.use_case)
-        .filter(Boolean) as string[]
-    )].sort((a, b) => {
-      const aIsAggregation = a === "Products with Category Assignments" || a === "Products without Category Assignments";
-      const bIsAggregation = b === "Products with Category Assignments" || b === "Products without Category Assignments";
-      if (aIsAggregation && !bIsAggregation) return -1;
-      if (!aIsAggregation && bIsAggregation) return 1;
-      return a.localeCompare(b);
-    }).map((useCase) => (
-      <option key={useCase} value={useCase}>
-        {useCase}
-      </option>
-    ))}
-  </select>
-</div>
+              <label className="block text-sm text-slate-700 mb-2">Use Case</label>
+              <select
+                value={selectedUseCase}
+                onChange={(e) => {
+                  setSelectedUseCase(e.target.value);
+                  setSelectedProjectId("");
+                  setExpandedProjectId(null);
+                  setExpandedProjectProducts([]);
+                  setSelectedProduct(null);
+                  setAttributes([]);
+                }}
+                disabled={projectsLoading}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Use Case</option>
+                {[
+                  ...new Set(
+                    projects
+                      .filter((p) => !statusFilter || p.source_status === statusFilter)
+                      .map((p) => p.use_case)
+                      .filter(Boolean) as string[],
+                  ),
+                ]
+                  .sort((a, b) => {
+                    const aIsAggregation =
+                      a === "Products with Category Assignments" ||
+                      a === "Products without Category Assignments";
+                    const bIsAggregation =
+                      b === "Products with Category Assignments" ||
+                      b === "Products without Category Assignments";
+                    if (aIsAggregation && !bIsAggregation) return -1;
+                    if (!aIsAggregation && bIsAggregation) return 1;
+                    return a.localeCompare(b);
+                  })
+                  .map((useCase) => (
+                    <option key={useCase} value={useCase}>
+                      {useCase}
+                    </option>
+                  ))}
+              </select>
+            </div>
 
             <div>
-  <label className="block text-sm text-slate-700 mb-2">
-    Project
-  </label>
-  <select
-    value={selectedProjectId}
-    onChange={async (e) => {
-      const projectId = e.target.value;
-      setSelectedProjectId(projectId);
-      await loadProjectFilters(projectId);
-    }}
-    disabled={
-      projectsLoading ||
-      (!!selectedUseCase && filteredProjects.length === 0)
-    }
-    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-  >
-    <option value="">All Project</option>
-    {filteredProjects.map((project) => (
-      <option key={project.id} value={project.id}>
-        {project.name}
-      </option>
-    ))}
-  </select>
-</div>
+              <label className="block text-sm text-slate-700 mb-2">Project</label>
+              <select
+                value={selectedProjectId}
+                onChange={async (e) => {
+                  const projectId = e.target.value;
+                  setSelectedProjectId(projectId);
+                  await loadProjectFilters(projectId);
+                }}
+                disabled={projectsLoading || (!!selectedUseCase && filteredProjects.length === 0)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Project</option>
+                {filteredProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                Status
-              </label>
+              <label className="block text-sm text-slate-700 mb-2">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -1013,15 +905,13 @@ export default function EnrichmentTab() {
                 <option value="">All Status</option>
                 <option value="Yet to Start">Yet to Start</option>
                 <option value="In Progress">In Progress</option>
-                 <option value="Partially Completed">Partially Completed</option>
+                <option value="Partially Completed">Partially Completed</option>
                 <option value="Completed">Completed</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                Category
-              </label>
+              <label className="block text-sm text-slate-700 mb-2">Category</label>
               <select
                 value={categoryFilter}
                 onChange={(e) => {
@@ -1078,17 +968,6 @@ export default function EnrichmentTab() {
 
         {expandedProjectId && (
           <div className="mt-4 relative">
-            {/* <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" /> */}
-            {/* <input
-              type="text"
-              placeholder="Search by product name, code, SKU, brand, or MPN..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full h-10 pl-10 pr-10 border border-slate-300 rounded-lg bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            /> */}
             {searchQuery && (
               <button
                 onClick={() => {
@@ -1109,16 +988,11 @@ export default function EnrichmentTab() {
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
-              checked={
-                filteredProjects.length > 0 &&
-                selectedProjectIds.size === filteredProjects.length
-              }
+              checked={filteredProjects.length > 0 && selectedProjectIds.size === filteredProjects.length}
               onChange={toggleSelectAllProjects}
               className="rounded border-slate-300"
             />
-            <span className="text-sm font-semibold text-slate-900">
-              {filteredProjects.length} Projects
-            </span>
+            <span className="text-sm font-semibold text-slate-900">{filteredProjects.length} Projects</span>
             {selectedProjectIds.size > 0 && (
               <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                 {selectedProjectIds.size} selected
@@ -1134,18 +1008,14 @@ export default function EnrichmentTab() {
               <p className="text-slate-500 text-sm">Loading projects...</p>
             </div>
           ) : filteredProjects.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              No projects found
-            </div>
+            <div className="p-8 text-center text-slate-500">No projects found</div>
           ) : (
             filteredProjects.map((project) => (
               <div key={project.id}>
                 <div
                   className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
                     expandedProjectId === project.id ? "bg-blue-50" : ""
-                  } ${
-                    selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""
-                  } ${
+                  } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
                     enrichingProjects.has(project.id) ? "bg-blue-50/30" : ""
                   }`}
                   onClick={() => toggleExpandProject(project.id)}
@@ -1153,18 +1023,14 @@ export default function EnrichmentTab() {
                   <input
                     type="checkbox"
                     checked={selectedProjectIds.has(project.id)}
-                    onChange={(e) =>
-                      toggleProjectSelection(project.id, e as any)
-                    }
+                    onChange={(e) => toggleProjectSelection(project.id, e as any)}
                     onClick={(e) => e.stopPropagation()}
                     className="rounded border-slate-300"
                     disabled={enrichingProjects.has(project.id)}
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-slate-900">
-                        {project.name}
-                      </h4>
+                      <h4 className="font-semibold text-slate-900">{project.name}</h4>
 
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
                         {project.product_count ?? 0} products
@@ -1208,9 +1074,7 @@ export default function EnrichmentTab() {
                             loading ||
                             enrichingProjects.has(project.id) ||
                             (selectedProductIds.size > 0
-                              ? !expandedProjectProducts.some((p) =>
-                                  selectedProductIds.has(p.id),
-                                )
+                              ? !expandedProjectProducts.some((p) => selectedProductIds.has(p.id))
                               : expandedStats.pending === 0)
                           }
                           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
@@ -1239,27 +1103,18 @@ export default function EnrichmentTab() {
                                   type="checkbox"
                                   checked={
                                     paginatedProducts.length > 0 &&
-                                    paginatedProducts.every((p) =>
-                                      selectedProductIds.has(p.id),
-                                    )
+                                    paginatedProducts.every((p) => selectedProductIds.has(p.id))
                                   }
                                   onChange={(e) => {
                                     if (e.target.checked) {
                                       setSelectedProductIds(
                                         (prev) =>
-                                          new Set([
-                                            ...prev,
-                                            ...paginatedProducts.map(
-                                              (p) => p.id,
-                                            ),
-                                          ]),
+                                          new Set([...prev, ...paginatedProducts.map((p) => p.id)]),
                                       );
                                     } else {
                                       setSelectedProductIds((prev) => {
                                         const newSet = new Set(prev);
-                                        paginatedProducts.forEach((p) =>
-                                          newSet.delete(p.id),
-                                        );
+                                        paginatedProducts.forEach((p) => newSet.delete(p.id));
                                         return newSet;
                                       });
                                     }
@@ -1268,19 +1123,24 @@ export default function EnrichmentTab() {
                                 />
                               )}
                             </th>
+
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Product Info
+                              Product
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Category
-                            </th>
+
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
                               Completeness
                             </th>
+
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                              Missing Attributes
+                            </th>
+
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
                               Status
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+
+                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 bg-slate-50">
                               Action
                             </th>
                           </tr>
@@ -1295,144 +1155,173 @@ export default function EnrichmentTab() {
                             </tr>
                           ) : paginatedProducts.length === 0 ? (
                             <tr>
-                              <td
-                                colSpan={6}
-                                className="px-4 py-8 text-center text-slate-500"
-                              >
+                              <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                                 {searchQuery || categoryFilter || brandFilter
                                   ? "No products match your filters"
                                   : "No products found"}
                               </td>
                             </tr>
                           ) : (
-                            paginatedProducts.map((product) => (
-                              <tr
-                                key={product.id}
-                                onClick={() => setSelectedProduct(product.id)}
-                                className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                                  selectedProduct === product.id
-                                    ? "bg-blue-100"
-                                    : ""
-                                }`}
-                              >
-                                <td
-                                  className="px-4 py-3"
-                                  onClick={(e) => e.stopPropagation()}
+                            paginatedProducts.map((product) => {
+                              const missing = getMissingAttributes(product);
+                              const score = product.completeness_score || 0;
+
+                              return (
+                                <tr
+                                  key={product.id}
+                                  onClick={() => setSelectedProduct(product.id)}
+                                  className={`hover:bg-slate-50 cursor-pointer transition-colors ${
+                                    selectedProduct === product.id ? "bg-blue-50" : ""
+                                  }`}
                                 >
-                                  {!isExpandedProjectSelected && (
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedProductIds.has(
-                                        product.id,
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedProductIds((prev) =>
-                                            new Set(prev).add(product.id),
-                                          );
-                                        } else {
-                                          setSelectedProductIds((prev) => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(product.id);
-                                            return newSet;
-                                          });
-                                        }
-                                      }}
-                                      className="rounded border-slate-300"
-                                    />
-                                  )}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div>
-                                    <div className="font-semibold text-slate-900 text-sm">
-                                      {product.product_name ||
-                                        product.product_code ||
-                                        "N/A"}
+                                  <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                                    {!isExpandedProjectSelected && (
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedProductIds.has(product.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedProductIds((prev) => new Set(prev).add(product.id));
+                                          } else {
+                                            setSelectedProductIds((prev) => {
+                                              const newSet = new Set(prev);
+                                              newSet.delete(product.id);
+                                              return newSet;
+                                            });
+                                          }
+                                        }}
+                                        className="rounded border-slate-300"
+                                      />
+                                    )}
+                                  </td>
+
+                                  {/* Product cell (UI like screenshot) */}
+                                  <td className="px-4 py-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <div className="font-semibold text-slate-900 text-sm truncate max-w-[520px]">
+                                            {product.product_name || product.product_code || "N/A"}
+                                          </div>
+
+                                          {/* Category pill */}
+                                          {product.category_1 ? (
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                              {product.category_1}
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                              <TagIcon />
+                                              No Category
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                                          <span className="font-mono">
+                                            {product.product_code || product.sku || "No SKU"}
+                                          </span>
+                                          <span className="text-slate-300">•</span>
+                                          <span>{product.brand_name || "—"}</span>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-xs text-slate-500 font-mono">
-                                      {product.product_code ||
-                                        product.sku ||
-                                        "No SKU"}
+                                  </td>
+
+                                  {/* Completeness */}
+                                  <td className="px-4 py-4">
+                                    <div className="space-y-1">
+                                      <div className="text-xs text-slate-500">Completeness</div>
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-[120px] h-2 bg-slate-200 rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full transition-all duration-300 ${
+                                              score >= 90
+                                                ? "bg-emerald-500"
+                                                : score >= 60
+                                                  ? "bg-amber-500"
+                                                  : "bg-rose-400"
+                                            }`}
+                                            style={{ width: `${score}%` }}
+                                          />
+                                        </div>
+                                        <div
+                                          className={`text-sm font-semibold ${
+                                            score >= 90
+                                              ? "text-emerald-600"
+                                              : score >= 60
+                                                ? "text-amber-600"
+                                                : "text-rose-600"
+                                          }`}
+                                        >
+                                          {score}%
+                                        </div>
+                                      </div>
                                     </div>
-                                    {product.brand_name && (
-                                      <div className="text-xs text-slate-400">
-                                        {product.brand_name}
+                                  </td>
+
+                                  {/* Missing attributes */}
+                                  <td className="px-4 py-4">
+                                    {missing.length === 0 ? (
+                                      <span className="text-sm text-slate-400">—</span>
+                                    ) : (
+                                      <div className="flex flex-wrap gap-2">
+                                        {missing.slice(0, 3).map((m) => (
+                                          <span
+                                            key={m}
+                                            className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                                          >
+                                            {m}
+                                          </span>
+                                        ))}
+                                        {missing.length > 3 && (
+                                          <span className="text-xs text-slate-500 px-2 py-1">
+                                            +{missing.length - 3} more
+                                          </span>
+                                        )}
                                       </div>
                                     )}
-                                  </div>
-                                </td>
+                                  </td>
 
-                                <td className="px-4 py-3 text-sm text-slate-600">
-                                  {product.category_1 || "-"}
-                                </td>
+                                  {/* Status */}
+                                  <td className="px-4 py-4">
+                                    {getProductStatusBadge(product.enrichment_status || "pending")}
+                                  </td>
 
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden max-w-[120px]">
-                                      <div
-                                        className={`h-full rounded-full transition-all duration-300 ${
-                                          (product.completeness_score || 0) >=
-                                          90
-                                            ? "bg-green-500"
-                                            : (product.completeness_score ||
-                                                  0) >= 60
-                                              ? "bg-amber-500"
-                                              : "bg-red-400"
-                                        }`}
-                                        style={{
-                                          width: `${product.completeness_score || 0}%`,
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-xs text-slate-600 min-w-[35px]">
-                                      {product.completeness_score || 0}%
-                                    </span>
-                                  </div>
-                                </td>
-
-                                <td className="px-4 py-3">
-                                  {getProductStatusBadge(
-                                    product.enrichment_status || "pending",
-                                  )}
-                                </td>
-
-                                <td
-                                  className="px-4 py-3"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {product.enrichment_status !==
-                                    "processing" && (
-                                    <button
-                                      onClick={() => handleEnrich(product.id)}
-                                      disabled={
-                                        loading ||
-                                        product.enrichment_status ===
-                                          "processing" ||
-                                        enrichingProjects.has(project.id)
-                                      }
-                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline inline-flex items-center gap-1 transition-colors"
-                                    >
-                                      {product.enrichment_status ===
-                                      "completed" ? (
-                                        <>
-                                          <RefreshCw className="w-4 h-4" />
-                                          Re-Enrich
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Sparkles className="w-4 h-4" />
-                                          Enrich
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                  {product.enrichment_status ===
-                                    "processing" && (
-                                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                                  )}
-                                </td>
-                              </tr>
-                            ))
+                                  {/* Action (Backfill UI) */}
+                                  <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                    {product.enrichment_status !== "processing" && (
+                                      <button
+                                        onClick={() => handleEnrich(product.id)}
+                                        disabled={
+                                          loading ||
+                                          product.enrichment_status === "processing" ||
+                                          enrichingProjects.has(project.id)
+                                        }
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                      >
+                                        {product.enrichment_status === "completed" ? (
+                                          <>
+                                            <RefreshCw className="w-4 h-4" />
+                                            Backfill
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Zap className="w-4 h-4" />
+                                            Backfill
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                    {product.enrichment_status === "processing" && (
+                                      <span className="inline-flex items-center gap-2 text-sm text-blue-600">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>
@@ -1442,18 +1331,13 @@ export default function EnrichmentTab() {
                       <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
                         <span>
                           Showing {startIndex + 1} -{" "}
-                          {Math.min(
-                            startIndex + ITEMS_PER_PAGE,
-                            filteredExpandedProducts.length,
-                          )}{" "}
+                          {Math.min(startIndex + ITEMS_PER_PAGE, filteredExpandedProducts.length)}{" "}
                           of {filteredExpandedProducts.length} products
                         </span>
 
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() =>
-                              setCurrentPage(Math.max(1, currentPage - 1))
-                            }
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                             disabled={currentPage === 1}
                             className="p-1 hover:bg-slate-100 rounded disabled:opacity-50 transition-colors"
                           >
@@ -1465,14 +1349,8 @@ export default function EnrichmentTab() {
                           </span>
 
                           <button
-                            onClick={() =>
-                              setCurrentPage(
-                                Math.min(totalPages, currentPage + 1),
-                              )
-                            }
-                            disabled={
-                              currentPage === totalPages || totalPages === 0
-                            }
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
                             className="p-1 hover:bg-slate-100 rounded disabled:opacity-50 transition-colors"
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -1488,6 +1366,7 @@ export default function EnrichmentTab() {
         </div>
       </div>
 
+      {/* Drawer (UI updated like screenshot; same data + same actions) */}
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
@@ -1495,58 +1374,114 @@ export default function EnrichmentTab() {
             onClick={closeDrawer}
           />
           <div className="relative w-full max-w-2xl bg-white shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 leading-tight">
-                  {selectedProductData.product_name}
-                </h2>
-                <div className="flex items-center gap-3 mt-1 text-sm text-slate-600">
-                  <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-lg font-bold text-slate-900 leading-tight truncate max-w-[520px]">
+                    {selectedProductData.product_name}
+                  </h2>
+
+                  {selectedProductData.category_1 ? (
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      {selectedProductData.category_1}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                      <TagIcon />
+                      No Category
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 mt-2 text-sm text-slate-600 flex-wrap">
+                  <span className="font-mono bg-white px-2 py-1 rounded border border-slate-200">
                     {selectedProductData.product_code}
                   </span>
+                  <span className="text-slate-300">•</span>
                   <span>{selectedProductData.brand_name}</span>
                 </div>
               </div>
 
               <button
                 onClick={closeDrawer}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                <div className="flex-1">
-                  <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">
-                    Data Completeness
-                  </p>
+            {/* Sub-header / summary strip (Completeness + Missing + Status + Backfill) */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-white">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                {/* Completeness */}
+                <div className="lg:col-span-3">
+                  <div className="text-xs text-slate-500 mb-1">Completeness</div>
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-blue-200 h-2 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div
-                        className="bg-blue-600 h-full rounded-full transition-all duration-300"
-                        style={{
-                          width: `${selectedProductData.completeness_score || 0}%`,
-                        }}
+                        className="h-full bg-rose-400 rounded-full transition-all duration-300"
+                        style={{ width: `${selectedProductData.completeness_score || 0}%` }}
                       />
                     </div>
-                    <span className="font-bold text-blue-700">
+                    <div className="text-sm font-semibold text-rose-600">
                       {selectedProductData.completeness_score || 0}%
-                    </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="px-4 border-l border-blue-200">
-                  <p className="text-xs text-blue-600 uppercase font-bold tracking-wider mb-1">
-                    Status
-                  </p>
-                  {getProductStatusBadge(
-                    selectedProductData.enrichment_status || "pending",
+                {/* Missing Attributes */}
+                <div className="lg:col-span-6">
+                  <div className="text-xs text-slate-500 mb-1">Missing Attributes</div>
+                  {getMissingAttributes(selectedProductData).length === 0 ? (
+                    <div className="text-sm text-slate-400">—</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {getMissingAttributes(selectedProductData)
+                        .slice(0, 3)
+                        .map((m) => (
+                          <span
+                            key={m}
+                            className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      {getMissingAttributes(selectedProductData).length > 3 && (
+                        <span className="text-xs text-slate-500 px-2 py-1">
+                          +{getMissingAttributes(selectedProductData).length - 3} more
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
 
+                {/* Status + Backfill */}
+                <div className="lg:col-span-3 flex items-center justify-end gap-3">
+                  {getProductStatusBadge(selectedProductData.enrichment_status || "pending")}
+
+                  <button
+                    onClick={() => handleEnrich(selectedProductData.id)}
+                    disabled={loading || selectedProductData.enrichment_status === "processing"}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {loading || selectedProductData.enrichment_status === "processing" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Backfill
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        Backfill
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {attributesLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-500">
                   <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
@@ -1556,9 +1491,7 @@ export default function EnrichmentTab() {
                 <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   <div>
-                    <p className="text-sm font-semibold text-blue-900">
-                      Enrichment In Progress
-                    </p>
+                    <p className="text-sm font-semibold text-blue-900">Enrichment In Progress</p>
                     <p className="text-xs text-blue-700">
                       Please wait while enrichment is being processed
                     </p>
@@ -1583,42 +1516,68 @@ export default function EnrichmentTab() {
                         src={selectedProductData.image_url_1}
                         alt={selectedProductData.product_name}
                         className="max-h-full max-w-full object-contain"
-                        onError={(e) =>
-                          (e.currentTarget.style.display = "none")
-                        }
+                        onError={(e) => (e.currentTarget.style.display = "none")}
                       />
                     </div>
                   )}
 
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <Box className="w-4 h-4" /> Specifications
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {attributes.map((attr) => (
-                        <div
-                          key={attr.id}
-                          className="p-3 bg-slate-50 rounded border border-slate-100 hover:shadow-sm transition-shadow"
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-xs font-semibold text-slate-500 uppercase truncate">
-                              {attr.attribute_name}
-                            </span>
-                            {attr.has_conflict && (
-                              <AlertTriangle
-                                className="w-3 h-3 text-amber-500"
-                                title="Source Conflict"
-                              />
-                            )}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Existing attributes */}
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">
+                          ✓
+                        </span>
+                        Existing Attributes
+                      </div>
+
+                      <div className="space-y-3">
+                        {attributes.map((attr) => (
+                          <div
+                            key={attr.id}
+                            className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-slate-200 bg-white"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm text-slate-600 truncate">
+                                {attr.attribute_name}
+                              </div>
+                            </div>
+                            <div className="text-sm font-semibold text-slate-900 shrink-0">
+                              {formatValue(attr.values[0]?.value)}
+                            </div>
                           </div>
-                          <div className="text-sm text-slate-900 font-medium">
-                            {formatValue(attr.values[0]?.value)}
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Attributes to backfill */}
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-500" />
+                        Attributes to Backfill
+                      </div>
+
+                      <div className="space-y-3">
+                        {getMissingAttributes(selectedProductData).length === 0 ? (
+                          <div className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
+                            No missing attributes detected.
                           </div>
-                        </div>
-                      ))}
+                        ) : (
+                          getMissingAttributes(selectedProductData).map((m) => (
+                            <div
+                              key={m}
+                              className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50/30"
+                            >
+                              <div className="text-sm text-amber-900">{m}</div>
+                              <div className="text-sm italic text-amber-600">Will be filled</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
 
+                  {/* Keep existing technical data source section (no functionality change) */}
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                       <FileText className="w-4 h-4" /> Technical Data Source
@@ -1627,18 +1586,10 @@ export default function EnrichmentTab() {
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase">
                           <tr>
-                            <th className="px-4 py-2 font-semibold text-left">
-                              Attribute
-                            </th>
-                            <th className="px-4 py-2 font-semibold text-left">
-                              Value
-                            </th>
-                            <th className="px-4 py-2 font-semibold text-right">
-                              Confidence
-                            </th>
-                            <th className="px-4 py-2 font-semibold text-right">
-                              Source
-                            </th>
+                            <th className="px-4 py-2 font-semibold text-left">Attribute</th>
+                            <th className="px-4 py-2 font-semibold text-left">Value</th>
+                            <th className="px-4 py-2 font-semibold text-right">Confidence</th>
+                            <th className="px-4 py-2 font-semibold text-right">Source</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1653,15 +1604,12 @@ export default function EnrichmentTab() {
                               <td className="px-4 py-2 text-right">
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                    attr.values[0]?.confidence > 0.8
+                                    (attr.values[0]?.confidence ?? 0) > 0.8
                                       ? "bg-green-100 text-green-700"
                                       : "bg-yellow-100 text-yellow-700"
                                   }`}
                                 >
-                                  {(attr.values[0]?.confidence * 100).toFixed(
-                                    0,
-                                  )}
-                                  %
+                                  {(((attr.values[0]?.confidence ?? 0) as number) * 100).toFixed(0)}%
                                 </span>
                               </td>
                               <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">
@@ -1678,30 +1626,24 @@ export default function EnrichmentTab() {
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-              <span className="text-xs text-slate-500">
-                Last updated: {new Date().toLocaleDateString()}
-              </span>
+              <span className="text-xs text-slate-500">Last updated: {new Date().toLocaleDateString()}</span>
 
               <button
                 onClick={() => handleEnrich(selectedProductData.id)}
-                disabled={
-                  loading ||
-                  selectedProductData.enrichment_status === "processing"
-                }
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                disabled={loading || selectedProductData.enrichment_status === "processing"}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                {loading ||
-                selectedProductData.enrichment_status === "processing" ? (
+                {loading || selectedProductData.enrichment_status === "processing" ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Processing...
                   </>
                 ) : selectedProductData.enrichment_status === "completed" ? (
                   <>
-                    <RefreshCw className="w-4 h-4" /> Re-Enrich
+                    <RefreshCw className="w-4 h-4" /> Backfill
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" /> Start Enrichment
+                    <Zap className="w-4 h-4" /> Backfill
                   </>
                 )}
               </button>
@@ -1710,5 +1652,35 @@ export default function EnrichmentTab() {
         </div>
       )}
     </div>
+  );
+}
+
+/** UI-only tiny icon used in pills (kept local to avoid other changes) */
+function TagIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="text-amber-700"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M20.59 13.41L12 4.83V2H2v10h2.83l8.59 8.59a2 2 0 0 0 2.83 0l4.34-4.34a2 2 0 0 0 0-2.83Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7 7h.01"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

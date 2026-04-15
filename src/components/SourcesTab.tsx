@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   Upload,
   FileSpreadsheet,
@@ -39,7 +39,7 @@ const endOfMonth = (d: Date) =>
   endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 const startOfWeek = (d: Date, weekStartsOn: 0 | 1 = 1) => {
   const date = startOfDay(d);
-  const day = date.getDay(); 
+  const day = date.getDay();
   const diff = (day - weekStartsOn + 7) % 7;
   date.setDate(date.getDate() - diff);
   return date;
@@ -51,7 +51,11 @@ const endOfWeek = (d: Date, weekStartsOn: 0 | 1 = 1) => {
   return endOfDay(e);
 };
 const fmt = (d: Date) =>
-  d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  d.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 const formatRange = (start: Date, end: Date) => `${fmt(start)} – ${fmt(end)}`;
 const toDateInputValue = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -65,6 +69,10 @@ export default function SourcesTab({
   onProjectSelect?: (projectId: string) => void;
 }) {
   const [sources, setSources] = useState<Source[]>([]);
+  const [showMpnExcelModal, setShowMpnExcelModal] = useState(false);
+  const [mpnExcelFile, setMpnExcelFile] = useState<File | null>(null);
+  const [mpnExcelUploading, setMpnExcelUploading] = useState(false);
+  const mpnExcelInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [importPdfFiles, setImportPdfFiles] = useState<File[]>([]);
   const importPdfInputRef = useRef<HTMLInputElement>(null);
@@ -105,7 +113,7 @@ export default function SourcesTab({
   });
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
-  const [dateAnchor, setDateAnchor] = useState<Date>(new Date()); 
+  const [dateAnchor, setDateAnchor] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
   const [structuredMpn, setStructuredMpn] = useState("");
@@ -139,6 +147,75 @@ export default function SourcesTab({
       console.error("Failed to load sources:", error);
     }
   };
+  const MpnExcelModal = () => (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={() => setShowMpnExcelModal(false)}
+    >
+      <div
+        className="bg-white rounded-2xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-slate-900">
+              Upload MPNs from Excel
+            </h3>
+            <button onClick={() => setShowMpnExcelModal(false)} className="p-1">
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
+            <FileSpreadsheet className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+            <p className="text-sm text-slate-600 mb-2">
+              Select Excel/CSV file with MPNs
+            </p>
+            <p className="text-xs text-slate-400 mb-3">
+              File should have an MPN column
+            </p>
+            <input
+              ref={mpnExcelInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={(e) => setMpnExcelFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm"
+            />
+            {mpnExcelFile && (
+              <p className="text-sm text-green-600 mt-2">{mpnExcelFile.name}</p>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">
+            MPNs will be added to your existing list. Duplicates will be
+            skipped.
+          </p>
+        </div>
+        <div className="p-5 border-t border-slate-200 flex justify-end gap-2">
+          <button
+            onClick={() => setShowMpnExcelModal(false)}
+            className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleMpnExcelUpload}
+            disabled={!mpnExcelFile || mpnExcelUploading}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2 text-sm"
+          >
+            {mpnExcelUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              "Import MPNs"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
   const loadProjects = async () => {
     try {
       const data = await projectService.getAllProjects();
@@ -153,6 +230,35 @@ export default function SourcesTab({
       setSelectedUseCase(selectedProject.use_case || "");
     }
   }, [selectedProject]);
+  const handleMpnExcelUpload = async () => {
+    if (!mpnExcelFile) {
+      notify.error("Please select an Excel file");
+      return;
+    }
+    setMpnExcelUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", mpnExcelFile);
+      const response = await extractionService.parseMpnsFromExcel(formData);
+      if (response.valid_mpns > 0) {
+        const newMpns = response.mpns.filter(
+          (mpn: string) => !multiMpns.includes(mpn),
+        );
+        setMultiMpns([...multiMpns, ...newMpns]);
+        notify.success(
+          "MPNs imported",
+          `${newMpns.length} MPNs added (${response.duplicates_removed} duplicates skipped)`,
+        );
+      }
+      setShowMpnExcelModal(false);
+      setMpnExcelFile(null);
+      if (mpnExcelInputRef.current) mpnExcelInputRef.current.value = "";
+    } catch (error: any) {
+      notify.error("Failed to parse Excel", error.message);
+    } finally {
+      setMpnExcelUploading(false);
+    }
+  };
   useEffect(() => {
     if (activeMode === "manual") {
       setUiTab("manual");
@@ -192,12 +298,15 @@ export default function SourcesTab({
       return {
         start: startOfWeek(dateAnchor, 1),
         end: endOfWeek(dateAnchor, 1),
-      }; 
+      };
     }
     return { start: startOfMonth(dateAnchor), end: endOfMonth(dateAnchor) };
   }, [dateFilterMode, dateAnchor]);
   const useCaseMap: Record<OperationMode, string[]> = {
-    aggregation: ["Products with Category Assignments", "Products without Category Assignments"],
+    aggregation: [
+      "Products with Category Assignments",
+      "Products without Category Assignments",
+    ],
     enrichment: [
       "With Categories with attribute (back filling)",
       "With Categories with attribute (back filling) and existing attribute validation",
@@ -875,19 +984,19 @@ export default function SourcesTab({
     window.URL.revokeObjectURL(url);
   };
   const activeProject = useMemo(
-  () => projects.find((p) => p.id === projectId),
-  [projects, projectId],
-);
-const activeProjectCreatedAt = useMemo(() => {
-  if (!activeProject) return "";
-  const dt = new Date((activeProject as any).created_at); 
-  if (isNaN(dt.getTime())) return "";
-  return dt.toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}, [activeProject]);
+    () => projects.find((p) => p.id === projectId),
+    [projects, projectId],
+  );
+  const activeProjectCreatedAt = useMemo(() => {
+    if (!activeProject) return "";
+    const dt = new Date((activeProject as any).created_at);
+    if (isNaN(dt.getTime())) return "";
+    return dt.toLocaleDateString(undefined, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }, [activeProject]);
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -910,23 +1019,25 @@ const activeProjectCreatedAt = useMemo(() => {
       </div>
       {/* Active project bar */}
       {projectId && (
-  <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
-    <div className="flex items-center gap-3 min-w-0">
-      <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
-        <FolderOpen className="w-5 h-5 text-blue-700" />
-      </div>
-      <div className="min-w-0">
-        <div className="text-xs font-semibold text-blue-600">Active Project</div>
-        <div className="text-sm font-semibold text-slate-900 truncate">
-          {activeProject?.name || "Unknown"}
+        <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
+              <FolderOpen className="w-5 h-5 text-blue-700" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-blue-600">
+                Active Project
+              </div>
+              <div className="text-sm font-semibold text-slate-900 truncate">
+                {activeProject?.name || "Unknown"}
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500 whitespace-nowrap">
+            {activeProjectCreatedAt ? `Created: ${activeProjectCreatedAt}` : ""}
+          </div>
         </div>
-      </div>
-    </div>
-    <div className="text-xs text-slate-500 whitespace-nowrap">
-      {activeProjectCreatedAt ? `Created: ${activeProjectCreatedAt}` : ""}
-    </div>
-  </div>
-)}
+      )}
       {/* Create project modal */}
       {showProjectModal && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -1107,7 +1218,9 @@ const activeProjectCreatedAt = useMemo(() => {
             {uiTab === "importPdf" && (
               <>
                 {operationMode === "pdf_extraction" &&
-                selectedUseCase?.includes("Title & Description Based PDF Extraction") &&
+                selectedUseCase?.includes(
+                  "Title & Description Based PDF Extraction",
+                ) &&
                 projectId &&
                 !showProjectModal ? (
                   <div className="space-y-5">
@@ -1258,6 +1371,7 @@ const activeProjectCreatedAt = useMemo(() => {
                       )}
                     </button>
                   </div>
+                  
                 ) : (
                   <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
@@ -1431,143 +1545,204 @@ const activeProjectCreatedAt = useMemo(() => {
                         : "Save for Extraction"}
                     </button>
                   </div>
-                ) : operationMode === "pdf_extraction" &&
-                  selectedUseCase?.includes("Multi-PDF & Multi-MPN Data Extraction.") &&
-                  projectId &&
-                  !showProjectModal ? (
-                  <div className="space-y-4">
-                    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileText className="w-5 h-5 text-purple-600" />
-                        <h4 className="font-semibold text-purple-900">
-                          Multi-PDF & Multi-MPN Data Extraction.
-                        </h4>
-                      </div>
-                      <p className="text-sm text-purple-700">
-                        Upload multiple PDFs and provide multiple MPNs. The
-                        system will match each MPN to the correct PDF and
-                        extract product data.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        MPNs / Model Numbers (Comma or Enter separated)
-                        {multiMpns.length > 0 && (
-                          <span
-                            className={`ml-2 text-xs ${
-                              multiMpns.length >= 50
-                                ? "text-red-500"
-                                : "text-slate-500"
-                            }`}
-                          >
-                            ({multiMpns.length}/50)
-                          </span>
-                        )}
-                      </label>
-                      <div className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={currentMultiMpn}
-                          onChange={(e) => setCurrentMultiMpn(e.target.value)}
-                          onKeyPress={(e) =>
-                            e.key === "Enter" && handleAddMultiMpn()
-                          }
-                          placeholder="e.g., T19T, T20EL4, T24R"
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-md"
-                        />
-                        <button
-                          onClick={handleAddMultiMpn}
-                          disabled={multiMpns.length >= 50}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {multiMpns.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2 p-2 bg-slate-50 rounded-md border border-slate-200">
-                          {multiMpns.map((mpn) => (
-                            <span
-                              key={mpn}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md text-sm border border-slate-200"
-                            >
-                              {mpn}
-                              <button onClick={() => handleRemoveMultiMpn(mpn)}>
-                                <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        PDF Files (Select multiple)
-                        {multiPdFs.length > 0 && (
-                          <span
-                            className={`ml-2 text-xs ${
-                              multiPdFs.length >= 20
-                                ? "text-red-500"
-                                : "text-slate-500"
-                            }`}
-                          >
-                            ({multiPdFs.length}/20)
-                          </span>
-                        )}
-                      </label>
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        multiple
-                        disabled={multiPdFs.length >= 20}
-                        onChange={(e) => handleAddMultiPdFs(e.target.files)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      {multiPdFs.length > 0 && (
-                        <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 max-h-40 overflow-y-auto">
-                          {multiPdFs.map((file, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between text-xs py-1"
-                            >
-                              <span className="truncate flex-1">
-                                {file.name}
-                              </span>
-                              <span className="text-slate-400 ml-2">
-                                {(file.size / 1024).toFixed(1)} KB
-                              </span>
-                              <button
-                                onClick={() => handleRemoveMultiPdf(index)}
-                                className="ml-2"
-                              >
-                                <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleMultiExtraction}
-                      disabled={
-                        multiExtracting ||
-                        multiPdFs.length === 0 ||
-                        multiMpns.length === 0
-                      }
-                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      {multiExtracting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-4 h-4" />
-                          Save for Extraction
-                        </>
-                      )}
-                    </button>
-                  </div>
+                ) :operationMode === "pdf_extraction" &&
+  selectedUseCase?.includes(
+    "Multi-PDF & Multi-MPN Data Extraction.",
+  ) &&
+  projectId &&
+  !showProjectModal ? (
+  <div className="space-y-4">
+    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText className="w-5 h-5 text-purple-600" />
+        <h4 className="font-semibold text-purple-900">
+          Multi-PDF & Multi-MPN Data Extraction.
+        </h4>
+      </div>
+      <p className="text-sm text-purple-700">
+        Upload multiple PDFs and an Excel file with MPNs. The
+        system will match each MPN to the correct PDF and
+        extract product data.
+      </p>
+    </div>
+    
+    {/* PDF Files Upload */}
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        PDF Files (Select multiple) <span className="text-red-500">*</span>
+        {multiPdFs.length > 0 && (
+          <span className={`ml-2 text-xs ${multiPdFs.length >= 20 ? "text-red-500" : "text-slate-500"}`}>
+            ({multiPdFs.length}/20)
+          </span>
+        )}
+      </label>
+      <input
+        type="file"
+        accept=".pdf"
+        multiple
+        disabled={multiPdFs.length >= 20}
+        onChange={(e) => handleAddMultiPdFs(e.target.files)}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+      {multiPdFs.length > 0 && (
+        <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 max-h-40 overflow-y-auto">
+          {multiPdFs.map((file, index) => (
+            <div key={index} className="flex items-center justify-between text-xs py-1">
+              <span className="truncate flex-1">{file.name}</span>
+              <span className="text-slate-400 ml-2">{(file.size / 1024).toFixed(1)} KB</span>
+              <button onClick={() => handleRemoveMultiPdf(index)} className="ml-2">
+                <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+    
+    {/* Excel File with MPNs Upload */}
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        Excel File with MPNs <span className="text-red-500">*</span>
+      </label>
+      <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50">
+        <div className="flex items-center gap-3">
+          <FileSpreadsheet className="w-8 h-8 text-slate-400" />
+          <div className="flex-1">
+            <input
+              ref={mpnExcelInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                
+                setMpnExcelFile(file);
+                setMpnExcelUploading(true);
+                
+                try {
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  const response = await extractionService.parseMpnsFromExcel(formData);
+                  
+                  if (response.valid_mpns > 0) {
+                    const newMpns = response.mpns.filter(
+                      (mpn: string) => !multiMpns.includes(mpn)
+                    );
+                    setMultiMpns([...multiMpns, ...newMpns]);
+                    notify.success(
+                      "MPNs loaded from Excel",
+                      `${newMpns.length} MPNs found (${response.duplicates_removed} duplicates skipped)`
+                    );
+                  } else {
+                    notify.warning("No valid MPNs found in Excel file");
+                  }
+                } catch (error: any) {
+                  notify.error("Failed to parse Excel", error.message);
+                  setMpnExcelFile(null);
+                  if (mpnExcelInputRef.current) mpnExcelInputRef.current.value = "";
+                } finally {
+                  setMpnExcelUploading(false);
+                }
+              }}
+              className="block w-full text-sm"
+            />
+          </div>
+        </div>
+        {mpnExcelFile && (
+          <div className="mt-3 flex items-center justify-between bg-white p-2 rounded-md">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-slate-700">{mpnExcelFile.name}</span>
+            </div>
+            <button
+              onClick={() => {
+                setMpnExcelFile(null);
+                setMultiMpns([]);
+                if (mpnExcelInputRef.current) mpnExcelInputRef.current.value = "";
+              }}
+              className="text-xs text-red-500 hover:text-red-700"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        <p className="text-xs text-slate-500 mt-2">
+          File should have an MPN column. Duplicates will be skipped.
+        </p>
+      </div>
+    </div>
+    
+    {/* MPNs Preview */}
+    {multiMpns.length > 0 && (
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          MPNs to Process ({multiMpns.length}/50)
+        </label>
+        <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-md border border-slate-200 max-h-32 overflow-y-auto">
+          {multiMpns.map((mpn) => (
+            <span
+              key={mpn}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md text-xs border border-slate-200"
+            >
+              {mpn}
+              <button onClick={() => handleRemoveMultiMpn(mpn)}>
+                <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+              </button>
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    {/* Manual MPN Input (Optional - can keep or remove) */}
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        Add Individual MPN (Optional)
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={currentMultiMpn}
+          onChange={(e) => setCurrentMultiMpn(e.target.value)}
+          onKeyPress={(e) => e.key === "Enter" && handleAddMultiMpn()}
+          placeholder="e.g., T19T"
+          className="flex-1 px-3 py-2 border border-slate-300 rounded-md"
+          disabled={multiMpns.length >= 50}
+        />
+        <button
+          onClick={handleAddMultiMpn}
+          disabled={multiMpns.length >= 50}
+          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+    
+    {/* Save Button */}
+    <button
+      onClick={handleMultiExtraction}
+      disabled={
+        multiExtracting ||
+        multiPdFs.length === 0 ||
+        multiMpns.length === 0 ||
+        mpnExcelUploading
+      }
+      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 w-full justify-center"
+    >
+      {multiExtracting || mpnExcelUploading ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {mpnExcelUploading ? "Processing Excel..." : "Saving..."}
+        </>
+      ) : (
+        <>
+          <FileText className="w-4 h-4" />
+          Save for Extraction ({multiPdFs.length} PDFs, {multiMpns.length} MPNs)
+        </>
+      )}
+    </button>
+  </div>
                 ) : operationMode === "pdf_extraction" &&
                   selectedUseCase?.includes("Unstructured PDF Extraction") &&
                   projectId &&
@@ -1889,119 +2064,125 @@ const activeProjectCreatedAt = useMemo(() => {
         {/* RIGHT: Projects */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-  <div className="flex items-center gap-2">
-    <h4 className="text-lg font-semibold text-slate-900">Projects</h4>
-    <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-      {filteredProjects.length}
-    </span>
-  </div>
-  <div className="relative" ref={calendarRef}>
-    <button
-      type="button"
-      onClick={() => setCalendarOpen((v) => !v)}
-      className={`h-9 px-3 rounded-xl border text-sm font-semibold inline-flex items-center gap-2 ${
-        dateRange
-          ? "border-blue-300 bg-blue-50 text-blue-700"
-          : "border-slate-200 bg-white text-slate-700"
-      }`}
-    >
-      <Calendar className="w-4 h-4" />
-      {dateFilterMode === "all"
-        ? "All time"
-        : dateFilterMode === "day"
-          ? "Day"
-          : dateFilterMode === "week"
-            ? "Week"
-            : "Month"}
-      <ChevronDown className="w-4 h-4 text-slate-400" />
-    </button>
-    {calendarOpen && (
-      <div className="absolute right-0 mt-2 w-[320px] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-slate-900">
-            Filter by created date
+            <div className="flex items-center gap-2">
+              <h4 className="text-lg font-semibold text-slate-900">Projects</h4>
+              <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                {filteredProjects.length}
+              </span>
+            </div>
+            <div className="relative" ref={calendarRef}>
+              <button
+                type="button"
+                onClick={() => setCalendarOpen((v) => !v)}
+                className={`h-9 px-3 rounded-xl border text-sm font-semibold inline-flex items-center gap-2 ${
+                  dateRange
+                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                {dateFilterMode === "all"
+                  ? "All time"
+                  : dateFilterMode === "day"
+                    ? "Day"
+                    : dateFilterMode === "week"
+                      ? "Week"
+                      : "Month"}
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </button>
+              {calendarOpen && (
+                <div className="absolute right-0 mt-2 w-[320px] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-slate-900">
+                      Filter by created date
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarOpen(false)}
+                      className="p-1 rounded-lg hover:bg-slate-100"
+                      aria-label="Close"
+                    >
+                      <X className="w-4 h-4 text-slate-500" />
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                        Mode
+                      </label>
+                      <select
+                        value={dateFilterMode}
+                        onChange={(e) => {
+                          const mode = e.target.value as DateFilterMode;
+                          setDateFilterMode(mode);
+                        }}
+                        className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm"
+                      >
+                        <option value="all">All time</option>
+                        <option value="day">Day</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                        Pick date
+                      </label>
+                      <input
+                        type="date"
+                        max={toDateInputValue(new Date())}
+                        value={toDateInputValue(dateAnchor)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                          const [yy, mm, dd] = v.split("-").map(Number);
+                          const picked = new Date(yy, mm - 1, dd);
+                          const today = new Date();
+                          const todayOnly = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            today.getDate(),
+                          );
+                          setDateAnchor(
+                            picked > todayOnly ? todayOnly : picked,
+                          );
+                        }}
+                        disabled={dateFilterMode === "all"}
+                        className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  {dateRange && (
+                    <div className="mt-3 text-xs text-slate-600">
+                      Showing projects created:{" "}
+                      <span className="font-semibold text-slate-900">
+                        {formatRange(dateRange.start, dateRange.end)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateFilterMode("all");
+                        setCalendarOpen(false);
+                      }}
+                      className="flex-1 h-9 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarOpen(false)}
+                      className="flex-1 h-9 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setCalendarOpen(false)}
-            className="p-1 rounded-lg hover:bg-slate-100"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-              Mode
-            </label>
-            <select
-              value={dateFilterMode}
-              onChange={(e) => {
-                const mode = e.target.value as DateFilterMode;
-                setDateFilterMode(mode);
-              }}
-              className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm"
-            >
-              <option value="all">All time</option>
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-              Pick date
-            </label>
-            <input
-  type="date"
-  max={toDateInputValue(new Date())}  
-  value={toDateInputValue(dateAnchor)}
-  onChange={(e) => {
-    const v = e.target.value;
-    if (!v) return;
-    const [yy, mm, dd] = v.split("-").map(Number);
-    const picked = new Date(yy, mm - 1, dd);
-    const today = new Date();
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    setDateAnchor(picked > todayOnly ? todayOnly : picked);
-  }}
-  disabled={dateFilterMode === "all"}
-  className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm disabled:opacity-50"
-/>
-          </div>
-        </div>
-        {dateRange && (
-          <div className="mt-3 text-xs text-slate-600">
-            Showing projects created:{" "}
-            <span className="font-semibold text-slate-900">
-              {formatRange(dateRange.start, dateRange.end)}
-            </span>
-          </div>
-        )}
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setDateFilterMode("all");
-              setCalendarOpen(false);
-            }}
-            className="flex-1 h-9 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50"
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            onClick={() => setCalendarOpen(false)}
-            className="flex-1 h-9 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-          >
-            Apply
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
           <div className="relative mb-4">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -2228,6 +2409,8 @@ const activeProjectCreatedAt = useMemo(() => {
           </button>
         </div>
       </div>
+      {showMpnExcelModal && <MpnExcelModal />}
+
     </div>
   );
 }

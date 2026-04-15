@@ -65,29 +65,37 @@ export const businessRulesService = {
       );
     }
   },
-  async updateRuleStatus(ruleIdentifier: string,status:RuleStatus): Promise<BusinessRule> {
-    try {
-      const { data } = await api.patch<BusinessRule>(`/business-rules/${ruleIdentifier}/status`,null, { params: { new_status: status } });
-      return data
-    } catch (error: any) {
-      console.error("Failed to delete prompt:", error);
-      throw new Error(
-        error.response?.data?.detail || "Failed to delete prompt"
-      );
-    }
-  },
+  async updateRuleStatus(ruleIdentifier: string, status: RuleStatus): Promise<BusinessRule> {
+  try {
+    const { data } = await api.patch<BusinessRule>(
+      `/business-rules/${ruleIdentifier}/status`,
+      null, 
+      { params: { new_status: status } }
+    );
+    return data;
+  } catch (error: any) {
+    console.error("Failed to update rule status:", error);  // Fixed message
+    throw new Error(
+      error.response?.data?.detail || "Failed to update rule status"  // Fixed message
+    );
+  }
+},
 
-  async updatePromptStatus(promptId: string,status:RuleStatus): Promise<RulePrompt> {
-    try {
-     const { data } = await api.patch<RulePrompt>(`/business-rules/prompts/${promptId}/status`,null,{ params: { new_status: status } });
-     return data
-    } catch (error: any) {
-      console.error("Failed to delete rule:", error);
-      throw new Error(
-        error.response?.data?.detail || "Failed to delete rule"
-      );
-    }
-  },
+async updatePromptStatus(promptId: string, status: RuleStatus): Promise<RulePrompt> {
+  try {
+    const { data } = await api.patch<RulePrompt>(
+      `/business-rules/prompts/${promptId}/status`,
+      null,
+      { params: { new_status: status } }
+    );
+    return data;
+  } catch (error: any) {
+    console.error("Failed to update prompt status:", error);  // Fixed message
+    throw new Error(
+      error.response?.data?.detail || "Failed to update prompt status"  // Fixed message
+    );
+  }
+},
   async createPrompt(ruleIdentifier:string,prompt:RulePromptCreate):Promise<RulePrompt>{
     try {
       const {data}=await api.post<RulePrompt>(`/business-rules/${ruleIdentifier}/prompts`,prompt)

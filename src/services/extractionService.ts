@@ -11,6 +11,10 @@ export const extractionService = {
       throw new Error("AI extraction failed to process source");
     }
   },
+  async parseMpnsFromExcel(formData: FormData): Promise<any> {
+  const { data } = await api.post('/extraction/pdf/parse-mpns-excel', formData);
+  return data;
+},
   async blindPdfExtraction(formData: FormData): Promise<{ status: string; batch_id: string; message: string; pdfs_count: number, products_created?: number; }> {
   try {
     const response = await api.post('/extraction/pdf/blind-pdf-extraction', formData, {
