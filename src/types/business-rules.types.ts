@@ -227,3 +227,27 @@ export interface AuthUser {
   role: UserRole;
   is_active?: boolean;
 }
+export type ProjectStatus = "active" | "completed" | "stalled" | "new";
+
+export interface ProjectOverview {
+  id: string;
+  name: string;
+  description?: string;
+  totalProducts: number;
+
+  aggregated: number;
+  enrichment: number;
+  cleaning: number;
+
+  enrichmentFailed?: number;
+  aggregationFailed?: number;
+
+  overallPct: number;
+  status: ProjectStatus;
+  lastActive: string; 
+}
+export type DateRangeParams = {
+  start_date?: string;
+  end_date?: string;
+  date_field?: "created_at" | "updated_at";
+};

@@ -1204,7 +1204,6 @@ export default function EnrichmentTab() {
                                             {product.product_name || product.product_code || "N/A"}
                                           </div>
 
-                                          {/* Category pill */}
                                           {product.category_1 ? (
                                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                                               {product.category_1}
@@ -1578,7 +1577,7 @@ export default function EnrichmentTab() {
                   </div>
 
                   {/* Keep existing technical data source section (no functionality change) */}
-                  <div>
+                  {/* <div>
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                       <FileText className="w-4 h-4" /> Technical Data Source
                     </h3>
@@ -1620,7 +1619,7 @@ export default function EnrichmentTab() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                  </div> */}
                 </>
               )}
             </div>

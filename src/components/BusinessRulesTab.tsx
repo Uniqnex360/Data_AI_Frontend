@@ -23,21 +23,18 @@ import EditPromptModal from "./BusinessModal/EditPromptModal";
 import AddRuleModal from "./BusinessModal/AddRuleModal.tsx";
 import AddPromptModal from "./BusinessModal/AddPromptModal.tsx";
 import StatusConfirmModal from "./BusinessModal/StatusConfirmModal";
-
 const CATEGORY_COLORS: Record<RuleCategory, string> = {
   enrichment: "bg-emerald-100 text-emerald-700 border-emerald-200",
   aggregation: "bg-indigo-100 text-indigo-700 border-indigo-200",
   standardization: "bg-amber-100 text-amber-700 border-amber-200",
   extraction: "bg-purple-100 text-purple-700 border-purple-200",
 };
-
 const CATEGORY_BADGE: Record<RuleCategory, string> = {
   enrichment: "enrichment",
   aggregation: "aggregation",
   standardization: "standardization",
   extraction: "extraction",
 };
-
 function StatCard({
   value,
   label,
@@ -56,12 +53,14 @@ function StatCard({
     </div>
   );
 }
-
 export default function BusinessRulesTab() {
   const [rules, setRules] = useState<BusinessRule[]>([]);
+  const [operationModeFilter, setOperationModeFilter] = useState<string>("");
+const [useCaseFilter, setUseCaseFilter] = useState<string>("");
   const [allRules, setAllRules] = useState<BusinessRule[]>([]);
   const [enabled, setEnabled] = useState(true); 
   const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
+
   const [promptNameFilter, setPromptNameFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,14 +68,12 @@ export default function BusinessRulesTab() {
     "all",
   );
   const [statusFilter, setStatusFilter] = useState<RuleStatus | "all">("all");
-
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusChangeTarget, setStatusChangeTarget] = useState<{
     type: "rule" | "prompt";
     item: BusinessRule | RulePrompt;
     newStatus: RuleStatus;
   } | null>(null);
-
   const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set());
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
@@ -84,10 +81,8 @@ export default function BusinessRulesTab() {
   const [showEditPromptModal, setShowEditPromptModal] = useState(false);
   const [selectedRule, setSelectedRule] = useState<BusinessRule | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<RulePrompt | null>(null);
-
   const inputBase =
     "h-12 px-4 border border-slate-200 rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-
   const loadRules = useCallback(async () => {
     setLoading(true);
     try {
@@ -95,11 +90,10 @@ export default function BusinessRulesTab() {
         category: categoryFilter !== "all" ? categoryFilter : undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
         search: searchQuery.trim() || undefined,
+        
       });
-
       const allPrompts = data.rules.flatMap((rule) => rule.prompts);
       const promptNames = [...new Set(allPrompts.map((p) => p.prompt_name))].sort();
-
       setUniquePromptNames(promptNames);
       setAllRules(data.rules);
     } catch (error) {
@@ -109,10 +103,8 @@ export default function BusinessRulesTab() {
       setLoading(false);
     }
   }, [categoryFilter, statusFilter, searchQuery]);
-
   useEffect(() => {
     let filteredRules = [...allRules];
-
     if (promptNameFilter) {
       filteredRules = filteredRules
         .map((rule) => ({
@@ -121,14 +113,11 @@ export default function BusinessRulesTab() {
         }))
         .filter((rule) => rule.prompts.length > 0);
     }
-
     setRules(filteredRules);
   }, [allRules, promptNameFilter]);
-
   useEffect(() => {
     loadRules();
   }, [loadRules]);
-
   const toggleRule = (ruleId: string) => {
     setExpandedRules((prev) => {
       const next = new Set(prev);
@@ -136,14 +125,11 @@ export default function BusinessRulesTab() {
       return next;
     });
   };
-
   const resetFilters = useCallback(() => {
     setSearchQuery("");
     setCategoryFilter("all");
     setPromptNameFilter("");
-    
   }, []);
-
   const handleUpdateRuleStatus = async (rule: BusinessRule, status: RuleStatus) => {
     try {
       await businessRulesService.updateRuleStatus(rule.id, status);
@@ -155,7 +141,6 @@ export default function BusinessRulesTab() {
       notify.error("Failed to update rule status", error.message);
     }
   };
-
   const handleUpdatePromptStatus = async (
     prompt: RulePrompt,
     status: RuleStatus,
@@ -170,8 +155,6 @@ export default function BusinessRulesTab() {
       notify.error("Failed to update prompt status", error.message);
     }
   };
-
-  
   const stats = useMemo(() => {
     const prompts = rules.flatMap((r) => r.prompts || []);
     const active = prompts.filter((p) => p.status === RuleStatus.ACTIVE).length;
@@ -179,13 +162,10 @@ export default function BusinessRulesTab() {
     const scenarios = rules.length;
     return { active, total, scenarios };
   }, [rules]);
-
   const hasActiveFilters =
     !!searchQuery.trim() || categoryFilter !== "all" || !!promptNameFilter;
-
   return (
     <div className="space-y-6">
-      {/* Top header row */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h3 className="text-2xl font-bold text-slate-900">
@@ -195,9 +175,7 @@ export default function BusinessRulesTab() {
             Configure LLM prompts that drive aggregation and enrichment pipelines
           </p>
         </div>
-
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Stats block like screenshot */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-3 flex items-center gap-8">
             <div className="text-center">
               <div className="text-xl font-bold text-blue-600 leading-none">
@@ -220,7 +198,6 @@ export default function BusinessRulesTab() {
               <div className="text-xs text-slate-500 mt-1">Scenarios</div>
             </div>
           </div>
-
           <button
             onClick={() => setShowAddRuleModal(true)}
             className="h-12 px-6 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors inline-flex items-center gap-2 font-semibold shadow-sm"
@@ -230,11 +207,8 @@ export default function BusinessRulesTab() {
           </button>
         </div>
       </div>
-
-      {/* Filter row like screenshot */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px_280px_auto] gap-3 items-center">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -245,8 +219,6 @@ export default function BusinessRulesTab() {
               className={`w-full pl-11 ${inputBase}`}
             />
           </div>
-
-          {/* Scenario / category */}
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as any)}
@@ -258,8 +230,6 @@ export default function BusinessRulesTab() {
             <option value="extraction">Extraction</option>
             <option value="standardization">Standardization</option>
           </select>
-
-          {/* Prompts */}
           <select
             value={promptNameFilter}
             onChange={(e) => setPromptNameFilter(e.target.value)}
@@ -273,7 +243,6 @@ export default function BusinessRulesTab() {
               </option>
             ))}
           </select>
-
           {hasActiveFilters ? (
             <button
               onClick={resetFilters}
@@ -287,8 +256,6 @@ export default function BusinessRulesTab() {
           )}
         </div>
       </div>
-
-      {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-16 bg-white border border-slate-200 rounded-2xl">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -310,13 +277,11 @@ export default function BusinessRulesTab() {
             const activePromptCount = rule.prompts.filter(
               (p) => p.status === RuleStatus.ACTIVE,
             ).length;
-
             return (
               <div
                 key={rule.id}
                 className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm"
               >
-                {/* Rule header row */}
                 <div className="px-5 py-4 border-b border-slate-100">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
@@ -331,30 +296,35 @@ export default function BusinessRulesTab() {
                           <ChevronDown className="w-5 h-5" />
                         )}
                       </button>
-
                       <div className="min-w-0">
                         <div className="flex items-center gap-3 flex-wrap">
                           <h4 className="text-sm font-extrabold tracking-wide text-slate-900 uppercase">
                             {rule.title}
                           </h4>
-
+                          {rule.operation_mode && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                              {rule.operation_mode}
+                            </span>
+                          )}
+                          {rule.use_case && (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700  border border-blue-200">
+                              {rule.use_case}
+                            </span>
+                          )}
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[rule.category]}`}
                           >
                             {CATEGORY_BADGE[rule.category]}
                           </span>
-
                           {rule.is_system && (
                             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                               System
                             </span>
                           )}
                         </div>
-
                         <div className="text-xs text-slate-500 mt-1">
                           {activePromptCount} of {rule.prompts.length} prompts active
                         </div>
-
                         {rule.description && (
                           <div className="text-sm text-slate-600 mt-2 line-clamp-2">
                             {rule.description}
@@ -362,7 +332,6 @@ export default function BusinessRulesTab() {
                         )}
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -375,7 +344,6 @@ export default function BusinessRulesTab() {
                       >
                         <Edit className="w-4 h-4 mx-auto" />
                       </button>
-
                       <button
                         onClick={() => {
                           setSelectedRule(rule);
@@ -389,8 +357,6 @@ export default function BusinessRulesTab() {
                     </div>
                   </div>
                 </div>
-
-                {/* Expanded content */}
                 {isExpanded && (
                   <div className="px-5 py-4 space-y-4">
                     {rule.prompts.length === 0 ? (
@@ -411,7 +377,6 @@ export default function BusinessRulesTab() {
                     ) : (
                       rule.prompts.map((prompt, idx) => {
                         const enabled = prompt.status === RuleStatus.ACTIVE;
-
                         return (
                           <div
                             key={prompt.id}
@@ -422,7 +387,6 @@ export default function BusinessRulesTab() {
                                 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-sm shrink-0">
                                   {idx + 1}
                                 </div>
-
                                 <div className="min-w-0">
                                   <div className="text-base font-semibold text-slate-900">
                                     {prompt.prompt_name}
@@ -432,15 +396,11 @@ export default function BusinessRulesTab() {
                                       {prompt.description}
                                     </div>
                                   )}
-
-                                  {/* Prompt text preview */}
                                   <div className="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
                                     <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap line-clamp-4">
                                       {prompt.prompt_text}
                                     </pre>
                                   </div>
-
-                                  {/* Variables */}
                                   {prompt.variables && prompt.variables.length > 0 && (
                                     <div className="mt-3 flex flex-wrap gap-2">
                                       {prompt.variables.map((variable) => (
@@ -455,8 +415,6 @@ export default function BusinessRulesTab() {
                                   )}
                                 </div>
                               </div>
-
-                              {/* Right controls: Enabled toggle + edit + archive */}
                               <div className="flex flex-col items-end gap-3 shrink-0">
                                 <div className="flex items-center gap-3">
                                   <span
@@ -466,7 +424,6 @@ export default function BusinessRulesTab() {
                                   >
                                     {enabled ? "Enabled" : "Disabled"}
                                   </span>
-
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -491,7 +448,6 @@ export default function BusinessRulesTab() {
                                     />
                                   </button>
                                 </div>
-
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => {
@@ -503,7 +459,6 @@ export default function BusinessRulesTab() {
                                   >
                                     <Edit className="w-4 h-4 mx-auto" />
                                   </button>
-
                                   <button
                                     onClick={() => {
                                       setStatusChangeTarget({
@@ -537,8 +492,6 @@ export default function BusinessRulesTab() {
           })}
         </div>
       )}
-
-      {/* Modals (unchanged) */}
       {showAddRuleModal && (
         <AddRuleModal
           onClose={() => setShowAddRuleModal(false)}
@@ -546,9 +499,10 @@ export default function BusinessRulesTab() {
             setShowAddRuleModal(false);
             loadRules();
           }}
+         defaultOperationMode={operationModeFilter}
+          defaultUseCase={useCaseFilter}
         />
       )}
-
       {showEditRuleModal && selectedRule && (
         <EditRuleModal
           rule={selectedRule}
@@ -563,7 +517,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showAddPromptModal && selectedRule && (
         <AddPromptModal
           rule={selectedRule}
@@ -578,7 +531,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showEditPromptModal && selectedPrompt && (
         <EditPromptModal
           prompt={selectedPrompt}
@@ -593,7 +545,6 @@ export default function BusinessRulesTab() {
           }}
         />
       )}
-
       {showStatusModal && statusChangeTarget && (
         <StatusConfirmModal
           target={statusChangeTarget}

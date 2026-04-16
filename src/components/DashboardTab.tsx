@@ -21,6 +21,8 @@ import { dashboardService, type DateField } from "../services/dashboardService";
 import { aggregationService } from "../services/aggregationService";
 import type { Product } from "../types/database.types";
 import type { DashboardStats } from "../types/database.types";
+import ProjectsOverviewTab from "./ProjectsOverviewTab.tsx";
+import { ProjectOverview } from "../types/business-rules.types.ts";
 
 interface Props {
   projectId?: string;
@@ -208,7 +210,8 @@ function ProgressCard({
 
 export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
-
+  const [projectsOverview, setProjectsOverview] = useState<ProjectOverview[]>([]);
+const [projectsLoading, setProjectsLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("week"); 
   const [preset, setPreset] = useState<Preset>("month");
   const [startDate, setStartDate] = useState<string>(toYMD(startOfMonth(new Date())));
@@ -241,8 +244,22 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [prevStats, setPrevStats] = useState<DashboardStats | null>(null);
 
   const todayYMD = useMemo(() => toYMD(new Date()), []);
-
-  
+  const loadProjectsOverview = async () => {
+  setProjectsLoading(true);
+  try {
+    const data = await dashboardService.getProjectsOverview();
+    setProjectsOverview(data);
+  } catch (error) {
+    console.error("Failed to load projects overview:", error);
+  } finally {
+    setProjectsLoading(false);
+  }
+};
+useEffect(() => {
+  if (!projectId) {
+    loadProjectsOverview();
+  }
+}, [projectId]);
   useEffect(() => {
     const now = new Date();
     if (preset === "today") {
@@ -464,7 +481,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header + Range Controls + Live pill (as in screenshots) */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -502,7 +518,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </PillButton>
           </div>
 
-          {/* custom from-to date inputs like screenshot (native date inputs) */}
           <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
             <input
               type="date"
@@ -527,7 +542,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             />
           </div>
 
-          {/* Optional: created vs updated (not shown in screenshot but useful; keep) */}
           <select
             value={dateField}
             onChange={(e) => setDateField(e.target.value as DateField)}
@@ -550,7 +564,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </div>
       </div>
 
-      {/* KPI row (all cards in screenshot) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
         <StatCard
           title="Total Products"
@@ -643,8 +656,19 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           onClick={() => onNavigate?.("aggregation", "failed")}
         />
       </div>
+      {!projectId && (
+        projectsLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <ProjectsOverviewTab 
+            projects={projectsOverview} 
+            onOpenProject={(id) => onNavigate?.("aggregation", "all")} 
+          />
+        )
+      )}
 
-      {/* Health row (all 4 cards from screenshot) */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
         <ProgressCard
           title="Enrichment Rate"
@@ -679,9 +703,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         />
       </div>
 
-      {/* Top 10 Brands | Top 10 Categories | Custom Range Activity (as screenshot) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Top 10 Brands */}
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -741,7 +763,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Top 10 Categories */}
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -798,7 +819,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Custom Range Activity */}
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
@@ -822,7 +842,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
           </div>
 
-          {/* mini weekday band (visual like screenshot) */}
           <div className="mt-6 grid grid-cols-7 gap-2 text-[11px] text-slate-400">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <div key={d} className="text-center">
@@ -832,7 +851,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
 
           <div className="mt-3 grid grid-cols-7 gap-2 items-end h-24">
-            {/* We only have one series from timeline right now; render totalProducts bars as a neutral activity proxy */}
             {(() => {
               const rows = timelineStats.slice(-7);
               const max = Math.max(
@@ -875,12 +893,10 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Right rail cards in screenshot: Recent Activity + Needs Attention */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-8" />
 
         <div className="xl:col-span-4 space-y-6">
-          {/* Recent Activity */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4 text-slate-700" /> Recent Activity
@@ -921,7 +937,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             )}
           </div>
 
-          {/* Needs Attention */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" /> Needs Attention
@@ -963,7 +978,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Keep your existing “Not Run / Failed Details” table functionality (not in screenshot but you had it) */}
       {projectId && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -1045,7 +1059,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </div>
       )}
 
-      {/* Timeline controls (feature present in your code; keep) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
