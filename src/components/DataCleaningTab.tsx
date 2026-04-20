@@ -792,7 +792,6 @@ export default function DataCleaningTab() {
           </p>
         </div>
 
-        {/* Top actions (same functionality) */}
         {selectedProjectId && (
           <div className="flex items-center gap-2">
             <button
@@ -1255,7 +1254,7 @@ export default function DataCleaningTab() {
           <div
             className="overflow-auto relative"
             style={{
-              maxHeight: "calc(100vh - 280px)",
+              maxHeight: "calc(100vh - 180px)",
               overflowY: "auto",
               overflowX: "auto",
             }}
