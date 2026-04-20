@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { notify } from "../lib/notifications";
 import api from "../lib/api.ts";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login,isAuthenticated,isLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
+  if(!isLoading && isAuthenticated)
+  {
+    return <Navigate to='/' replace/>
+  }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -28,7 +31,10 @@ export default function LoginPage() {
       });
 
       login(response.data.access_token, response.data.user);
+      navigate("/", { replace: true });
       console.log('RESPONSE',response)
+      console.log("Stored token:", localStorage.getItem("token"));
+console.log("Stored user:", localStorage.getItem("user"));
       notify.success("Login successful");
       navigate("/");
     } catch (error: any) {

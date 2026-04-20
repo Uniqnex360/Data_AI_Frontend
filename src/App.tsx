@@ -16,7 +16,6 @@ import SourcesTab from "./components/SourcesTab";
 import AggregationTab from "./components/AggregationTab";
 import BusinessRulesTab from "./components/BusinessRulesTab";
 import EnrichmentTab from "./components/EnrichmentTab";
-import GoldenRecordsTab from "./components/GoldenRecordsTab";
 import DataCleaningTab from "./components/DataCleaningTab";
 
 
