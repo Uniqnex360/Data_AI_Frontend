@@ -1,10 +1,8 @@
-
 export enum RuleCategory{
     ENRICHMENT='enrichment',
     AGGREGATION='aggregation',
     EXTRACTION='extraction',
     STANDARDIZATION='standardization'
-
 }
 export type AttributeValue = string | number | boolean | {
   value: string | number;
@@ -35,57 +33,73 @@ export interface RuleExecutionContext{
   description?:string
   [key: string]: AttributeValue | undefined;
 }
-
 export interface RuleOutputData{
   [key:string]:AttributeValue
 }
 export enum RuleStatus{
     ACTIVE='active',
     INACTIVE='inactive',
-    // DRAFT='draft'
 }
-export interface RulePrompt{
-    id:string
-    rule_id:string
-    prompt_name:string
-    prompt_text:string
-    description?:string
-    variables?:string
-    priority:number
-    status:RuleStatus
-    execution_count:number
-    last_executed_at?:number
-    created_at:string
-    updated_at:string
+export type PromptType = 
+  | "extraction"
+  | "pdf_extraction"
+  | "unification"
+  | "validation"
+  | "enrichment"
+  | "standardization";
+export type ResponseSchema =
+  | "ExtractionResponse"
+  | "UnifiedStandardizedResponse"
+  | "ValidationResponse"
+  | "EnrichmentResponse";
+export interface RulePrompt {
+  id: string;
+  rule_id: string;
+  prompt_name: string;
+  prompt_type: PromptType;        
+  response_schema: ResponseSchema; 
+  prompt_text: string;
+  description?: string;
+  priority: number;
+  variables: string[];
+  status: RuleStatus;
+  execution_count: number;
+  last_executed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
-export interface RulePromptCreate{
-    prompt_name:string
-    prompt_text:string
-    description?:string
-    variables?:string
-    priority?:string
-    status?:RuleStatus
-}
-export interface RulePromptUpdate{
-    prompt_name?:string
-    prompt_text?:string
-    description?:string
-    variables?:string
-    priority?:string
-    status?:RuleStatus
+export interface RulePromptCreate {
+  prompt_name: string;
+  prompt_type: PromptType;        
+  response_schema: ResponseSchema; 
+  prompt_text: string;
+  stage: string;
+  description?: string;
+  priority?: number;
+  variables?: string[];
+  status?: RuleStatus;
+} 
+export interface RulePromptUpdate {
+  prompt_name?: string;
+  prompt_type?: PromptType;        
+  response_schema?: ResponseSchema; 
+  prompt_text?: string;
+  description?: string;
+  priority?: number;
+  variables?: string[];
+  status?: RuleStatus;
 }
 export interface BusinessRule {
   id: string;
+  rule_id: string;
   title: string;
   category: RuleCategory;
   description?: string;
-  prompts: RulePrompt[]; 
-  variables?: string[];
   status: RuleStatus;
-  priority: number;
+  operation_mode?: string;  
+  use_case?: string;        
+  prompts: RulePrompt[];
   is_system: boolean;
-  execution_count: number;
-  last_executed_at?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -94,10 +108,9 @@ export interface BusinessRuleCreate {
   title: string;
   category: RuleCategory;
   description?: string;
-  prompt: string;
-  variables?: string[];
   status?: RuleStatus;
-  priority?: number;
+  operation_mode?: string;  
+  use_case?: string;        
 }
 export interface BusinessRuleUpdate {
   title?: string;
@@ -107,7 +120,6 @@ export interface BusinessRuleUpdate {
   status?: RuleStatus;
   priority?: number;
 }
-
 export  interface BusinessRuleResponse{
     rule:BusinessRule[]
     total:number
@@ -121,12 +133,10 @@ export interface BusinessRuleListResponse {
 export interface RuleExecuteRequest{
     context:RuleExecutionContext
 }
-
 export interface AggregatedAttributeValue{
   value:string
   confidence:number
   source_id:string
-
 }
 export interface AggregatedAttribute{
   id:string
@@ -166,11 +176,9 @@ export  interface Product {
     value: string;
     unit?: string;
     uom?: string;
-
   }>;
   validation_conflicts?: Record<string, string>;
 }
-
 export interface ManualProductData {
   brand: string;
   title: string;
@@ -187,7 +195,6 @@ export interface ManualProductData {
   stock: string;
 }
 export type OperationMode='aggregation'|'cleaning'|'enrichment'|'pdf_extraction'
-
 export interface DashboardStats {
   totalProjects: number;
   activeProjects: number;
@@ -195,14 +202,12 @@ export interface DashboardStats {
   publishedProducts: number;
   catalogHealth: number;
 }
-
 export interface TimelineParams {
   projectId?: string;
   period?: string;
   startDate?: string;
   endDate?: string;
 }
-
 export interface BrandFlowParams {
   projectId?: string;
   startDate?: string;
@@ -219,7 +224,6 @@ export interface BrandAttributesParams {
   endDate?: string;
 }
 export type UserRole = "admin" | "editor" | "viewer";
-
 export interface AuthUser {
   id: string;
   email: string;
@@ -228,20 +232,16 @@ export interface AuthUser {
   is_active?: boolean;
 }
 export type ProjectStatus = "active" | "completed" | "stalled" | "new";
-
 export interface ProjectOverview {
   id: string;
   name: string;
   description?: string;
   totalProducts: number;
-
   aggregated: number;
   enrichment: number;
   cleaning: number;
-
   enrichmentFailed?: number;
   aggregationFailed?: number;
-
   overallPct: number;
   status: ProjectStatus;
   lastActive: string; 

@@ -55,8 +55,6 @@ function StatCard({
 }
 export default function BusinessRulesTab() {
   const [rules, setRules] = useState<BusinessRule[]>([]);
-  const [operationModeFilter, setOperationModeFilter] = useState<string>("");
-const [useCaseFilter, setUseCaseFilter] = useState<string>("");
   const [allRules, setAllRules] = useState<BusinessRule[]>([]);
   const [enabled, setEnabled] = useState(true); 
   const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
@@ -391,6 +389,13 @@ const [useCaseFilter, setUseCaseFilter] = useState<string>("");
                                   <div className="text-base font-semibold text-slate-900">
                                     {prompt.prompt_name}
                                   </div>
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+      {prompt.prompt_type}
+    </span>
+    
+    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+      {prompt.response_schema}
+    </span>
                                   {prompt.description && (
                                     <div className="text-sm text-slate-500 mt-1">
                                       {prompt.description}
@@ -499,8 +504,7 @@ const [useCaseFilter, setUseCaseFilter] = useState<string>("");
             setShowAddRuleModal(false);
             loadRules();
           }}
-         defaultOperationMode={operationModeFilter}
-          defaultUseCase={useCaseFilter}
+        
         />
       )}
       {showEditRuleModal && selectedRule && (

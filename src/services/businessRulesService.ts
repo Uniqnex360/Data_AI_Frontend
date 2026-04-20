@@ -1,9 +1,6 @@
-
 import api from "../lib/api";
 import { RuleCategory, RuleStatus, BusinessRuleCreate, BusinessRule, BusinessRuleListResponse, BusinessRuleUpdate, RulePrompt, RulePromptCreate, RulePromptUpdate, RuleExecuteRequest, RuleExecuteResponse, RuleExecutionLog } from '../types/business-rules.types';
-
 export const businessRulesService = {
-  
   async createRule(rule: BusinessRuleCreate): Promise<BusinessRule> {
     try {
       const { data } = await api.post<BusinessRule>("/business-rules/", rule);
@@ -13,8 +10,6 @@ export const businessRulesService = {
        throw error;
     }
   },
-
-  
   async getAllRules(params?: {
     category?: RuleCategory;
     status?: RuleStatus;
@@ -33,8 +28,6 @@ export const businessRulesService = {
       return { rules: [], total: 0, category_counts: {} };
     }
   },
-
-  
   async getRule(ruleId: string): Promise<BusinessRule> {
     try {
       const { data } = await api.get<BusinessRule>(
@@ -46,8 +39,6 @@ export const businessRulesService = {
       throw new Error(error.response?.data?.detail || "Rule not found");
     }
   },
-
-  
   async updateRule(
     ruleId: string,
     updates: BusinessRuleUpdate
@@ -74,13 +65,12 @@ export const businessRulesService = {
     );
     return data;
   } catch (error: any) {
-    console.error("Failed to update rule status:", error);  // Fixed message
+    console.error("Failed to update rule status:", error);  
     throw new Error(
-      error.response?.data?.detail || "Failed to update rule status"  // Fixed message
+      error.response?.data?.detail || "Failed to update rule status"  
     );
   }
 },
-
 async updatePromptStatus(promptId: string, status: RuleStatus): Promise<RulePrompt> {
   try {
     const { data } = await api.patch<RulePrompt>(
@@ -90,9 +80,9 @@ async updatePromptStatus(promptId: string, status: RuleStatus): Promise<RuleProm
     );
     return data;
   } catch (error: any) {
-    console.error("Failed to update prompt status:", error);  // Fixed message
+    console.error("Failed to update prompt status:", error);  
     throw new Error(
-      error.response?.data?.detail || "Failed to update prompt status"  // Fixed message
+      error.response?.data?.detail || "Failed to update prompt status"  
     );
   }
 },
@@ -111,7 +101,6 @@ async updatePromptStatus(promptId: string, status: RuleStatus): Promise<RuleProm
     try {
       const {data}=await api.get<RulePrompt[]>(`/business-rules/${ruleIdentifier}/prompts`)
       return data
-
     } catch (error) {
       console.error("Failed to get prompts",error)
       throw new Error(
@@ -147,8 +136,6 @@ async updatePromptStatus(promptId: string, status: RuleStatus): Promise<RuleProm
       );
     }
   },
-
-  
   async getRuleLogs(
     ruleId: string,
     skip: number = 0,
@@ -169,26 +156,4 @@ async updatePromptStatus(promptId: string, status: RuleStatus): Promise<RuleProm
       return { logs: [], total: 0, skip, limit };
     }
   },
-
-  
-  // async duplicateRule(ruleId: string): Promise<BusinessRule> {
-  //   try {
-  //     const original = await this.getRule(ruleId);
-
-  //     const duplicate: BusinessRuleCreate = {
-  //       title: `${original.title} (Copy)`,
-  //       category: original.category,
-  //       description: original.description,
-  //       prompt: original.prompt,
-  //       variables: typeof original.variables === 'string' ? JSON.parse(original.variables) : original.variables,
-  //       status: RuleStatus.DRAFT,
-  //       priority: original.priority,
-  //     };
-
-  //     return await this.createRule(duplicate);
-  //   } catch (error: any) {
-  //     console.error("Failed to duplicate rule:", error);
-  //     throw new Error("Failed to duplicate rule");
-  //   }
-  // },
 };
