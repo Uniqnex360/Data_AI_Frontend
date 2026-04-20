@@ -91,7 +91,7 @@ const COL_MPN = 140;
 const COL_NAME = 360;
 const COL_BRAND = 160;
 const COL_CATEGORY = 180;
-const COL_ATTR = 280;
+const COL_ATTR = 200;
 const COL_ACTION = 110;
 
 const LEFT_STATUS = COL_CHECKBOX;
@@ -196,7 +196,8 @@ function AttrHeader({
       style={{ width: COL_ATTR, minWidth: COL_ATTR, zIndex: 40 }}
       className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
     >
-      <div ref={ref} className="flex items-center gap-1 px-3 py-3">
+      <div ref={ref} className="flex items-center gap-1 px-2 py-2">
+
         <span className="truncate flex-1" title={attr}>
           {attr}
         </span>
@@ -792,6 +793,7 @@ export default function DataCleaningTab() {
           </p>
         </div>
 
+        {/* Top actions (same functionality) */}
         {selectedProjectId && (
           <div className="flex items-center gap-2">
             <button
@@ -1254,7 +1256,7 @@ export default function DataCleaningTab() {
           <div
             className="overflow-auto relative"
             style={{
-              maxHeight: "calc(100vh - 140px)",
+              maxHeight: "calc(100vh - 280px)",
               overflowY: "auto",
               overflowX: "auto",
             }}
@@ -1503,7 +1505,8 @@ export default function DataCleaningTab() {
                             conflict ? "bg-amber-50/30" : ""
                           }`}
                         >
-                          <div className="px-3 py-4">
+                          <div className="px-2 py-3">
+
                             <div className="flex items-start gap-2">
                               <input
                                 type="text"
