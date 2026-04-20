@@ -1339,11 +1339,11 @@ export default function DataCleaningTab() {
                   </th>
 
                   <th
-                    style={{ width: COL_BRAND, minWidth: COL_BRAND, zIndex: 40 }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Product Name
-                  </th>
+  style={{ width: COL_NAME, minWidth: COL_NAME, zIndex: 40 }}
+  className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+>
+  Product Name
+</th>
 
                   <th
                     style={{ width: COL_BRAND, minWidth: COL_BRAND, zIndex: 40 }}
@@ -1454,10 +1454,7 @@ export default function DataCleaningTab() {
 
                     <td
                       style={{
-                        width: COL_NAME,
-                        position: "sticky",
-                        left: LEFT_NAME,
-                        zIndex: 20,
+                        width: COL_NAME
                       }}
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
                     >
