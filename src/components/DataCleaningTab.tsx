@@ -150,7 +150,6 @@ function AttributeValueTags({
           <Check className="w-4 h-4" />
           <span className="truncate max-w-[200px]">{value}</span>
 
-          {/* X above the value pill (same functionality) */}
           <button
             type="button"
             onClick={() => onRemove(value)}
@@ -785,7 +784,6 @@ export default function DataCleaningTab() {
 
   return (
     <div className="p-4 bg-slate-50 min-h-screen font-sans">
-      {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">Data Cleaning &amp; Validation</h3>
@@ -825,7 +823,6 @@ export default function DataCleaningTab() {
         )}
       </div>
 
-      {/* Filters card */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-3">
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
@@ -1041,7 +1038,6 @@ export default function DataCleaningTab() {
         )}
       </div>
 
-      {/* Bulk Update Attributes */}
       {selectedProjectId && availableAttributes.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
           <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
@@ -1107,7 +1103,6 @@ export default function DataCleaningTab() {
               />
             </div>
 
-            {/* attribute chips */}
             <div className="flex flex-wrap gap-2">
               {filteredBulkAttributes.map((attr) => {
                 const active = selectedBulkAttributes.includes(attr);
@@ -1141,7 +1136,6 @@ export default function DataCleaningTab() {
               })}
             </div>
 
-            {/* value inputs */}
             {selectedBulkAttributes.length > 0 && (
               <div className="mt-5 pt-5 border-t border-slate-100">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -1174,7 +1168,6 @@ export default function DataCleaningTab() {
         </div>
       )}
 
-      {/* Body */}
       {!selectedProjectId ? (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-1">Cleaning Projects</h4>
@@ -1236,7 +1229,6 @@ export default function DataCleaningTab() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          {/* table summary bar */}
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
             <div className="flex items-center gap-3">
               <input
@@ -1347,13 +1339,7 @@ export default function DataCleaningTab() {
                   </th>
 
                   <th
-                    style={{
-                      width: COL_NAME,
-                      minWidth: COL_NAME,
-                      left: LEFT_NAME,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
+                    style={{ width: COL_BRAND, minWidth: COL_BRAND, zIndex: 40 }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Product Name
@@ -1522,7 +1508,6 @@ export default function DataCleaningTab() {
                           }`}
                         >
                           <div className="px-3 py-4">
-                            {/* Value (editable) */}
                             <div className="flex items-start gap-2">
                               <input
                                 type="text"
@@ -1547,7 +1532,6 @@ export default function DataCleaningTab() {
                               )}
                             </div>
 
-                            {/* Chips (✓ / Missing) */}
                             <AttributeValueTags
                               values={currentValues}
                               onRemove={(value) =>
@@ -1555,7 +1539,6 @@ export default function DataCleaningTab() {
                               }
                             />
 
-                            {/* Unit (editable) */}
                             <input
                               type="text"
                               value={curUom}
