@@ -27,13 +27,20 @@ const STAGES_BY_CATEGORY: Record<RuleCategory, { value: string; label: string }[
     { value: "enrichment", label: "Enrichment - Marketing content" },
   ],
   standardization: [
+    { value: "cleaning", label: "Cleaning - Standardize attributes" }, 
     { value: "standardization", label: "Standardization - Clean data" },
     { value: "validation", label: "Validation - Validate cleaned data" },
   ],
-  extraction: [
-    { value: "extraction", label: "Extraction - Extract from PDF" },
+  
+   extraction: [
+    { value: "pdf_identification", label: "PDF Identification - Find products in PDF" },
+    { value: "pdf_blind_extraction", label: "PDF Blind Extraction - Extract without MPN" },
+    { value: "pdf_extraction", label: "PDF Extraction - Extract with MPN" },
+    { value: "pdf_structured", label: "PDF Structured - From tables" },
+    { value: "pdf_unstructured", label: "PDF Unstructured - From free text" },
+    { value: "extraction", label: "Extraction - Extract from web" },
     { value: "combine", label: "Combine - Unify & Standardize" },
-  ],
+  ],  
 };
 
 export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {

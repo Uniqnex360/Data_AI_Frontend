@@ -225,7 +225,7 @@ export default function BusinessRulesTab() {
             <option value="all">All Scenarios</option>
             <option value="enrichment">Enrichment</option>
             <option value="aggregation">Aggregation</option>
-            <option value="extraction">Extraction</option>
+             <option value="extraction">PDF Extraction</option> 
             <option value="standardization">Standardization</option>
           </select>
           <select
