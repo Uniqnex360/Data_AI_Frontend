@@ -886,7 +886,18 @@ export default function DataCleaningTab() {
     setBulkSearch("");
     loadProjectFilters();
   };
+  const pageSizeOptions = useMemo(() => {
+  if (!total) return [pageSize];
 
+  return Array.from(
+    new Set([
+      pageSize,                    // keep current selected value valid
+      Math.max(1, Math.ceil(total / 4)),
+      Math.max(1, Math.ceil(total / 2)),
+      total,                       // show all products in project
+    ]),
+  ).sort((a, b) => a - b);
+}, [total, pageSize]);
   // ── Derived flags ─────────────────────────────────────────────────────────
   const hasActiveFilters =
     !!statusFilter ||
@@ -1822,19 +1833,21 @@ export default function DataCleaningTab() {
                 {Math.min(page * pageSize, total)} of {total}
               </span>
               <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
-              >
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-                <option value={100}>100 / page</option>
-              </select>
+  value={pageSize}
+  onChange={(e) => {
+    setPageSize(Number(e.target.value));
+    setPage(1);
+    setAllProductsSelected(false);
+    setSelectedProductIds(new Set());
+  }}
+  className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
+>
+  {pageSizeOptions.map((size) => (
+    <option key={size} value={size}>
+      {size === total ? `All (${size})` : `${size} / page`}
+    </option>
+  ))}
+</select>
             </div>
 
             <div className="flex items-center gap-2">
