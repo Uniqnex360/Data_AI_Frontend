@@ -1214,138 +1214,151 @@ const [statsLoading, setStatsLoading] = useState(false);
       </div>
 
       {/* ── Bulk attributes panel ── */}
-      {selectedProjectId && availableAttributes.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
-          <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                Bulk Update Attributes
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Select attributes and values to apply to selected products
-              </p>
-              {selectedBulkAttributes.length > 0 && (
-                <div className="mt-2">
-                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
-                    Showing {filteredSortedProducts.length} products on this
-                    page with selected attributes
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setSelectedBulkAttributes([]);
-                  setBulkAttributeValues({});
-                }}
-                disabled={selectedBulkAttributes.length === 0}
-                className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear All
-              </button>
-              <button
-                onClick={handleBulkUpdate}
-                disabled={
-                  bulkUpdating ||
-                  (!allProductsSelected && selectedProductIds.size === 0) ||
-                  selectedBulkAttributes.length === 0
-                }
-                className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
-              >
-                {bulkUpdating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Updating…
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    {allProductsSelected
-                      ? `Update All (${total})`
-                      : `Update ${selectedProductIds.size} selected`}
-                  </>
-                )}
-              </button>
-            </div>
+      {/* ── Bulk attributes panel ── */}
+{selectedProjectId && availableAttributes.length > 0 && (
+  <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
+    <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
+      <div>
+        <p className="text-sm font-semibold text-slate-900">
+          Bulk Update Attributes
+        </p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Select attributes and values to apply to selected products
+        </p>
+        {selectedBulkAttributes.length > 0 && (
+          <div className="mt-2">
+            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
+              Showing {filteredSortedProducts.length} products on this
+              page with selected attributes
+            </span>
           </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => {
+            setSelectedBulkAttributes([]);
+            setBulkAttributeValues({});
+          }}
+          disabled={selectedBulkAttributes.length === 0}
+          className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
+        >
+          <X className="w-4 h-4" />
+          Clear All
+        </button>
+        <button
+          onClick={handleBulkUpdate}
+          disabled={
+            bulkUpdating ||
+            (!allProductsSelected && selectedProductIds.size === 0) ||
+            selectedBulkAttributes.length === 0
+          }
+          className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
+        >
+          {bulkUpdating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Updating…
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" />
+              {allProductsSelected
+                ? `Update All (${total})`
+                : `Update ${selectedProductIds.size} selected`}
+            </>
+          )}
+        </button>
+      </div>
+    </div>
 
-          <div className="p-4">
-            <div className="relative mb-3 max-w-2xl">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={bulkSearch}
-                onChange={(e) => setBulkSearch(e.target.value)}
-                placeholder="Search attributes..."
-                className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {filteredBulkAttributes.map((attr) => {
-                const active = selectedBulkAttributes.includes(attr);
-                return (
-                  <button
-                    key={attr}
-                    type="button"
-                    onClick={() => {
-                      if (active) {
-                        setSelectedBulkAttributes((p) =>
-                          p.filter((a) => a !== attr),
-                        );
-                        setBulkAttributeValues((p) => {
-                          const n = { ...p };
-                          delete n[attr];
-                          return n;
-                        });
-                      } else {
-                        setSelectedBulkAttributes((p) => [...p, attr]);
-                      }
-                    }}
-                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                    }`}
-                    title={attr}
-                  >
-                    {active && <Check className="w-4 h-4" />}
-                    <span className="truncate max-w-[260px]">{attr}</span>
-                  </button>
-                );
-              })}
-            </div>
+    <div className="p-4">
+      <div className="relative mb-3 max-w-2xl">
+        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          value={bulkSearch}
+          onChange={(e) => setBulkSearch(e.target.value)}
+          placeholder="Search attributes..."
+          className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
+        />
+      </div>
+      
+      {/* Fixed height scrollable container for attribute chips */}
+      <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+        <div className="flex flex-wrap gap-2">
+          {filteredBulkAttributes.length === 0 ? (
+            <p className="text-sm text-slate-500 py-2">No attributes found</p>
+          ) : (
+            filteredBulkAttributes.map((attr) => {
+              const active = selectedBulkAttributes.includes(attr);
+              return (
+                <button
+                  key={attr}
+                  type="button"
+                  onClick={() => {
+                    if (active) {
+                      setSelectedBulkAttributes((p) =>
+                        p.filter((a) => a !== attr),
+                      );
+                      setBulkAttributeValues((p) => {
+                        const n = { ...p };
+                        delete n[attr];
+                        return n;
+                      });
+                    } else {
+                      setSelectedBulkAttributes((p) => [...p, attr]);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                  title={attr}
+                >
+                  {active && <Check className="w-4 h-4 shrink-0" />}
+                  <span className="truncate max-w-[260px]">{attr}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
 
-            {selectedBulkAttributes.length > 0 && (
-              <div className="mt-5 pt-5 border-t border-slate-100">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Set values for selected attributes
-                </p>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {selectedBulkAttributes.map((attr) => (
-                    <div key={attr} className="space-y-1">
-                      <label className="text-sm font-medium text-slate-800">
-                        {attr}
-                      </label>
-                      <input
-                        value={bulkAttributeValues[attr] || ""}
-                        onChange={(e) =>
-                          setBulkAttributeValues((p) => ({
-                            ...p,
-                            [attr]: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter value"
-                        className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm"
-                      />
-                    </div>
-                  ))}
+      {selectedBulkAttributes.length > 0 && (
+        <div className="mt-5 pt-5 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Set values for selected attributes ({selectedBulkAttributes.length} selected)
+          </p>
+          
+          {/* Fixed height scrollable container for value inputs */}
+          <div className="mt-3 max-h-64 overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
+              {selectedBulkAttributes.map((attr) => (
+                <div key={attr} className="space-y-1">
+                  <label className="text-sm font-medium text-slate-800 truncate block" title={attr}>
+                    {attr}
+                  </label>
+                  <input
+                    value={bulkAttributeValues[attr] || ""}
+                    onChange={(e) =>
+                      setBulkAttributeValues((p) => ({
+                        ...p,
+                        [attr]: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter value"
+                    className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
+                  />
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         </div>
       )}
+    </div>
+  </div>
+)}
 
       {/* ── Main content area ── */}
       {!selectedProjectId ? (
