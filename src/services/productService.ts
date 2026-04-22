@@ -55,24 +55,42 @@ export const productService = {
   limit: number;
   project: Project | null;
 }> {
-    const response = await api.get("/products/", {
-      params: { project_id: projectId, skip, limit, workflow_stage },
-    });
+  const response = await api.get("/products/", {
+    params: { project_id: projectId, skip, limit, workflow_stage },
+  });
 
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
+  // If the API returns the expected structure
+  if (response.data && typeof response.data === 'object' && 'products' in response.data) {
+    return {
+      products: Array.isArray(response.data.products) ? response.data.products : [],
+      total: response.data.total ?? 0,
+      skip: response.data.skip ?? skip,
+      limit: response.data.limit ?? limit,
+      project: response.data.project ?? null,
+    };
+  }
 
-    if (response.data?.products) {
-      return response.data.products;
-    }
+  // If the API returns an array (legacy format)
+  if (Array.isArray(response.data)) {
+    return {
+      products: response.data,
+      total: response.data.length,
+      skip,
+      limit,
+      project: null,
+    };
+  }
 
-    if (response.data?.items) {
-      return response.data.items;
-    }
-
-    return [];
-  },
+  // Fallback for unexpected response format
+  console.warn('Unexpected API response format:', response.data);
+  return {
+    products: [],
+    total: 0,
+    skip,
+    limit,
+    project: null,
+  };
+},
   async getProductByCode(code: string): Promise<Product> {
     const response = await api.get(`/products/${code}`);
     return response.data;
