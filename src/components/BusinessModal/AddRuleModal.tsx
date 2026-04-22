@@ -16,9 +16,8 @@ const USE_CASE_OPTIONS: Record<string, string[]> = {
     "Products without Category Assignments",
   ],
   enrichment: [
-    "With Categories with attribute (back filling)",
-    "With Categories with attribute (back filling) and existing attribute validation",
-  ],
+    "Enrich product data from web sources",  
+],
   cleaning: [
     "Data cleaning and Standardization",
   ],

@@ -70,53 +70,40 @@ export const productService = {
   },
   
   async getProductsByProject(
-    projectId: string,
-    workflow_stage?: string,
-    skip = 0,
-    limit = 100
-  ): Promise<{
-    products: Product[];
-    total: number;
-    skip: number;
-    limit: number;
-    project: Project | null;
-  }> {
-    const response = await api.get("/products/", {
-      params: { project_id: projectId, skip, limit, workflow_stage },
-    });
+  projectId: string,
+  workflow_stage?: string,
+  skip = 0,
+  limit = 100
+): Promise<{
+  products: Product[];
+  total: number;
+  skip: number;
+  limit: number;
+  project: Project | null;
+}> {
+  const response = await api.get("/products/", {
+    params: { project_id: projectId, skip, limit, workflow_stage },
+  });
 
-    // If the API returns the expected structure
-    if (response.data && typeof response.data === 'object' && 'products' in response.data) {
-      return {
-        products: Array.isArray(response.data.products) ? response.data.products : [],
-        total: response.data.total ?? 0,
-        skip: response.data.skip ?? skip,
-        limit: response.data.limit ?? limit,
-        project: response.data.project ?? null,
-      };
-    }
-
-    // If the API returns an array (legacy format)
-    if (Array.isArray(response.data)) {
-      return {
-        products: response.data,
-        total: response.data.length,
-        skip,
-        limit,
-        project: null,
-      };
-    }
-
-    // Fallback for unexpected response format
-    console.warn('Unexpected API response format:', response.data);
+  if (response.data && typeof response.data === 'object' && 'products' in response.data) {
     return {
-      products: [],
-      total: 0,
-      skip,
-      limit,
-      project: null,
+      products: Array.isArray(response.data.products) ? response.data.products : [],
+      total: response.data.total ?? 0,
+      skip: response.data.skip ?? skip,
+      limit: response.data.limit ?? limit,
+      project: response.data.project ?? null,
     };
-  },
+  }
+
+  console.warn('Unexpected API response format:', response.data);
+  return {
+    products: [],
+    total: 0,
+    skip,
+    limit,
+    project: null,
+  };
+},
   
   async getProductByCode(code: string): Promise<Product> {
     const response = await api.get(`/products/${code}`);

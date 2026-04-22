@@ -461,44 +461,55 @@ export default function AggregationTab({
     setCurrentPage(1);
   }, []);
   const toggleExpandProject = useCallback(
-    async (projectId: string) => {
-      if (expandedProjectId === projectId) {
-        setExpandedProjectId(null);
-        setExpandedProjectProducts([]);
-        setCurrentPage(1);
-        resetLocalFilters();
-        return;
+  async (projectId: string) => {
+    if (expandedProjectId === projectId) {
+      setExpandedProjectId(null);
+      setExpandedProjectProducts([]);
+      setCurrentPage(1);
+      resetLocalFilters();
+      return;
+    }
+    setExpandedProjectId(projectId);
+    setExpandedLoading(true);
+    try {
+      const result = await productService.getProductsByProject(
+        projectId,
+        "aggregation",
+      );
+      
+      // ✅ FIX: Extract products array from result
+      let products = [];
+      if (Array.isArray(result)) {
+        products = result;
+      } else if (result && typeof result === 'object' && 'products' in result) {
+        products = Array.isArray(result.products) ? result.products : [];
       }
-      setExpandedProjectId(projectId);
-      setExpandedLoading(true);
-      try {
-        const data = await productService.getProductsByProject(
-          projectId,
-          "aggregation",
-        );
-        setExpandedProjectProducts(data);
-        setCurrentPage(1);
-        resetLocalFilters();
-        const processingProductIds = data
-          .filter((p) => p.enrichment_status === "processing")
-          .map((p) => p.id);
-        if (processingProductIds.length > 0) {
-          setPollingProductIds((prev) => {
-            const newSet = new Set(prev);
-            processingProductIds.forEach((id) => newSet.add(id));
-            return newSet;
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load products for project", projectId, error);
-        notify.error("Failed to load products");
-      } finally {
-        setExpandedLoading(false);
-        setSelectedProductIds(new Set());
+      
+      setExpandedProjectProducts(products);
+      setCurrentPage(1);
+      resetLocalFilters();
+      
+      const processingProductIds = products
+        .filter((p) => p.enrichment_status === "processing")
+        .map((p) => p.id);
+      if (processingProductIds.length > 0) {
+        setPollingProductIds((prev) => {
+          const newSet = new Set(prev);
+          processingProductIds.forEach((id) => newSet.add(id));
+          return newSet;
+        });
       }
-    },
-    [expandedProjectId, resetFilters],
-  );
+    } catch (error) {
+      console.error("Failed to load products for project", projectId, error);
+      notify.error("Failed to load products");
+      setExpandedProjectProducts([]); // ✅ Ensure it's always an array
+    } finally {
+      setExpandedLoading(false);
+      setSelectedProductIds(new Set());
+    }
+  },
+  [expandedProjectId, resetLocalFilters], // Fixed dependency
+);
   useEffect(() => {
     const hasActiveProjects = projects.some(
       (p) =>

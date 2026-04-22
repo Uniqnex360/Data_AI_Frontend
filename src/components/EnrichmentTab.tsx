@@ -162,51 +162,61 @@ export default function EnrichmentTab() {
   }, []);
 
   const toggleExpandProject = useCallback(
-    async (projectId: string) => {
-      if (expandedProjectId === projectId) {
-        setExpandedProjectId(null);
-        setExpandedProjectProducts([]);
-        setSelectedProduct(null);
-        setAttributes([]);
-        setCurrentPage(1);
-        setSearchQuery("");
-        resetLocalFilters();
-        return;
-      }
-
-      setExpandedProjectId(projectId);
-      setExpandedLoading(true);
+  async (projectId: string) => {
+    if (expandedProjectId === projectId) {
+      setExpandedProjectId(null);
+      setExpandedProjectProducts([]);
       setSelectedProduct(null);
       setAttributes([]);
+      setCurrentPage(1);
       setSearchQuery("");
       resetLocalFilters();
+      return;
+    }
 
-      try {
-        const data = await productService.getProductsByProject(projectId, "enrichment");
-        setExpandedProjectProducts(data);
-        setCurrentPage(1);
-        await loadProjectFilters(projectId);
+    setExpandedProjectId(projectId);
+    setExpandedLoading(true);
+    setSelectedProduct(null);
+    setAttributes([]);
+    setSearchQuery("");
+    resetLocalFilters();
 
-        const processingProductIds = data
-          .filter((p) => p.enrichment_status === "processing")
-          .map((p) => p.id);
-        if (processingProductIds.length > 0) {
-          setPollingProductIds((prev) => {
-            const newSet = new Set(prev);
-            processingProductIds.forEach((id) => newSet.add(id));
-            return newSet;
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load project products:", error);
-        notify.error("Failed to load products");
-      } finally {
-        setExpandedLoading(false);
-        setSelectedProductIds(new Set());
+    try {
+      const result = await productService.getProductsByProject(projectId, "enrichment");
+      
+      // ✅ FIX: Handle both response formats
+      let products: Product[] = [];
+      if (Array.isArray(result)) {
+        products = result;
+      } else if (result && typeof result === 'object' && 'products' in result) {
+        products = Array.isArray(result.products) ? result.products : [];
       }
-    },
-    [expandedProjectId, loadProjectFilters, resetLocalFilters],
-  );
+      
+      setExpandedProjectProducts(products);
+      setCurrentPage(1);
+      await loadProjectFilters(projectId);
+
+      const processingProductIds = products
+        .filter((p) => p.enrichment_status === "processing")
+        .map((p) => p.id);
+      if (processingProductIds.length > 0) {
+        setPollingProductIds((prev) => {
+          const newSet = new Set(prev);
+          processingProductIds.forEach((id) => newSet.add(id));
+          return newSet;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load project products:", error);
+      notify.error("Failed to load products");
+      setExpandedProjectProducts([]); 
+    } finally {
+      setExpandedLoading(false);
+      setSelectedProductIds(new Set());
+    }
+  },
+  [expandedProjectId, loadProjectFilters, resetLocalFilters],
+);
 
   const filteredExpandedProducts = useMemo(() => {
     let filtered = [...expandedProjectProducts];
