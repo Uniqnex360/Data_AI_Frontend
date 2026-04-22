@@ -42,7 +42,56 @@ const STAGES_BY_CATEGORY: Record<RuleCategory, { value: string; label: string }[
     { value: "combine", label: "Combine - Unify & Standardize" },
   ],  
 };
-
+const STAGES_BY_USE_CASE: Record<string, { value: string; label: string }[]> = {
+  // PDF Extraction Use Cases
+  "Title & Description Based PDF Extraction": [
+    { value: "pdf_identification", label: "PDF Identification - Find products in PDF" },
+    { value: "pdf_blind_extraction", label: "PDF Blind Extraction - Extract without MPN" },
+  ],
+  "Structured PDF Extraction (Given MPNs)": [
+    { value: "pdf_structured", label: "PDF Structured - From tables" },
+  ],
+  "Unstructured PDF Extraction (Given MPNs)": [
+    { value: "pdf_unstructured", label: "PDF Unstructured - From free text" },
+  ],
+  "Multi-PDF & Multi-MPN Data Extraction.": [
+    { value: "pdf_extraction", label: "PDF Extraction - Multi-PDF extraction" },
+  ],
+  "MPN/UPC based PDF Extraction": [
+    { value: "pdf_extraction", label: "PDF Extraction - Extract with MPN" },
+  ],
+  
+  // Aggregation Use Cases
+  "Products with Category Assignments": [
+    { value: "discovery_query", label: "Discovery Query - Build search query" },
+    { value: "discovery_filter", label: "Discovery Filter - Select best URLs" },
+    { value: "extraction", label: "Extraction - Extract from web/PDF" },
+    { value: "combine", label: "Combine - Unify & Standardize" },
+    { value: "enrichment", label: "Enrichment - Marketing content" },
+  ],
+  "Products without Category Assignments": [
+    { value: "discovery_query", label: "Discovery Query - Build search query" },
+    { value: "discovery_filter", label: "Discovery Filter - Select best URLs" },
+    { value: "extraction", label: "Extraction - Extract from web/PDF" },
+    { value: "combine", label: "Combine - Unify & Standardize" },
+    { value: "enrichment", label: "Enrichment - Marketing content" },
+  ],
+  
+  // Enrichment Use Cases
+  "With Categories with attribute (back filling)": [
+    { value: "validation", label: "Validation - Compare with Excel" },
+    { value: "enrichment", label: "Enrichment - Marketing content" },
+  ],
+  "With Categories with attribute (back filling) and existing attribute validation": [
+    { value: "validation", label: "Validation - Compare with Excel" },
+    { value: "enrichment", label: "Enrichment - Marketing content" },
+  ],
+  
+  "Data cleaning and Standardization": [
+    { value: "attribute_mapping", label: "Attribute Mapping - Global name standardization" },
+    { value: "cleaning", label: "Cleaning - Standardize attribute values" },
+  ],
+};
 export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
   const [promptName, setPromptName] = useState("");
   const [stage, setStage] = useState("");
@@ -51,7 +100,9 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const stageOptions = STAGES_BY_CATEGORY[rule.category] || STAGES_BY_CATEGORY.aggregation;
+  const stageOptions = rule.use_case 
+    ? STAGES_BY_USE_CASE[rule.use_case] || []
+    : STAGES_BY_CATEGORY[rule.category] || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

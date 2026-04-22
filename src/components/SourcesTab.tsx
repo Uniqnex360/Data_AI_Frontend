@@ -85,7 +85,6 @@ export default function SourcesTab({
   const [importExtracting, setImportExtracting] = useState(false);
   const [productDetails, setProductDetails] = useState("");
   const [viewMode, setViewMode] = useState<"overview" | "sources">("sources");
-
   const [importIdentifiers, setImportIdentifiers] = useState<string[]>([]);
   const [currentImportIdentifier, setCurrentImportIdentifier] = useState("");
   const [operationMode, setOperationMode] =
@@ -142,9 +141,8 @@ export default function SourcesTab({
   >({});
   const [loadingSources, setLoadingSources] = useState<Set<string>>(new Set());
   const [aggregationType, setAggregationType] = useState<"web" | "pdf" | "">(
-    "",
+    "web",
   );
-
   const [searchQuery, setSearchQuery] = useState("");
   const [projectName, setProjectName] = useState<string>("");
   const loadProjectsOverview = async () => {
@@ -295,10 +293,18 @@ export default function SourcesTab({
     const isPdfExtraction =
       operationMode === "pdf_extraction" ||
       (operationMode === "aggregation" && aggregationType === "pdf");
-    const isTitleDescPdf =
+    const pdfUseCases = [
+      "Title & Description Based PDF Extraction",
+      "Structured PDF Extraction (Given MPNs)",
+      "Unstructured PDF Extraction (Given MPNs)",
+      "Multi-PDF & Multi-MPN Data Extraction.",
+      "MPN/UPC based PDF Extraction",
+    ];
+    const isPdfUseCase =
       isPdfExtraction &&
-      selectedUseCase?.includes("Title & Description Based PDF Extraction");
-    if (isTitleDescPdf) {
+      pdfUseCases.some((useCase) => selectedUseCase?.includes(useCase));
+
+    if (isPdfUseCase) {
       setUiTab("importPdf");
       return;
     }
@@ -421,55 +427,56 @@ export default function SourcesTab({
     setSelectedUseCase("");
   };
   const handleCreate = async () => {
-  if (!projectName.trim()) {
-    notify.error("Project name is required");
-    return;
-  }
-  if (!selectedUseCase) {
-    notify.error("Usecase is required");
-    return;
-  }
-  setLoading(true);
-  try {
-    let finalOperationMode = operationMode;
-    if (operationMode === "aggregation" && aggregationType === "pdf") {
-      finalOperationMode = "pdf_extraction";
+    if (!projectName.trim()) {
+      notify.error("Project name is required");
+      return;
     }
-
-    const createdProject = await projectService.createProject({
-      name: projectName,
-      use_case: selectedUseCase,
-      operation_mode: finalOperationMode,
-      status: "draft",
-      ...(operationMode === "aggregation" ? { aggregation_type: aggregationType } : {}),
-    });
-    notify.success("Project created successfully!");
-    setProjectName("");
-    setSelectedUseCase("");
-    setAggregationType("");
-    setShowUseCaseDropdown(false);
-    setShowProjectModal(false);
-    await loadProjects();
-    if (!projectId) {
-      await loadProjectsOverview();
+    if (!selectedUseCase) {
+      notify.error("Usecase is required");
+      return;
     }
-    if (createdProject?.id) {
-      setSelectedProject(createdProject);
-      onProjectSelect?.(createdProject.id);
-      await loadSourcesForProject(createdProject.id);
+    setLoading(true);
+    try {
+      let finalOperationMode = operationMode;
+      if (operationMode === "aggregation" && aggregationType === "pdf") {
+        finalOperationMode = "pdf_extraction";
+      }
+      const createdProject = await projectService.createProject({
+        name: projectName,
+        use_case: selectedUseCase,
+        operation_mode: finalOperationMode,
+        status: "draft",
+        ...(operationMode === "aggregation"
+          ? { aggregation_type: aggregationType }
+          : {}),
+      });
+      notify.success("Project created successfully!");
+      setProjectName("");
+      setSelectedUseCase("");
+      setAggregationType("");
+      setShowUseCaseDropdown(false);
+      setShowProjectModal(false);
+      await loadProjects();
+      if (!projectId) {
+        await loadProjectsOverview();
+      }
+      if (createdProject?.id) {
+        setSelectedProject(createdProject);
+        onProjectSelect?.(createdProject.id);
+        await loadSourcesForProject(createdProject.id);
+      }
+    } catch (error: any) {
+      console.error("Failed to create project", error);
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.detail ||
+        error.message ||
+        "Unknown error occurred";
+      notify.error("Failed to create project", errorMessage);
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    console.error("Failed to create project", error);
-    const errorMessage =
-      error.response?.data?.detail ||
-      error.detail ||
-      error.message ||
-      "Unknown error occurred";
-    notify.error("Failed to create project", errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       notify.info("Please select a file");
@@ -1055,7 +1062,6 @@ export default function SourcesTab({
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-6 flex-wrap">
-        {/* Left: Title */}
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
             Product Input Data Sources
@@ -1064,10 +1070,7 @@ export default function SourcesTab({
             Import in bulk via Excel/PDF or add products manually
           </p>
         </div>
-
-        {/* Right: View Switch + Add Project */}
         <div className="flex items-center gap-3">
-          {/* View Switch */}
           <div className="inline-flex rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <button
               onClick={() => setViewMode("sources")}
@@ -1090,8 +1093,6 @@ export default function SourcesTab({
               Projects Overview
             </button>
           </div>
-
-          {/* Add Project Button */}
           <button
             onClick={() => setShowProjectModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
@@ -1286,7 +1287,7 @@ export default function SourcesTab({
                 setSelectedUseCase(project.use_case || "");
                 loadSourcesForProject(id);
                 onProjectSelect?.(id);
-                setViewMode("sources"); // ✅ auto-switch to sources after selecting
+                setViewMode("sources");
               }
             }}
           />
@@ -1352,253 +1353,7 @@ export default function SourcesTab({
                   ) &&
                   projectId &&
                   !showProjectModal ? (
-                    <div className="space-y-5">
-                      <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="w-5 h-5 text-teal-600" />
-                          <h4 className="font-semibold text-teal-900">
-                            Import PDF
-                          </h4>
-                        </div>
-                        <p className="text-sm text-teal-700">
-                          Upload one or more PDFs and optionally provide product
-                          details and/or multiple identifiers (MPNs or product
-                          titles). The system will extract matching products.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          MPNs / Product Titles (optional)
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={currentImportIdentifier}
-                            onChange={(e) =>
-                              setCurrentImportIdentifier(e.target.value)
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddImportIdentifier();
-                              }
-                            }}
-                            placeholder="e.g., 203-602, ThinkPad X1 (comma/newline supported)"
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          />
-                          <button
-                            onClick={handleAddImportIdentifier}
-                            className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
-                            type="button"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {importIdentifiers.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {importIdentifiers.map((id) => (
-                              <span
-                                key={id}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-sm"
-                              >
-                                {id}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleRemoveImportIdentifier(id)
-                                  }
-                                >
-                                  <X className="w-3 h-3 text-slate-500" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Product Details (optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={productDetails}
-                          onChange={(e) => setProductDetails(e.target.value)}
-                          placeholder="e.g., 'locking pliers', '14-inch laptop, gen 11', 'wireless access point'"
-                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        />
-                        <p className="text-xs text-slate-500 mt-2">
-                          Optional context to help extraction. If you add
-                          MPNs/titles, details will be combined with each item.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          PDF File(s) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 bg-slate-50 text-center">
-                          <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-3">
-                            <Upload className="w-5 h-5 text-slate-500" />
-                          </div>
-                          <div className="text-sm font-semibold text-slate-700">
-                            Drop PDF(s) here or click to browse
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            Only PDF files are supported
-                          </div>
-                          <input
-                            ref={importPdfInputRef}
-                            type="file"
-                            accept=".pdf"
-                            multiple
-                            onChange={(e) =>
-                              handleAddImportPdfs(e.target.files)
-                            }
-                            className="mt-4 block w-full text-sm"
-                          />
-                        </div>
-                        {importPdfFiles.length > 0 && (
-                          <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-44 overflow-auto">
-                            <p className="text-xs font-semibold text-slate-600 mb-2">
-                              {importPdfFiles.length} PDF(s) selected:
-                            </p>
-                            {importPdfFiles.map((f, idx) => (
-                              <div
-                                key={`${f.name}-${idx}`}
-                                className="flex items-center justify-between gap-2 py-1 text-xs"
-                              >
-                                <span className="truncate flex-1">
-                                  {f.name}
-                                </span>
-                                <span className="text-slate-400">
-                                  {(f.size / 1024).toFixed(1)} KB
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveImportPdf(idx)}
-                                  className="p-1 hover:bg-slate-200 rounded"
-                                  title="Remove"
-                                >
-                                  <X className="w-3.5 h-3.5 text-slate-600" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={handleImportPdfExtraction}
-                        disabled={
-                          importExtracting || importPdfFiles.length === 0
-                        }
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 font-semibold"
-                      >
-                        {importExtracting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="w-4 h-4" />
-                            Import & Extract
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Select a project configured with{" "}
-                      <strong>Title & Description Based PDF Extraction</strong>.
-                    </div>
-                  )}
-                </>
-              )}
-              {uiTab === "bulk" && (
-                <>
-                  {activeMode === "bulk" &&
-                  operationMode === "pdf_extraction" &&
-                  selectedUseCase?.includes("Fresh PDF Aggregation") &&
-                  projectId &&
-                  !showProjectModal ? (
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Globe className="w-5 h-5 text-blue-600" />
-                          <h4 className="font-semibold text-blue-900">
-                            Fresh PDF Aggregation
-                          </h4>
-                        </div>
-                        <p className="text-sm text-blue-700">
-                          Enter MPN, Model Number, or UPC. The system will
-                          search manufacturer websites and automatically extract
-                          product data. Products will be created and ready for
-                          aggregation.
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          MPN / Model Number / UPC
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={currentFreshMpn}
-                            onChange={(e) => setCurrentFreshMpn(e.target.value)}
-                            onKeyPress={(e) =>
-                              e.key === "Enter" && handleAddFreshMpn()
-                            }
-                            placeholder="e.g., 203-602, iPhone 14, 123456789012"
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button
-                            onClick={handleAddFreshMpn}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      {freshMpns.length > 0 && (
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">
-                            Items to Process ({freshMpns.length})
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {freshMpns.map((mpn) => (
-                              <span
-                                key={mpn}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-sm"
-                              >
-                                {mpn}
-                                <button
-                                  onClick={() => handleRemoveFreshMpn(mpn)}
-                                >
-                                  <X className="w-3 h-3 text-slate-500" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <button
-                        onClick={handleFreshAggregation}
-                        disabled={freshAggregating || freshMpns.length === 0}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {freshAggregating ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Saving MPNs...
-                          </>
-                        ) : (
-                          <>
-                            <Globe className="w-4 h-4" />
-                            Save MPNs for Extraction
-                          </>
-                        )}
-                      </button>
-                    </div>
+                    <div className="space-y-5">...</div>
                   ) : operationMode === "pdf_extraction" &&
                     selectedUseCase?.includes("Structured PDF Extraction") &&
                     projectId &&
@@ -1677,234 +1432,6 @@ export default function SourcesTab({
                         {structuredExtracting
                           ? "Saving..."
                           : "Save for Extraction"}
-                      </button>
-                    </div>
-                  ) : operationMode === "pdf_extraction" &&
-                    selectedUseCase?.includes(
-                      "Multi-PDF & Multi-MPN Data Extraction.",
-                    ) &&
-                    projectId &&
-                    !showProjectModal ? (
-                    <div className="space-y-4">
-                      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="w-5 h-5 text-purple-600" />
-                          <h4 className="font-semibold text-purple-900">
-                            Multi-PDF & Multi-MPN Data Extraction.
-                          </h4>
-                        </div>
-                        <p className="text-sm text-purple-700">
-                          Upload multiple PDFs and an Excel file with MPNs. The
-                          system will match each MPN to the correct PDF and
-                          extract product data.
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          PDF Files (Select multiple){" "}
-                          <span className="text-red-500">*</span>
-                          {multiPdFs.length > 0 && (
-                            <span
-                              className={`ml-2 text-xs ${multiPdFs.length >= 20 ? "text-red-500" : "text-slate-500"}`}
-                            >
-                              ({multiPdFs.length}/20)
-                            </span>
-                          )}
-                        </label>
-                        <input
-                          type="file"
-                          accept=".pdf"
-                          multiple
-                          disabled={multiPdFs.length >= 20}
-                          onChange={(e) => handleAddMultiPdFs(e.target.files)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                        {multiPdFs.length > 0 && (
-                          <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 max-h-40 overflow-y-auto">
-                            {multiPdFs.map((file, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between text-xs py-1"
-                              >
-                                <span className="truncate flex-1">
-                                  {file.name}
-                                </span>
-                                <span className="text-slate-400 ml-2">
-                                  {(file.size / 1024).toFixed(1)} KB
-                                </span>
-                                <button
-                                  onClick={() => handleRemoveMultiPdf(index)}
-                                  className="ml-2"
-                                >
-                                  <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Excel File with MPNs{" "}
-                          <span className="text-red-500">*</span>
-                        </label>
-                        <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50">
-                          <div className="flex items-center gap-3">
-                            <FileSpreadsheet className="w-8 h-8 text-slate-400" />
-                            <div className="flex-1">
-                              <input
-                                ref={mpnExcelInputRef}
-                                type="file"
-                                accept=".xlsx,.xls,.csv"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-
-                                  setMpnExcelFile(file);
-                                  setMpnExcelUploading(true);
-
-                                  try {
-                                    const formData = new FormData();
-                                    formData.append("file", file);
-                                    const response =
-                                      await extractionService.parseMpnsFromExcel(
-                                        formData,
-                                      );
-
-                                    if (response.valid_mpns > 0) {
-                                      const newMpns = response.mpns.filter(
-                                        (mpn: string) =>
-                                          !multiMpns.includes(mpn),
-                                      );
-                                      setMultiMpns([...multiMpns, ...newMpns]);
-                                      notify.success(
-                                        "MPNs loaded from Excel",
-                                        `${newMpns.length} MPNs found (${response.duplicates_removed} duplicates skipped)`,
-                                      );
-                                    } else {
-                                      notify.warning(
-                                        "No valid MPNs found in Excel file",
-                                      );
-                                    }
-                                  } catch (error: any) {
-                                    notify.error(
-                                      "Failed to parse Excel",
-                                      error.message,
-                                    );
-                                    setMpnExcelFile(null);
-                                    if (mpnExcelInputRef.current)
-                                      mpnExcelInputRef.current.value = "";
-                                  } finally {
-                                    setMpnExcelUploading(false);
-                                  }
-                                }}
-                                className="block w-full text-sm"
-                              />
-                            </div>
-                          </div>
-                          {mpnExcelFile && (
-                            <div className="mt-3 flex items-center justify-between bg-white p-2 rounded-md">
-                              <div className="flex items-center gap-2">
-                                <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                                <span className="text-sm text-slate-700">
-                                  {mpnExcelFile.name}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setMpnExcelFile(null);
-                                  setMultiMpns([]);
-                                  if (mpnExcelInputRef.current)
-                                    mpnExcelInputRef.current.value = "";
-                                }}
-                                className="text-xs text-red-500 hover:text-red-700"
-                              >
-                                Clear
-                              </button>
-                            </div>
-                          )}
-                          <p className="text-xs text-slate-500 mt-2">
-                            File should have an MPN column. Duplicates will be
-                            skipped.
-                          </p>
-                        </div>
-                      </div>
-
-                      {multiMpns.length > 0 && (
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">
-                            MPNs to Process ({multiMpns.length}/50)
-                          </label>
-                          <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-md border border-slate-200 max-h-32 overflow-y-auto">
-                            {multiMpns.map((mpn) => (
-                              <span
-                                key={mpn}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md text-xs border border-slate-200"
-                              >
-                                {mpn}
-                                <button
-                                  onClick={() => handleRemoveMultiMpn(mpn)}
-                                >
-                                  <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Add Individual MPN (Optional)
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={currentMultiMpn}
-                            onChange={(e) => setCurrentMultiMpn(e.target.value)}
-                            onKeyPress={(e) =>
-                              e.key === "Enter" && handleAddMultiMpn()
-                            }
-                            placeholder="e.g., T19T"
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md"
-                            disabled={multiMpns.length >= 50}
-                          />
-                          <button
-                            onClick={handleAddMultiMpn}
-                            disabled={multiMpns.length >= 50}
-                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={handleMultiExtraction}
-                        disabled={
-                          multiExtracting ||
-                          multiPdFs.length === 0 ||
-                          multiMpns.length === 0 ||
-                          mpnExcelUploading
-                        }
-                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 w-full justify-center"
-                      >
-                        {multiExtracting || mpnExcelUploading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            {mpnExcelUploading
-                              ? "Processing Excel..."
-                              : "Saving..."}
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="w-4 h-4" />
-                            Save for Extraction ({multiPdFs.length} PDFs,{" "}
-                            {multiMpns.length} MPNs)
-                          </>
-                        )}
                       </button>
                     </div>
                   ) : operationMode === "pdf_extraction" &&
@@ -1987,60 +1514,170 @@ export default function SourcesTab({
                           : "Save for Extraction"}
                       </button>
                     </div>
+                  ) : operationMode === "pdf_extraction" &&
+                    selectedUseCase?.includes(
+                      "Multi-PDF & Multi-MPN Data Extraction.",
+                    ) &&
+                    projectId &&
+                    !showProjectModal ? (
+                    <div className="space-y-4">...</div>
+                  ) : operationMode === "pdf_extraction" &&
+                    selectedUseCase?.includes("MPN/UPC based PDF Extraction") &&
+                    projectId &&
+                    !showProjectModal ? (
+                    <div className="space-y-4">...</div>
                   ) : (
-                    <div>
-                      <div className="mb-4">
-                        <button
-                          onClick={downloadTemplate}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download Template
-                        </button>
-                        <p className="text-xs text-slate-500 mt-2">
-                          Download the template, fill it with your product data,
-                          and upload it below
-                        </p>
-                      </div>
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Upload Excel file
-                        </label>
-                        <input
-                          type="file"
-                          disabled={!projectId}
-                          ref={fileInputRef}
-                          accept=".xlsx, .xls, .csv"
-                          onChange={(e) =>
-                            setBulkFile(e.target.files?.[0] || null)
-                          }
-                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        {bulkFile && (
-                          <p className="text-sm text-green-600 mt-2">
-                            Selected: {bulkFile.name}
-                          </p>
-                        )}
-                      </div>
-                      {projectId ? (
-                        <button
-                          onClick={handleBulkUpload}
-                          disabled={loading || !bulkFile}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Upload className="w-4 h-4" />
-                          {loading ? "Importing..." : "Import Products"}
-                        </button>
-                      ) : (
-                        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4" />
-                          Select a project to enable file imports
-                        </div>
-                      )}
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Select a PDF extraction use case to begin.
                     </div>
                   )}
                 </>
               )}
+             {uiTab === "bulk" && (
+  <>
+    {activeMode === "bulk" &&
+    operationMode === "pdf_extraction" &&
+    selectedUseCase?.includes("Fresh PDF Aggregation") &&
+    projectId &&
+    !showProjectModal ? (
+      <div className="space-y-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Globe className="w-5 h-5 text-blue-600" />
+            <h4 className="font-semibold text-blue-900">
+              Fresh PDF Aggregation
+            </h4>
+          </div>
+          <p className="text-sm text-blue-700">
+            Enter MPN, Model Number, or UPC. The system will
+            search manufacturer websites and automatically extract
+            product data. Products will be created and ready for
+            aggregation.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            MPN / Model Number / UPC
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={currentFreshMpn}
+              onChange={(e) => setCurrentFreshMpn(e.target.value)}
+              onKeyPress={(e) =>
+                e.key === "Enter" && handleAddFreshMpn()
+              }
+              placeholder="e.g., 203-602, iPhone 14, 123456789012"
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleAddFreshMpn}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        {freshMpns.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Items to Process ({freshMpns.length})
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {freshMpns.map((mpn) => (
+                <span
+                  key={mpn}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-sm"
+                >
+                  {mpn}
+                  <button
+                    onClick={() => handleRemoveFreshMpn(mpn)}
+                  >
+                    <X className="w-3 h-3 text-slate-500" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={handleFreshAggregation}
+          disabled={freshAggregating || freshMpns.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          {freshAggregating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Saving MPNs...
+            </>
+          ) : (
+            <>
+              <Globe className="w-4 h-4" />
+              Save MPNs for Extraction
+            </>
+          )}
+        </button>
+      </div>
+    ) : operationMode === "pdf_extraction" ? (
+      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
+        <AlertCircle className="w-4 h-4" />
+        Select a PDF extraction use case from the options above to begin.
+      </div>
+    ) : (
+      <div>
+        <div className="mb-4">
+          <button
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Download Template
+          </button>
+          <p className="text-xs text-slate-500 mt-2">
+            Download the template, fill it with your product data,
+            and upload it below
+          </p>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Upload Excel file
+          </label>
+          <input
+            type="file"
+            disabled={!projectId}
+            ref={fileInputRef}
+            accept=".xlsx, .xls, .csv"
+            onChange={(e) =>
+              setBulkFile(e.target.files?.[0] || null)
+            }
+            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {bulkFile && (
+            <p className="text-sm text-green-600 mt-2">
+              Selected: {bulkFile.name}
+            </p>
+          )}
+        </div>
+        {projectId ? (
+          <button
+            onClick={handleBulkUpload}
+            disabled={loading || !bulkFile}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload className="w-4 h-4" />
+            {loading ? "Importing..." : "Import Products"}
+          </button>
+        ) : (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Select a project to enable file imports
+          </div>
+        )}
+      </div>
+    )}
+  </>
+)}
               {uiTab === "manual" && (
                 <div>
                   {errors.unique_identifier && (
@@ -2585,7 +2222,6 @@ export default function SourcesTab({
           </div>
         </div>
       )}
-
       {showMpnExcelModal && <MpnExcelModal />}
     </div>
   );
