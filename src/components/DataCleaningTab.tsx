@@ -292,6 +292,14 @@ export default function DataCleaningTab() {
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     new Set(),
   );
+  const [projectStats, setProjectStats] = useState({
+  total: 0,
+  completed: 0,
+  pending: 0,
+  processing: 0,
+  failed: 0,
+});
+const [statsLoading, setStatsLoading] = useState(false);
 
   // ── Projects / Products ───────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
@@ -395,7 +403,7 @@ export default function DataCleaningTab() {
     setLoading(false);
   }
 };
-
+  
   const loadProjectAttributes = useCallback(
     async (projectId: string, category?: string) => {
       if (!projectId) {
@@ -507,33 +515,38 @@ export default function DataCleaningTab() {
     colFilters,
     colSorts,
   ]);
+  
+  const projectStatusSummary = projectStats;
 
-  const projectStatusSummary = useMemo(
-    () => ({
-      total: filteredSortedProducts.length,
-      completed: filteredSortedProducts.filter(
-        (p) => p.enrichment_status === "completed",
-      ).length,
-      pending: filteredSortedProducts.filter(
-        (p) => p.enrichment_status === "pending",
-      ).length,
-      processing: filteredSortedProducts.filter(
-        (p) => p.enrichment_status === "processing",
-      ).length,
-      failed: filteredSortedProducts.filter(
-        (p) => p.enrichment_status === "failed",
-      ).length,
-    }),
-    [filteredSortedProducts],
-  );
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
     [projects, selectedProjectId],
   );
-
+  const loadProjectStats = useCallback(async (projectId: string) => {
+  if (!projectId) return;
+  
+  setStatsLoading(true);
+  try {
+    const stats = await productService.getProjectProductStats(projectId);
+    setProjectStats(stats);
+  } catch (error) {
+    console.error('Failed to load project stats:', error);
+    // Fallback to product_count from selected project
+    setProjectStats(prev => ({
+      ...prev,
+      total: selectedProject?.product_count ?? 0,
+    }));
+  } finally {
+    setStatsLoading(false);
+  }
+}, [selectedProject]);
   // ── Selection helpers ─────────────────────────────────────────────────────
-
+  useEffect(() => {
+  if (selectedProjectId) {
+    loadProjectStats(selectedProjectId);
+  }
+}, [selectedProjectId, loadProjectStats]);
   const isCurrentPageFullySelected =
     filteredSortedProducts.length > 0 &&
     filteredSortedProducts.every((p) => selectedProductIds.has(p.id));
