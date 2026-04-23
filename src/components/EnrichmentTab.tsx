@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Box,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Clock,
   Download,
-  FileText,
   Loader2,
   Play,
   RefreshCw,
@@ -21,7 +19,7 @@ import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { notify } from "../lib/notifications";
 import type { Product } from "../types/database.types";
-import type { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
+import type { AggregatedAttribute, EnrichmentTabProps, Project } from "../types/business-rules.types.ts";
 import { getProductStatusBadge, getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { aggregationService } from "../services/aggregationService";
@@ -30,7 +28,11 @@ import { useProductMovement } from "../hooks/useProductMovement.ts";
 
 const ITEMS_PER_PAGE = 10;
 
-export default function EnrichmentTab() {
+export default function EnrichmentTab({ 
+  projectId, 
+  initialFilter = "all",
+  onNavigate 
+}: EnrichmentTabProps){
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
 
@@ -71,7 +73,12 @@ export default function EnrichmentTab() {
   ]);
 
   const { availableBrands, availableCategories, loadProjectFilters } = useProjectFilters();
-
+   useEffect(() => {
+    if (projectId) {
+      setSelectedProjectId(projectId);
+      toggleExpandProject(projectId);
+    }
+  }, [projectId]);
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -184,7 +191,6 @@ export default function EnrichmentTab() {
     try {
       const result = await productService.getProductsByProject(projectId, "enrichment");
       
-      // ✅ FIX: Handle both response formats
       let products: Product[] = [];
       if (Array.isArray(result)) {
         products = result;
@@ -680,7 +686,6 @@ export default function EnrichmentTab() {
 
   const selectedProductData = expandedProjectProducts.find((p) => p.id === selectedProduct);
 
-  // UI helper only (safe optional access, no functionality changes)
   const getMissingAttributes = useCallback((product: Product): string[] => {
     const raw =
       (product as any).missing_attributes ??

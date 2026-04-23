@@ -129,6 +129,8 @@ export default function SourcesTab({
   const [unstructuredPdfFile, setUnstructuredPdfFile] = useState<File | null>(
     null,
   );
+  const onProjectSelectRef = useRef(onProjectSelect);
+onProjectSelectRef.current = onProjectSelect;
   const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
   const [structuredExtracting, setStructuredExtracting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -161,6 +163,7 @@ export default function SourcesTab({
       loadProjectsOverview();
     }
   }, [projectId]);
+ 
   useEffect(() => {
     loadSources();
     loadProjects();
@@ -2064,6 +2067,15 @@ export default function SourcesTab({
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
+                              if(selected)
+                              {
+                                setSelectedProject(null)
+                                setOperationMode('aggregation' as OperationMode)
+                                setSelectedUseCase('')
+                                 onProjectSelect?.("") 
+                              }
+                              else
+                              {
                               setSelectedProject(project);
                               setOperationMode(
                                 project.operation_mode as OperationMode,
@@ -2071,6 +2083,11 @@ export default function SourcesTab({
                               setSelectedUseCase(project.use_case || "");
                               loadSourcesForProject(project.id);
                               onProjectSelect?.(project.id);
+
+                              }
+                              
+                                
+                              
                             }}
                             className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
                               selected

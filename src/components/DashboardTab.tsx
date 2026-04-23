@@ -299,6 +299,7 @@ useEffect(() => {
       const data = projectId
         ? await dashboardService.getProjectMetrics(projectId, rangeParams)
         : await dashboardService.getGlobalMetrics(rangeParams);
+      console.log("Dashboard API Response:", data);
       setGlobalStats(data);
 
       
@@ -655,18 +656,7 @@ useEffect(() => {
           onClick={() => onNavigate?.("aggregation", "failed")}
         />
       </div>
-      {!projectId && (
-        projectsLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-          </div>
-        ) : (
-          <ProjectsOverviewTab 
-            projects={projectsOverview} 
-            onOpenProject={(id) => onNavigate?.("aggregation", "all")} 
-          />
-        )
-      )}
+     
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
         <ProgressCard
@@ -891,7 +881,18 @@ useEffect(() => {
           </div>
         </div>
       </div>
-
+             {!projectId && (
+        projectsLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <ProjectsOverviewTab 
+            projects={projectsOverview} 
+            onOpenProject={(id) => onNavigate?.("aggregation", "all")} 
+          />
+        )
+      )}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-8" />
 

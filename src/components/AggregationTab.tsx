@@ -1,3 +1,1336 @@
+// import React, {
+//   useCallback,
+//   useEffect,
+//   useMemo,
+//   useRef,
+//   useState,
+// } from "react";
+// import {
+//   AlertTriangle,
+//   Box,
+//   ChevronDown,
+//   ChevronLeft,
+//   ChevronRight,
+//   ChevronUp,
+//   Clock,
+//   FileText,
+//   Globe,
+//   List,
+//   Loader2,
+//   Play,
+//   RefreshCw,
+//   X,
+// } from "lucide-react";
+// import { productService } from "../services/productService";
+// import { projectService } from "../services/projectService";
+// import type { Product } from "../types/database.types";
+// import { notify } from "../lib/notifications";
+// import { aggregationService } from "../services/aggregationService";
+// import { Download, GitMerge, CheckCircle } from "lucide-react";
+// import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
+// import { AggregationTabProps } from "../types/business-rules.types";
+// import {
+//   getStatusBadge,
+//   getProductStatusBadge,
+// } from "../utils/projectStatusColorizer";
+// import { useProjectFilters } from "../hooks/useProjectFilters.ts";
+
+// import { safeParseValue, formatValue } from "../utils/valueParser";
+// import { useProductMovement } from "../hooks/useProductMovement";
+// import { extractionService } from "../services/extractionService.ts";
+// import { pollBatchStatus } from "../../utils/polling.ts";
+// import { FiltersBar } from "./FiltersBar.tsx";
+// import { ProductAttributesView } from "./ProductAttributesView.tsx";
+// import ProjectsTable from "./ProjectsTable.tsx";
+// import { ProjectProductsView } from "./ProjectProductsView.tsx";
+// const ITEMS_PER_PAGE = 10;
+// export default function AggregationTab({
+//   projectId,
+//   initialFilter = "all",
+// }: AggregationTabProps) {
+//   const [projects, setProjects] = useState<Project[]>([]);
+//   const [projectsLoading, setProjectsLoading] = useState(false);
+//   const [useCases, setUseCases] = useState<string[]>([]);
+//   const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
+//   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
+//   const [viewingProjectId, setViewingProjectId] = useState<string | null>(null);
+// const [viewingAttributes, setViewingAttributes] = useState(false);
+//   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
+//   const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
+//     Record<string, number>
+//   >({});
+//   const [selectedUseCase, setSelectedUseCase] = useState("");
+//   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
+//     null,
+//   );
+//   const [expandedProjectProducts, setExpandedProjectProducts] = useState<
+//     Product[]
+//   >([]);
+//   const [expandedLoading, setExpandedLoading] = useState(false);
+//   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+//     new Set(),
+//   );
+//   const [downloading, setDownloading] = useState(false);
+//   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
+//   const [llmOptions] = useState([
+//     { value: "openai", label: "Datavio Algo-1" },
+//     { value: "gemini", label: "Datavio Algo-2" },
+//     { value: "claude", label: "Datavio Algo-3" },
+//   ]);
+//   const [searchQuery, setSearchQuery] = useState("");
+//   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+//   const [categoryFilter, setCategoryFilter] = useState("");
+//   const [brandFilter, setBrandFilter] = useState("");
+//   const [aggregatingProjects, setAggregatingProjects] = useState<Set<string>>(
+//     new Set(),
+//   );
+//   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
+//     new Set(),
+//   );
+//   const [currentPage, setCurrentPage] = useState(1);
+//   const [loading, setLoading] = useState(false);
+//   const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
+//     new Set(),
+//   );
+//   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+//   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+//   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+//   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
+//   const [attributesLoading, setAttributesLoading] = useState(false);
+//   const filteredProjects = useMemo(() => {
+//     let filtered = projects;
+//     if (selectedUseCase) {
+//       filtered = filtered.filter((p) => p.use_case === selectedUseCase);
+//     }
+//     if (selectedProjectId) {
+//       filtered = filtered.filter((p) => p.id === selectedProjectId);
+//     }
+//     if (projectStatusFilter) {
+//       filtered = filtered.filter(
+//         (p) => p.source_status === projectStatusFilter,
+//       );
+//     }
+//     return filtered;
+//   }, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
+//   const expandedStats = useMemo(
+//     () => ({
+//       success: expandedProjectProducts.filter(
+//         (p) => p.enrichment_status === "completed",
+//       ).length,
+//       failed: expandedProjectProducts.filter(
+//         (p) => p.enrichment_status === "failed",
+//       ).length,
+//       pending: expandedProjectProducts.filter(
+//         (p) => p.enrichment_status === "pending",
+//       ).length,
+//     }),
+//     [expandedProjectProducts],
+//   );
+//   const viewingProject = useMemo(() =>
+//   projects.find((p) => p.id === viewingProjectId),
+//   [projects, viewingProjectId]
+// );
+
+//   const loadProjectEnrichmentCounts = useCallback(
+//     async (projectIds: string[]) => {
+//       try {
+//         const counts: Record<string, number> = {};
+//         await Promise.all(
+//           projectIds.map(async (projectId) => {
+//             try {
+//               const products = await productService.getProductsByProject(
+//                 projectId,
+//                 "enrichment",
+//               );
+//               counts[projectId] = products.filter(
+//                 (p) =>
+//                   p.workflow_stage === "enrichment" &&
+//                   p.enrichment_status === "pending",
+//               ).length;
+//             } catch (error) {
+//               counts[projectId] = 0;
+//             }
+//           }),
+//         );
+//         setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
+//       } catch (error) {
+//         console.error("Failed to load enrichment counts:", error);
+//       }
+//     },
+//     [],
+//   );
+//   const handleExtractFreshMpn = async (productId: string, mpn: string) => {
+//     if (!expandedProjectId) {
+//       notify.error("No project selected");
+//       return;
+//     }
+//     setExtractingPdf((prev) => new Set(prev).add(productId));
+//     setExpandedProjectProducts((prev) =>
+//       prev.map((p) =>
+//         p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+//       ),
+//     );
+//     try {
+//       const project = projects.find((p) => p.id === expandedProjectId);
+//       const response = await extractionService.freshAggregation({
+//         mpns: [mpn],
+//         project_id: expandedProjectId!,
+//         use_case: project?.use_case || selectedUseCase,
+//       });
+//       setPollingProductIds((prev) => new Set(prev).add(productId));
+//       notify.success("Extraction Started", `Extracting data for ${mpn}`);
+//       pollBatchStatus(response.batch_id, async () => {
+//         const fresh = await productService.getProductsByProject(
+//           expandedProjectId!,
+//           "aggregation",
+//         );
+//         setExpandedProjectProducts(fresh);
+//         await loadProjects();
+//         setPollingProductIds((prev) => {
+//           const updated = new Set(prev);
+//           updated.delete(productId);
+//           return updated;
+//         });
+//       });
+//     } catch (error: any) {
+//       notify.error("Extraction failed", error.message);
+//       setExpandedProjectProducts((prev) =>
+//         prev.map((p) =>
+//           p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+//         ),
+//       );
+//       setPollingProductIds((prev) => {
+//         const updated = new Set(prev);
+//         updated.delete(productId);
+//         return updated;
+//       });
+//     } finally {
+//       setExtractingPdf((prev) => {
+//         const newSet = new Set(prev);
+//         newSet.delete(productId);
+//         return newSet;
+//       });
+//     }
+//   };
+//   const handleExtractFromPdf = async (productId: string, mpn: string) => {
+//     setExtractingPdf((prev) => new Set(prev).add(productId));
+//     setExpandedProjectProducts((prev) =>
+//       prev.map((p) =>
+//         p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+//       ),
+//     );
+//     try {
+//       const response = await extractionService.extractPdfForProduct(
+//         mpn,
+//         expandedProjectId!,
+//       );
+//       setPollingProductIds((prev) => new Set(prev).add(productId));
+//       notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
+//       pollBatchStatus(response.batch_id, async () => {
+//         const fresh = await productService.getProductsByProject(
+//           expandedProjectId!,
+//           "aggregation",
+//         );
+//         setExpandedProjectProducts(fresh);
+//         await loadProjects();
+//         setPollingProductIds((prev) => {
+//           const updated = new Set(prev);
+//           updated.delete(productId);
+//           return updated;
+//         });
+//       });
+//     } catch (error: any) {
+//       notify.error("Extraction failed", error.message);
+//       setExpandedProjectProducts((prev) =>
+//         prev.map((p) =>
+//           p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+//         ),
+//       );
+//       setPollingProductIds((prev) => {
+//         const updated = new Set(prev);
+//         updated.delete(productId);
+//         return updated;
+//       });
+//     } finally {
+//       setExtractingPdf((prev) => {
+//         const newSet = new Set(prev);
+//         newSet.delete(productId);
+//         return newSet;
+//       });
+//     }
+//   };
+//   const handleBlindExtract = async (productId: string) => {
+//     if (!expandedProjectId) {
+//       notify.error("No project selected");
+//       return;
+//     }
+//     if (extractingPdf.size >= 5) {
+//       notify.warning(
+//         "Extraction Limit",
+//         "Maximum 5 concurrent extractions allowed. Please wait for some to complete.",
+//       );
+//       return;
+//     }
+//     const product = expandedProjectProducts.find((p) => p.id === productId);
+//     if (!product) {
+//       notify.error("Product not found");
+//       return;
+//     }
+//     setExtractingPdf((prev) => new Set(prev).add(productId));
+//     setExpandedProjectProducts((prev) =>
+//       prev.map((p) =>
+//         p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+//       ),
+//     );
+//     try {
+//       const response = await extractionService.extractPdfForProduct(
+//         product.product_code,
+//         expandedProjectId,
+//       );
+//       setPollingProductIds((prev) => new Set(prev).add(productId));
+//       notify.success("Extraction Started", "Extracting product data from PDF");
+//       pollBatchStatus(response.batch_id, async () => {
+//         const fresh = await productService.getProductsByProject(
+//           expandedProjectId!,
+//           "aggregation",
+//         );
+//         setExpandedProjectProducts(fresh);
+//         await loadProjects();
+//         setPollingProductIds((prev) => {
+//           const updated = new Set(prev);
+//           updated.delete(productId);
+//           return updated;
+//         });
+//       });
+//     } catch (error: any) {
+//       notify.error("Extraction failed", error.message);
+//       setExpandedProjectProducts((prev) =>
+//         prev.map((p) =>
+//           p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+//         ),
+//       );
+//       setPollingProductIds((prev) => {
+//         const updated = new Set(prev);
+//         updated.delete(productId);
+//         return updated;
+//       });
+//     } finally {
+//       setExtractingPdf((prev) => {
+//         const newSet = new Set(prev);
+//         newSet.delete(productId);
+//         return newSet;
+//       });
+//     }
+//   };
+//   const pollProjectStatuses = useCallback(async () => {
+//     if (aggregatingProjects.size === 0) return;
+//     const newAggregatingProjects = new Set(aggregatingProjects);
+//     const completedProjects: string[] = [];
+//     for (const projectId of aggregatingProjects) {
+//       try {
+//         const job =
+//           await aggregationService.getProjectAggregationStatus(projectId);
+//         if (job.status === "completed" || job.status === "failed") {
+//           newAggregatingProjects.delete(projectId);
+//           completedProjects.push(projectId);
+//           const projectName =
+//             projects.find((p) => p.id === projectId)?.name || projectId;
+//           if (job.status === "completed") {
+//             notify.success(`Aggregation completed for "${projectName}"`);
+//           } else {
+//             notify.error(`Aggregation failed for "${projectName}"`);
+//           }
+//         }
+//       } catch (error) {
+//         console.error(`Failed to poll project ${projectId}:`, error);
+//       }
+//     }
+//     if (completedProjects.length > 0) {
+//       setAggregatingProjects(newAggregatingProjects);
+//       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
+//         try {
+//           const fresh = await productService.getProductsByProject(
+//             expandedProjectId,
+//             "aggregation",
+//           );
+//           setExpandedProjectProducts(fresh);
+//         } catch (error) {
+//           console.error("Failed to refresh expanded project:", error);
+//         }
+//       }
+//     }
+//   }, [aggregatingProjects, expandedProjectId, projects]);
+//   useEffect(() => {
+//     if (aggregatingProjects.size > 0) {
+//       const interval = setInterval(pollProjectStatuses, 5000);
+//       return () => clearInterval(interval);
+//     }
+//   }, [aggregatingProjects, pollProjectStatuses]);
+//   const {
+//     availableBrands,
+//     availableCategories,
+//     loadProjectFilters,
+//     resetProjectFilters,
+//   } = useProjectFilters();
+//   const loadDefaultFilters = useCallback(async () => {
+//     await loadProjectFilters();
+//   }, [loadProjectFilters]);
+//   useEffect(() => {
+//     loadDefaultFilters();
+//   }, [loadDefaultFilters]);
+//   const filteredExpandedProducts = useMemo(() => {
+//     let filtered = [...expandedProjectProducts];
+//     if (searchQuery.trim()) {
+//       const query = searchQuery.toLowerCase().trim();
+//       filtered = filtered.filter(
+//         (p) =>
+//           p.product_name?.toLowerCase().includes(query) ||
+//           p.product_code?.toLowerCase().includes(query) ||
+//           p.sku?.toLowerCase().includes(query) ||
+//           p.brand_name?.toLowerCase().includes(query) ||
+//           p.mpn?.toLowerCase().includes(query),
+//       );
+//     }
+//     if (statusFilter.size > 0) {
+//       filtered = filtered.filter((p) => statusFilter.has(p.enrichment_status));
+//     }
+//     if (categoryFilter) {
+//       filtered = filtered.filter((p) => p.category_1 === categoryFilter);
+//     }
+//     if (brandFilter) {
+//       filtered = filtered.filter((p) => p.brand_name === brandFilter);
+//     }
+//     return filtered;
+//   }, [
+//     expandedProjectProducts,
+//     searchQuery,
+//     statusFilter,
+//     categoryFilter,
+//     brandFilter,
+//   ]);
+//   const totalPages = Math.ceil(
+//     filteredExpandedProducts.length / ITEMS_PER_PAGE,
+//   );
+//   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+//   const paginatedProducts = filteredExpandedProducts.slice(
+//     startIndex,
+//     startIndex + ITEMS_PER_PAGE,
+//   );
+//   const loadProjects = useCallback(async () => {
+//     setProjectsLoading(true);
+//     try {
+//       const data = await projectService.getAllProjects({
+//         operation_mode: "aggregation,pdf_extraction",
+//         tab: "aggregation",
+//       });
+//       const aggregationData = data.filter(
+//         (p: Project) =>
+//           p.operation_mode === "aggregation" ||
+//           p.operation_mode === "pdf_extraction",
+//       );
+//       setProjects(aggregationData);
+//       const projectIds = aggregationData.map((p) => p.id);
+//       if (projectIds.length > 0) {
+//         await loadProjectEnrichmentCounts(projectIds);
+//       }
+//       const uniqueUseCases = [
+//         ...new Set(
+//           aggregationData
+//             .map((p: Project) => p.use_case)
+//             .filter(Boolean) as string[],
+//         ),
+//       ];
+//       setUseCases(uniqueUseCases);
+//     } catch (error) {
+//       console.error("Failed to load projects:", error);
+//       notify.error("Failed to load projects");
+//     } finally {
+//       setProjectsLoading(false);
+//     }
+//   }, [loadProjectEnrichmentCounts]);
+//   useEffect(() => {
+//     loadProjects();
+//   }, [loadProjects]);
+//   const resetFilters = useCallback(() => {
+//     setSearchQuery("");
+//     setStatusFilter(new Set());
+//     setCategoryFilter("");
+//     setBrandFilter("");
+//     setSelectedUseCase("");
+//     setSelectedProjectId("");
+//     setProjectStatusFilter("");
+//     setExpandedProjectId(null);
+//     setExpandedProjectProducts([]);
+//     setCurrentPage(1);
+//     loadDefaultFilters();
+//   }, [loadDefaultFilters]);
+//   const resetLocalFilters = useCallback(() => {
+//     setSearchQuery("");
+//     setStatusFilter(new Set());
+//     setCategoryFilter("");
+//     setBrandFilter("");
+//     setCurrentPage(1);
+//   }, []);
+//   const toggleExpandProject = useCallback(
+//   async (projectId: string) => {
+//     if (expandedProjectId === projectId) {
+//       setExpandedProjectId(null);
+//       setExpandedProjectProducts([]);
+//       setCurrentPage(1);
+//       resetLocalFilters();
+//       return;
+//     }
+//     setExpandedProjectId(projectId);
+//     setExpandedLoading(true);
+//     try {
+//       const result = await productService.getProductsByProject(
+//         projectId,
+//         "aggregation",
+//       );
+
+//       let products = [];
+//       if (Array.isArray(result)) {
+//         products = result;
+//       } else if (result && typeof result === 'object' && 'products' in result) {
+//         products = Array.isArray(result.products) ? result.products : [];
+//       }
+
+//       setExpandedProjectProducts(products);
+//       setCurrentPage(1);
+//       resetLocalFilters();
+
+//       const processingProductIds = products
+//         .filter((p) => p.enrichment_status === "processing")
+//         .map((p) => p.id);
+//       if (processingProductIds.length > 0) {
+//         setPollingProductIds((prev) => {
+//           const newSet = new Set(prev);
+//           processingProductIds.forEach((id) => newSet.add(id));
+//           return newSet;
+//         });
+//       }
+//     } catch (error) {
+//       console.error("Failed to load products for project", projectId, error);
+//       notify.error("Failed to load products");
+//       setExpandedProjectProducts([]);
+//     } finally {
+//       setExpandedLoading(false);
+//       setSelectedProductIds(new Set());
+//     }
+//   },
+//   [expandedProjectId, resetLocalFilters]
+// );
+//   useEffect(() => {
+//     const hasActiveProjects = projects.some(
+//       (p) =>
+//         p.source_status === "In Progress" ||
+//         p.processing_status === "processing",
+//     );
+//     if (hasActiveProjects) {
+//       const interval = setInterval(() => {
+//         loadProjects();
+//       }, 5000);
+//       return () => clearInterval(interval);
+//     }
+//   }, [projects, loadProjects]);
+//   console.log('🔴 Active projects:', projects.map(p => ({
+//   id: p.id,
+//   name: p.name,
+//   source_status: p.source_status,
+//   processing_status: p.processing_status  // ✅ Add this to see the value
+// })));
+//   useEffect(() => {
+//     if (!expandedProjectId || expandedProjectProducts.length === 0) return;
+//     const blindProductsNeedingPolling = expandedProjectProducts.filter(
+//       (p) =>
+//         p.source_url?.startsWith("blind_pdf") &&
+//         ["pending", "processing"].includes(p.enrichment_status) &&
+//         p.completeness_score === 0,
+//     );
+//     if (blindProductsNeedingPolling.length > 0) {
+//       setPollingProductIds((prev) => {
+//         const newSet = new Set(prev);
+//         blindProductsNeedingPolling.forEach((p) => newSet.add(p.id));
+//         return newSet;
+//       });
+//     }
+//   }, [expandedProjectId, expandedProjectProducts]);
+//   const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
+//     setStatusFilter((prev) => {
+//       const newSet = new Set(prev);
+//       if (newSet.has(status)) newSet.delete(status);
+//       else newSet.add(status);
+//       return newSet;
+//     });
+//     setCurrentPage(1);
+//   };
+//   const canDownloadSelected = useMemo(() => {
+//     const downloadableStatuses = new Set(["completed", "failed"]);
+//     const productOk =
+//       selectedProductIds.size > 0 &&
+//       expandedProjectProducts.some(
+//         (p) =>
+//           selectedProductIds.has(p.id) &&
+//           downloadableStatuses.has(p.enrichment_status),
+//       );
+//     const projectOk =
+//       selectedProjectIds.size > 0 &&
+//       projects.some(
+//         (pr) =>
+//           selectedProjectIds.has(pr.id) &&
+//           downloadableStatuses.has(pr.processing_status ?? ""),
+//       );
+//     return productOk || projectOk;
+//   }, [
+//     selectedProductIds,
+//     expandedProjectProducts,
+//     selectedProjectIds,
+//     projects,
+//   ]);
+//   const isExpandedProjectSelected = expandedProjectId
+//     ? selectedProjectIds.has(expandedProjectId)
+//     : false;
+//   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
+//     projectId: expandedProjectId,
+//     currentTab: "aggregation",
+//     onProductsMoved: useCallback(() => {
+//       if (expandedProjectId) {
+//         productService
+//           .getProductsByProject(expandedProjectId, "aggregation")
+//           .then(setExpandedProjectProducts)
+//           .catch(console.error);
+//       }
+//     }, [expandedProjectId]),
+//     enabled: !!expandedProjectId && expandedProjectProducts.length > 0,
+//   });
+//   const handleAggregate = useCallback(
+//     async (productId: string) => {
+//       try {
+//         setExpandedProjectProducts((prev) =>
+//           prev.map((p) =>
+//             p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+//           ),
+//         );
+//         trackProcessingProduct(productId);
+//         await aggregationService.aggregateProduct(productId, selectedLLM);
+//         setPollingProductIds((prev) => new Set(prev).add(productId));
+//         notify.success("Aggregation started");
+//       } catch (error: any) {
+//         console.error("Aggregation failed:", error);
+//         removeTrackingProduct(productId);
+//         const errorMessage =
+//           error.response?.data?.detail || error.message || "Aggregation failed";
+//         notify.error("Aggregation Failed", errorMessage);
+//         setPollingProductIds((prev) => {
+//           const updated = new Set(prev);
+//           updated.delete(productId);
+//           return updated;
+//         });
+//         setExpandedProjectProducts((prev) =>
+//           prev.map((p) =>
+//             p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+//           ),
+//         );
+//       }
+//     },
+//     [selectedLLM],
+//   );
+//   const handleAggregateAllInExpanded = useCallback(async () => {
+//     if (!expandedProjectId) return;
+//     const selectedPendingProducts = expandedProjectProducts.filter(
+//       (p) =>
+//         selectedProductIds.has(p.id) &&
+//         (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
+//     );
+//     const pendingProducts =
+//       selectedProductIds.size > 0
+//         ? selectedPendingProducts
+//         : expandedProjectProducts.filter(
+//             (p) =>
+//               p.enrichment_status === "pending" ||
+//               p.enrichment_status === "failed",
+//           );
+//     if (pendingProducts.length === 0) {
+//       notify.info(
+//         selectedProductIds.size > 0
+//           ? "No pending selected products in this project"
+//           : "No pending products in this project",
+//       );
+//       return;
+//     }
+//     setLoading(true);
+//     try {
+//       pendingProducts.forEach((p) => trackProcessingProduct(p.id));
+//       await Promise.allSettled(
+//         pendingProducts.map((p) =>
+//           aggregationService.aggregateProduct(p.id, selectedLLM),
+//         ),
+//       );
+//       const newPollingIds = pendingProducts.map((p) => p.id);
+//       setPollingProductIds((prev) => {
+//         const updated = new Set(prev);
+//         newPollingIds.forEach((id) => updated.add(id));
+//         return updated;
+//       });
+//       setExpandedProjectProducts((prev) =>
+//         prev.map((p) =>
+//           pendingProducts.some((pp) => pp.id === p.id)
+//             ? { ...p, enrichment_status: "processing" }
+//             : p,
+//         ),
+//       );
+//       notify.success(
+//         `Aggregation started for ${pendingProducts.length} product(s)`,
+//       );
+//     } catch (error) {
+//       console.error("Batch aggregation failed", error);
+//       notify.error("Batch aggregation failed");
+//       pendingProducts.forEach((p) => removeTrackingProduct(p.id));
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [
+//     expandedProjectId,
+//     expandedProjectProducts,
+//     selectedProductIds,
+//     selectedLLM,
+//   ]);
+//   const handleAggregateSelectedProjects = useCallback(async () => {
+//     if (selectedProjectIds.size === 0) return;
+//     const projectIdsToAggregate = Array.from(selectedProjectIds);
+//     setLoading(true);
+//     let successCount = 0;
+//     const batchSize = 3;
+//     try {
+//       for (let i = 0; i < projectIdsToAggregate.length; i += batchSize) {
+//         const batch = projectIdsToAggregate.slice(i, i + batchSize);
+//         const promises = batch.map((projectId) =>
+//           aggregationService
+//             .aggregateProject(projectId, selectedLLM)
+//             .then((result) => ({
+//               status: "fulfilled" as const,
+//               projectId,
+//               result,
+//             }))
+//             .catch((error) => ({
+//               status: "rejected" as const,
+//               projectId,
+//               error,
+//             })),
+//         );
+//         const results = await Promise.all(promises);
+//         for (const result of results) {
+//           if (result.status === "fulfilled") {
+//             successCount++;
+//             setAggregatingProjects((prev) =>
+//               new Set(prev).add(result.projectId),
+//             );
+//           } else {
+//             notify.error(`Failed to start aggregation for project`);
+//           }
+//         }
+//         if (i + batchSize < projectIdsToAggregate.length) {
+//           await new Promise((resolve) => setTimeout(resolve, 500));
+//         }
+//       }
+//       if (
+//         expandedProjectId &&
+//         projectIdsToAggregate.includes(expandedProjectId)
+//       ) {
+//         const freshData = await productService.getProductsByProject(
+//           expandedProjectId,
+//           "aggregation",
+//         );
+//         setExpandedProjectProducts(freshData);
+//         const processingIds = freshData
+//           .filter((p) => p.enrichment_status === "processing")
+//           .map((p) => p.id);
+//         if (processingIds.length > 0) {
+//           setPollingProductIds((prev) => {
+//             const newSet = new Set(prev);
+//             processingIds.forEach((id) => newSet.add(id));
+//             return newSet;
+//           });
+//         }
+//       }
+//       if (successCount > 0) {
+//         notify.success(`Aggregation started for ${successCount} project(s)`);
+//       }
+//     } catch (error) {
+//       console.error("Failed to aggregate:", error);
+//       notify.error("Aggregation failed");
+//     } finally {
+//       setLoading(false);
+//       setSelectedProjectIds(new Set());
+//     }
+//   }, [selectedProjectIds, expandedProjectId, selectedLLM]);
+//   const loadAttributes = useCallback(async (productId: string) => {
+//     try {
+//       setAttributesLoading(true);
+//       const data = await aggregationService.getAggregatedAttributes(productId);
+//       setAttributes(data);
+//     } catch (error) {
+//       console.error("Failed to load attributes:", error);
+//       notify.error("Failed to load attributes");
+//     } finally {
+//       setAttributesLoading(false);
+//     }
+//   }, []);
+//   useEffect(() => {
+//     return () => {
+//       setProjectEnrichmentCounts({});
+//     };
+//   }, []);
+//   const pollProductStatuses = useCallback(async () => {
+//     if (pollingProductIds.size === 0 || !expandedProjectId) return;
+//     try {
+//       const [aggregationData, enrichmentData] = await Promise.all([
+//         productService.getProductsByProject(expandedProjectId, "aggregation"),
+//         productService.getProductsByProject(expandedProjectId, "enrichment"),
+//       ]);
+//       const enrichmentPendingCount = enrichmentData.filter(
+//         (p) =>
+//           p.workflow_stage === "enrichment" &&
+//           p.enrichment_status === "pending",
+//       ).length;
+//       setProjectEnrichmentCounts((prev) => ({
+//         ...prev,
+//         [expandedProjectId]: enrichmentPendingCount,
+//       }));
+//       const completedOrFailed: string[] = [];
+//       pollingProductIds.forEach((productId) => {
+//         const productInAggregation = aggregationData.find(
+//           (p) => p.id === productId,
+//         );
+//         const productInEnrichment = enrichmentData.find(
+//           (p) => p.id === productId,
+//         );
+//         if (!productInAggregation && productInEnrichment) {
+//           const score = productInEnrichment.completeness_score || 0;
+//           completedOrFailed.push(productId);
+//           notify.info(
+//             "Moved to Enrichment",
+//             `${productInEnrichment.product_name || productInEnrichment.product_code} has ${score}% completeness and requires further enrichment.`,
+//           );
+//         } else if (
+//           productInAggregation &&
+//           productInAggregation.enrichment_status === "completed"
+//         ) {
+//           const score = productInAggregation.completeness_score || 0;
+//           if (score >= 90) {
+//             completedOrFailed.push(productId);
+//             notify.success(
+//               "Aggregation Complete",
+//               productInAggregation.product_name,
+//             );
+//           }
+//         } else if (
+//           productInAggregation &&
+//           productInAggregation.enrichment_status === "failed"
+//         ) {
+//           completedOrFailed.push(productId);
+//           notify.error("Aggregation Failed", productInAggregation.product_name);
+//         }
+//       });
+//       setExpandedProjectProducts(aggregationData);
+//       if (completedOrFailed.length > 0) {
+//         setPollingProductIds((prev) => {
+//           const updated = new Set(prev);
+//           completedOrFailed.forEach((id) => updated.delete(id));
+//           return updated;
+//         });
+//       }
+//       if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
+//         await loadAttributes(selectedProduct);
+//       }
+//     } catch (error) {
+//       console.error("Polling error:", error);
+//     }
+//   }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+//   const handleDownloadSelected = useCallback(async () => {
+//     const selectedProjects = Array.from(selectedProjectIds);
+//     const selectedProducts = Array.from(selectedProductIds);
+//     if (selectedProjects.length === 0 && selectedProducts.length === 0) {
+//       notify.info("No projects or products selected");
+//       return;
+//     }
+//     setDownloading(true);
+//     try {
+//       const blob = await aggregationService.exportSelectedItems(
+//         selectedProjects,
+//         selectedProducts,
+//       );
+//       const url = window.URL.createObjectURL(blob);
+//       const a = document.createElement("a");
+//       a.href = url;
+//       a.download = `selected_export.xlsx`;
+//       document.body.appendChild(a);
+//       a.click();
+//       window.URL.revokeObjectURL(url);
+//       document.body.removeChild(a);
+//       window.URL.revokeObjectURL(url);
+//       notify.success("Export started");
+//     } catch (error) {
+//       console.error("Export failed:", error);
+//       notify.error("Export failed");
+//     } finally {
+//       setDownloading(false);
+//     }
+//   }, [selectedProjectIds, selectedProductIds]);
+//   useEffect(() => {
+//     if (pollingProductIds.size > 0 && expandedProjectId) {
+//       pollingIntervalRef.current = setInterval(pollProductStatuses, 5000);
+//     } else {
+//       if (pollingIntervalRef.current) {
+//         clearInterval(pollingIntervalRef.current);
+//         pollingIntervalRef.current = null;
+//       }
+//     }
+//     return () => {
+//       if (pollingIntervalRef.current) {
+//         clearInterval(pollingIntervalRef.current);
+//         pollingIntervalRef.current = null;
+//       }
+//     };
+//   }, [pollingProductIds.size, expandedProjectId, pollProductStatuses]);
+//  useEffect(() => {
+//   if (selectedProduct) {
+//     loadAttributes(selectedProduct);
+//   }
+// }, [selectedProduct, loadAttributes]);
+//   const closeDrawer = () => {
+//     setIsDrawerOpen(false);
+//     setTimeout(() => setSelectedProduct(null), 300);
+//   };
+//   const handleExtractAllInExpanded = useCallback(async () => {
+//     if (!expandedProjectId) return;
+//     const selectedPendingProducts = expandedProjectProducts.filter(
+//       (p) =>
+//         selectedProductIds.has(p.id) &&
+//         p.completeness_score === 0 &&
+//         p.enrichment_status !== "processing",
+//     );
+//     const pendingProducts =
+//       selectedProductIds.size > 0
+//         ? selectedPendingProducts
+//         : expandedProjectProducts.filter(
+//             (p) =>
+//               p.completeness_score === 0 &&
+//               p.enrichment_status !== "processing",
+//           );
+//     if (pendingProducts.length === 0) {
+//       notify.info(
+//         selectedProductIds.size > 0
+//           ? "No pending selected products in this project"
+//           : "No pending products in this project",
+//       );
+//       return;
+//     }
+//     setLoading(true);
+//     try {
+//       setExpandedProjectProducts((prev) =>
+//         prev.map((p) =>
+//           pendingProducts.some((pp) => pp.id === p.id)
+//             ? { ...p, enrichment_status: "processing" }
+//             : p,
+//         ),
+//       );
+//       const newPollingIds: string[] = [];
+//       for (const product of pendingProducts) {
+//         const mpn = product.product_code;
+//         const sourceUrl = product.source_url;
+//         try {
+//           setExtractingPdf((prev) => new Set(prev).add(product.id));
+//           let response;
+//           if (sourceUrl === "web_search_pending") {
+//             const project = projects.find((p) => p.id === expandedProjectId);
+//             response = await extractionService.freshAggregation({
+//               mpns: [mpn],
+//               project_id: expandedProjectId!,
+//               use_case: project?.use_case || selectedUseCase,
+//             });
+//           } else {
+//             response = await extractionService.extractPdfForProduct(
+//               mpn,
+//               expandedProjectId!,
+//             );
+//           }
+//           newPollingIds.push(product.id);
+//           pollBatchStatus(response.batch_id, async () => {
+//             const fresh = await productService.getProductsByProject(
+//               expandedProjectId!,
+//               "aggregation",
+//             );
+//             setExpandedProjectProducts(fresh);
+//             await loadProjects();
+//             setPollingProductIds((prev) => {
+//               const updated = new Set(prev);
+//               updated.delete(product.id);
+//               return updated;
+//             });
+//           });
+//           await new Promise((resolve) => setTimeout(resolve, 500));
+//         } catch (error) {
+//           console.error(`Failed to extract ${mpn}:`, error);
+//           setExpandedProjectProducts((prev) =>
+//             prev.map((p) =>
+//               p.id === product.id ? { ...p, enrichment_status: "failed" } : p,
+//             ),
+//           );
+//         } finally {
+//           setExtractingPdf((prev) => {
+//             const newSet = new Set(prev);
+//             newSet.delete(product.id);
+//             return newSet;
+//           });
+//         }
+//       }
+//       setPollingProductIds((prev) => {
+//         const newSet = new Set(prev);
+//         newPollingIds.forEach((id) => newSet.add(id));
+//         return newSet;
+//       });
+//       notify.success(
+//         `Extraction started for ${pendingProducts.length} product(s)`,
+//       );
+//       setSelectedProductIds(new Set());
+//     } catch (error) {
+//       console.error("Batch extraction failed", error);
+//       notify.error("Batch extraction failed");
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [
+//     expandedProjectId,
+//     expandedProjectProducts,
+//     selectedProductIds,
+//     selectedUseCase,
+//     projects,
+//   ]);
+//   const handleViewProject = useCallback(async (projectId: string) => {
+//   setViewingProjectId(projectId);
+//   setExpandedLoading(true);
+//   setExpandedProjectId(projectId); // Also set this for compatibility
+//   try {
+//     const result = await productService.getProductsByProject(projectId, "aggregation");
+//     let products = [];
+//     if (Array.isArray(result)) {
+//       products = result;
+//     } else if (result && typeof result === 'object' && 'products' in result) {
+//       products = Array.isArray(result.products) ? result.products : [];
+//     }
+//     setExpandedProjectProducts(products);
+//     setCurrentPage(1);
+
+//     const processingProductIds = products
+//       .filter((p: Product) => p.enrichment_status === "processing")
+//       .map((p: Product) => p.id);
+//     if (processingProductIds.length > 0) {
+//       setPollingProductIds((prev) => {
+//         const newSet = new Set(prev);
+//         processingProductIds.forEach((id: string) => newSet.add(id));
+//         return newSet;
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Failed to load products for project", projectId, error);
+//     notify.error("Failed to load products");
+//     setExpandedProjectProducts([]);
+//   } finally {
+//     setExpandedLoading(false);
+//     setSelectedProductIds(new Set());
+//   }
+// }, []);
+// useEffect(() => {
+//   console.log('🔵 Polling Status:', {
+//     aggregatingProjects: aggregatingProjects.size,
+//     pollingProductIds: pollingProductIds.size,
+//     expandedProjectId,
+//     hasActiveProjects: projects.some(p => p.source_status === "In Progress" || p.processing_status === "processing")
+//   });
+// }, [aggregatingProjects, pollingProductIds, expandedProjectId, projects]);
+//   const stopAllPolling = useCallback(() => {
+//   setAggregatingProjects(new Set());
+//   setPollingProductIds(new Set());
+//   if (pollingIntervalRef.current) {
+//     clearInterval(pollingIntervalRef.current);
+//     pollingIntervalRef.current = null;
+//   }
+// }, []);
+// const handleCloseProjectView = useCallback(() => {
+//   setViewingProjectId(null);
+//   setExpandedProjectId(null);
+//   setExpandedProjectProducts([]);
+//   setCurrentPage(1);
+//   stopAllPolling();
+// }, []);
+
+// const handleSelectAllProducts = (checked: boolean) => {
+//   if (checked) {
+//     setSelectedProductIds((prev) => new Set([...prev, ...paginatedProducts.map((p) => p.id)]));
+//   } else {
+//     setSelectedProductIds((prev) => {
+//       const newSet = new Set(prev);
+//       paginatedProducts.forEach((p) => newSet.delete(p.id));
+//       return newSet;
+//     });
+//   }
+// };
+
+// const handleToggleProductSelection = (productId: string, checked: boolean) => {
+//   if (checked) {
+//     setSelectedProductIds((prev) => new Set(prev).add(productId));
+//   } else {
+//     setSelectedProductIds((prev) => {
+//       const newSet = new Set(prev);
+//       newSet.delete(productId);
+//       return newSet;
+//     });
+//   }
+// };
+//   const handleExtractSelectedProjects = useCallback(async () => {
+//     if (selectedProjectIds.size === 0) return;
+//     const projectIdsToExtract = Array.from(selectedProjectIds);
+//     setLoading(true);
+//     let successCount = 0;
+//     try {
+//       for (const projectId of projectIdsToExtract) {
+//         try {
+//           const products = await productService.getProductsByProject(
+//             projectId,
+//             "aggregation",
+//           );
+//           const pendingProducts = products.filter(
+//             (p) =>
+//               p.completeness_score === 0 &&
+//               p.enrichment_status !== "processing",
+//           );
+//           for (const product of pendingProducts) {
+//             try {
+//               if (product.source_url === "web_search_pending") {
+//                 const project = projects.find((p) => p.id === projectId);
+//                 await extractionService.freshAggregation({
+//                   mpns: [product.product_code],
+//                   project_id: projectId,
+//                   use_case: project?.use_case || selectedUseCase,
+//                 });
+//               } else {
+//                 await extractionService.extractPdfForProduct(
+//                   product.product_code,
+//                   projectId,
+//                 );
+//               }
+//               await new Promise((resolve) => setTimeout(resolve, 300));
+//             } catch (e) {
+//               console.error(`Failed to extract ${product.product_code}:`, e);
+//             }
+//           }
+//           successCount++;
+//         } catch (e) {
+//           console.error(`Failed to process project ${projectId}:`, e);
+//         }
+//       }
+//       if (successCount > 0) {
+//         notify.success(`Extraction started for ${successCount} project(s)`);
+//       }
+//       if (
+//         expandedProjectId &&
+//         projectIdsToExtract.includes(expandedProjectId)
+//       ) {
+//         const freshData = await productService.getProductsByProject(
+//           expandedProjectId,
+//           "aggregation",
+//         );
+//         setExpandedProjectProducts(freshData);
+//       }
+//     } catch (error) {
+//       console.error("Failed to extract projects:", error);
+//       notify.error("Extraction failed");
+//     } finally {
+//       setLoading(false);
+//       setSelectedProjectIds(new Set());
+//     }
+//   }, [selectedProjectIds, expandedProjectId, selectedUseCase, projects]);
+//   const toggleSelectAllProjects = useCallback(() => {
+//     setSelectedProjectIds((prev) =>
+//       prev.size === filteredProjects.length
+//         ? new Set()
+//         : new Set(filteredProjects.map((p) => p.id)),
+//     );
+//   }, [filteredProjects]);
+//   const toggleProjectSelection = useCallback(
+//     (projectId: string, e?: React.MouseEvent) => {
+//       e?.stopPropagation();
+//       setSelectedProjectIds((prev) => {
+//         const newSet = new Set(prev);
+//         if (newSet.has(projectId)) {
+//           newSet.delete(projectId);
+//         } else {
+//           newSet.add(projectId);
+//           if (expandedProjectId === projectId) {
+//             setSelectedProductIds(new Set());
+//           }
+//         }
+//         return newSet;
+//       });
+//     },
+//     [expandedProjectId],
+//   );
+//   const selectedProductData = expandedProjectProducts.find(
+//     (p) => p.id === selectedProduct,
+//   );
+//   const hasProductsInSelectedProjects = useMemo(() => {
+//     if (selectedProjectIds.size === 0) return false;
+//     const selectedProjectsList = projects.filter((p) =>
+//       selectedProjectIds.has(p.id),
+//     );
+//     return selectedProjectsList.some((p) => (p.product_count ?? 0) > 0);
+//   }, [selectedProjectIds, projects]);
+// return (
+//   <div className="relative">
+//      <div className="flex items-center justify-between mb-4">
+//       <div>
+//         <h3 className="text-xl font-semibold text-slate-900 mb-1">Data Aggregation</h3>
+//         <p className="text-sm text-slate-600">Select projects to manage aggregation</p>
+//       </div>
+//       <div className="flex items-center gap-3">
+//         {(selectedProjectIds.size > 0 || selectedProductIds.size > 0) && (
+//           <button
+//             onClick={handleDownloadSelected}
+//             disabled={downloading || !canDownloadSelected}
+//             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+//           >
+//             {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+//             Download Selected
+//           </button>
+//         )}
+//         {selectedProjectIds.size > 0 && (
+//           <button
+//             onClick={projects.find((p) => selectedProjectIds.has(p.id))?.operation_mode === "pdf_extraction"
+//               ? handleExtractSelectedProjects
+//               : handleAggregateSelectedProjects}
+//             disabled={loading || !hasProductsInSelectedProjects}
+//             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+//           >
+//             {loading ? <Loader2 className="w-4 h-4 animate-spin" />
+//               : projects.find((p) => selectedProjectIds.has(p.id))?.operation_mode === "pdf_extraction"
+//                 ? <FileText className="w-4 h-4" />
+//                 : <Play className="w-4 h-4" />}
+//             {projects.find((p) => selectedProjectIds.has(p.id))?.operation_mode === "pdf_extraction"
+//               ? `Extract ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`
+//               : `Aggregate ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`}
+//           </button>
+//         )}
+//       </div>
+//     </div>
+
+//     <FiltersBar
+//       selectedLLM={selectedLLM}
+//       llmOptions={llmOptions}
+//       selectedUseCase={selectedUseCase}
+//       useCases={useCases}
+//       selectedProjectId={selectedProjectId}
+//       filteredProjects={filteredProjects}
+//       projectStatusFilter={projectStatusFilter}
+//       categoryFilter={categoryFilter}
+//       availableCategories={availableCategories}
+//       brandFilter={brandFilter}
+//       availableBrands={availableBrands}
+//       statusFilter={statusFilter}
+//       onLLMChange={setSelectedLLM}
+//       onUseCaseChange={(value) => {
+//         setSelectedUseCase(value);
+//         setSelectedProjectId("");
+//         setViewingProjectId(null);
+//         setExpandedProjectProducts([]);
+//       }}
+//       onProjectChange={async (value) => {
+//         setSelectedProjectId(value);
+//         await loadProjectFilters(value);
+//       }}
+//       onProjectStatusChange={(value) => {
+//         setProjectStatusFilter(value);
+//         setCurrentPage(1);
+//       }}
+//       onCategoryChange={(value) => {
+//         setCategoryFilter(value);
+//         setCurrentPage(1);
+//       }}
+//       onBrandChange={(value) => {
+//         setBrandFilter(value);
+//         setCurrentPage(1);
+//       }}
+//       onReset={resetFilters}
+//       showReset={!!(statusFilter.size > 0 || projectStatusFilter || categoryFilter || brandFilter || selectedUseCase || selectedProjectId || searchQuery)}
+//     />
+
+//    <ProjectsTable
+//   projects={filteredProjects}
+//   projectsLoading={projectsLoading}
+//   selectedProjectIds={selectedProjectIds}
+//   aggregatingProjects={aggregatingProjects}
+//   projectEnrichmentCounts={projectEnrichmentCounts}
+//   toggleSelectAllProjects={toggleSelectAllProjects}
+//   toggleProjectSelection={toggleProjectSelection}
+//   onProjectClick={handleViewProject}
+//   selectedProjectId={viewingProjectId}
+// />
+
+//     {viewingProjectId && viewingProject && (
+//       <ProjectProductsView
+//         project={viewingProject}
+//         products={expandedProjectProducts}
+//         loading={expandedLoading}
+//         expandedStats={expandedStats}
+//         statusFilter={statusFilter}
+//         selectedProductIds={selectedProductIds}
+//         isExpandedProjectSelected={selectedProjectIds.has(viewingProjectId)}
+//         aggregatingProjects={aggregatingProjects}
+//         extractingPdf={extractingPdf}
+//         currentPage={currentPage}
+//         totalPages={totalPages}
+//         paginatedProducts={paginatedProducts}
+//         filteredExpandedProducts={filteredExpandedProducts}
+//         startIndex={startIndex}
+//         onClose={handleCloseProjectView}
+//         onToggleStatusFilter={toggleStatusFilter}
+//         onSelectAllProducts={handleSelectAllProducts}
+//         onToggleProductSelection={handleToggleProductSelection}
+//         onViewAttributes={(productId) => {
+//           setSelectedProduct(productId);
+//           setViewingAttributes(true);
+//         }}
+//         onAggregateAll={handleAggregateAllInExpanded}
+//         onExtractAll={handleExtractAllInExpanded}
+//         onAggregate={handleAggregate}
+//         onExtractFreshMpn={handleExtractFreshMpn}
+//         onExtractFromPdf={handleExtractFromPdf}
+//         onBlindExtract={handleBlindExtract}
+//         onPageChange={setCurrentPage}
+//         selectedProductId={selectedProduct}
+//       />
+//     )}
+
+//     {/* Full Page Product Attributes View */}
+//     {viewingAttributes && (
+//       <ProductAttributesView
+//         isOpen={viewingAttributes}
+//         product={selectedProductData}
+//         attributes={attributes}
+//         loading={attributesLoading}
+//         project={viewingProject}
+//         onClose={() => {
+//           setViewingAttributes(false);
+//           setSelectedProduct(null);
+//         }}
+//         onAggregate={handleAggregate}
+//         onBack={() => setViewingAttributes(false)}
+//       />
+//     )}
+//   </div>
+// );
+// }
+
 import React, {
   useCallback,
   useEffect,
@@ -43,6 +1376,7 @@ const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
   projectId,
   initialFilter = "all",
+  onNavigateToProject,
 }: AggregationTabProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
@@ -131,7 +1465,10 @@ export default function AggregationTab({
                 projectId,
                 "enrichment",
               );
-              counts[projectId] = products.filter(
+              const productArray = Array.isArray(products)
+                ? products
+                : (products?.products ?? []);
+              counts[projectId] = productArray.filter(
                 (p) =>
                   p.workflow_stage === "enrichment" &&
                   p.enrichment_status === "pending",
@@ -169,11 +1506,14 @@ export default function AggregationTab({
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("Extraction Started", `Extracting data for ${mpn}`);
       pollBatchStatus(response.batch_id, async () => {
-        const fresh = await productService.getProductsByProject(
+        const freshResult = await productService.getProductsByProject(
           expandedProjectId!,
           "aggregation",
         );
-        setExpandedProjectProducts(fresh);
+        const freshData = Array.isArray(freshResult)
+          ? freshResult
+          : (freshResult?.products ?? []);
+        setExpandedProjectProducts(freshData);
         await loadProjects();
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -216,11 +1556,14 @@ export default function AggregationTab({
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
       pollBatchStatus(response.batch_id, async () => {
-        const fresh = await productService.getProductsByProject(
+        const freshResult = await productService.getProductsByProject(
           expandedProjectId!,
           "aggregation",
         );
-        setExpandedProjectProducts(fresh);
+        const freshData = Array.isArray(freshResult)
+          ? freshResult
+          : (freshResult?.products ?? []);
+        setExpandedProjectProducts(freshData);
         await loadProjects();
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -279,11 +1622,14 @@ export default function AggregationTab({
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("Extraction Started", "Extracting product data from PDF");
       pollBatchStatus(response.batch_id, async () => {
-        const fresh = await productService.getProductsByProject(
+        const freshResult = await productService.getProductsByProject(
           expandedProjectId!,
           "aggregation",
         );
-        setExpandedProjectProducts(fresh);
+        const freshData = Array.isArray(freshResult)
+          ? freshResult
+          : (freshResult?.products ?? []);
+        setExpandedProjectProducts(freshData);
         await loadProjects();
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -338,11 +1684,14 @@ export default function AggregationTab({
       setAggregatingProjects(newAggregatingProjects);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
-          const fresh = await productService.getProductsByProject(
+          const freshResult = await productService.getProductsByProject(
             expandedProjectId,
             "aggregation",
           );
-          setExpandedProjectProducts(fresh);
+          const freshData = Array.isArray(freshResult)
+            ? freshResult
+            : (freshResult?.products ?? []);
+          setExpandedProjectProducts(freshData);
         } catch (error) {
           console.error("Failed to refresh expanded project:", error);
         }
@@ -461,55 +1810,60 @@ export default function AggregationTab({
     setCurrentPage(1);
   }, []);
   const toggleExpandProject = useCallback(
-  async (projectId: string) => {
-    if (expandedProjectId === projectId) {
-      setExpandedProjectId(null);
-      setExpandedProjectProducts([]);
-      setCurrentPage(1);
-      resetLocalFilters();
-      return;
-    }
-    setExpandedProjectId(projectId);
-    setExpandedLoading(true);
-    try {
-      const result = await productService.getProductsByProject(
-        projectId,
-        "aggregation",
-      );
-      
-      // ✅ FIX: Extract products array from result
-      let products = [];
-      if (Array.isArray(result)) {
-        products = result;
-      } else if (result && typeof result === 'object' && 'products' in result) {
-        products = Array.isArray(result.products) ? result.products : [];
+    async (projectId: string) => {
+      if (expandedProjectId === projectId) {
+        setExpandedProjectId(null);
+        setExpandedProjectProducts([]);
+        setCurrentPage(1);
+        resetLocalFilters();
+        return;
       }
-      
-      setExpandedProjectProducts(products);
-      setCurrentPage(1);
-      resetLocalFilters();
-      
-      const processingProductIds = products
-        .filter((p) => p.enrichment_status === "processing")
-        .map((p) => p.id);
-      if (processingProductIds.length > 0) {
-        setPollingProductIds((prev) => {
-          const newSet = new Set(prev);
-          processingProductIds.forEach((id) => newSet.add(id));
-          return newSet;
-        });
+      setExpandedProjectId(projectId);
+      setExpandedLoading(true);
+      try {
+        await loadProjectFilters(projectId);
+
+        const result = await productService.getProductsByProject(
+          projectId,
+          "aggregation",
+        );
+
+        let products = [];
+        if (Array.isArray(result)) {
+          products = result;
+        } else if (
+          result &&
+          typeof result === "object" &&
+          "products" in result
+        ) {
+          products = Array.isArray(result.products) ? result.products : [];
+        }
+
+        setExpandedProjectProducts(products);
+        setCurrentPage(1);
+        resetLocalFilters();
+
+        const processingProductIds = products
+          .filter((p) => p.enrichment_status === "processing")
+          .map((p) => p.id);
+        if (processingProductIds.length > 0) {
+          setPollingProductIds((prev) => {
+            const newSet = new Set(prev);
+            processingProductIds.forEach((id) => newSet.add(id));
+            return newSet;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load products for project", projectId, error);
+        notify.error("Failed to load products");
+        setExpandedProjectProducts([]);
+      } finally {
+        setExpandedLoading(false);
+        setSelectedProductIds(new Set());
       }
-    } catch (error) {
-      console.error("Failed to load products for project", projectId, error);
-      notify.error("Failed to load products");
-      setExpandedProjectProducts([]); // ✅ Ensure it's always an array
-    } finally {
-      setExpandedLoading(false);
-      setSelectedProductIds(new Set());
-    }
-  },
-  [expandedProjectId, resetLocalFilters], // Fixed dependency
-);
+    },
+    [expandedProjectId, resetLocalFilters, loadProjectFilters],
+  );
   useEffect(() => {
     const hasActiveProjects = projects.some(
       (p) =>
@@ -581,7 +1935,12 @@ export default function AggregationTab({
       if (expandedProjectId) {
         productService
           .getProductsByProject(expandedProjectId, "aggregation")
-          .then(setExpandedProjectProducts)
+          .then((result) => {
+            const products = Array.isArray(result)
+              ? result
+              : (result?.products ?? []);
+            setExpandedProjectProducts(products);
+          })
           .catch(console.error);
       }
     }, [expandedProjectId]),
@@ -721,10 +2080,13 @@ export default function AggregationTab({
         expandedProjectId &&
         projectIdsToAggregate.includes(expandedProjectId)
       ) {
-        const freshData = await productService.getProductsByProject(
+        const freshResult = await productService.getProductsByProject(
           expandedProjectId,
           "aggregation",
         );
+        const freshData = Array.isArray(freshResult)
+          ? freshResult
+          : (freshResult?.products ?? []);
         setExpandedProjectProducts(freshData);
         const processingIds = freshData
           .filter((p) => p.enrichment_status === "processing")
@@ -768,10 +2130,16 @@ export default function AggregationTab({
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
     try {
-      const [aggregationData, enrichmentData] = await Promise.all([
+      const [aggregationResult, enrichmentResult] = await Promise.all([
         productService.getProductsByProject(expandedProjectId, "aggregation"),
         productService.getProductsByProject(expandedProjectId, "enrichment"),
       ]);
+      const aggregationData = Array.isArray(aggregationResult)
+        ? aggregationResult
+        : (aggregationResult?.products ?? []);
+      const enrichmentData = Array.isArray(enrichmentResult)
+        ? enrichmentResult
+        : (enrichmentResult?.products ?? []);
       const enrichmentPendingCount = enrichmentData.filter(
         (p) =>
           p.workflow_stage === "enrichment" &&
@@ -944,11 +2312,14 @@ export default function AggregationTab({
           }
           newPollingIds.push(product.id);
           pollBatchStatus(response.batch_id, async () => {
-            const fresh = await productService.getProductsByProject(
+            const freshResult = await productService.getProductsByProject(
               expandedProjectId!,
               "aggregation",
             );
-            setExpandedProjectProducts(fresh);
+            const freshData = Array.isArray(freshResult)
+              ? freshResult
+              : (freshResult?.products ?? []);
+            setExpandedProjectProducts(freshData);
             await loadProjects();
             setPollingProductIds((prev) => {
               const updated = new Set(prev);
@@ -1002,10 +2373,13 @@ export default function AggregationTab({
     try {
       for (const projectId of projectIdsToExtract) {
         try {
-          const products = await productService.getProductsByProject(
+          const productsResult = await productService.getProductsByProject(
             projectId,
             "aggregation",
           );
+          const products = Array.isArray(productsResult)
+            ? productsResult
+            : (productsResult?.products ?? []);
           const pendingProducts = products.filter(
             (p) =>
               p.completeness_score === 0 &&
@@ -1043,10 +2417,13 @@ export default function AggregationTab({
         expandedProjectId &&
         projectIdsToExtract.includes(expandedProjectId)
       ) {
-        const freshData = await productService.getProductsByProject(
+        const freshResult = await productService.getProductsByProject(
           expandedProjectId,
           "aggregation",
         );
+        const freshData = Array.isArray(freshResult)
+          ? freshResult
+          : (freshResult?.products ?? []);
         setExpandedProjectProducts(freshData);
       }
     } catch (error) {
@@ -1073,6 +2450,8 @@ export default function AggregationTab({
           newSet.delete(projectId);
         } else {
           newSet.add(projectId);
+          loadProjectFilters(projectId);
+
           if (expandedProjectId === projectId) {
             setSelectedProductIds(new Set());
           }
@@ -1326,7 +2705,6 @@ export default function AggregationTab({
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
                 <option value="">All Project</option>
-                {/* ✅ Use filteredProjects which already respects ALL filters */}
                 {filteredProjects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
@@ -1410,8 +2788,12 @@ export default function AggregationTab({
           )}
         </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-lg">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+      <div
+        className="overflow-auto"
+        style={{ maxHeight: "calc(100vh - 350px)" }}
+      >
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -1432,529 +2814,681 @@ export default function AggregationTab({
             )}
           </div>
         </div>
-        <div className="divide-y divide-slate-200">
-          {projectsLoading ? (
-            <div className="p-8 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
-              <p className="text-slate-500 text-sm">Loading projects...</p>
-            </div>
-          ) : filteredProjects.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              No projects found
-            </div>
-          ) : (
-            filteredProjects.map((project) => (
-              <div key={project.id}>
-                <div
-                  className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
-                    expandedProjectId === project.id ? "bg-blue-50" : ""
-                  } ${
-                    selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""
-                  } ${
-                    aggregatingProjects.has(project.id) ? "bg-blue-50/30" : ""
-                  }`}
-                  onClick={() => toggleExpandProject(project.id)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedProjectIds.has(project.id)}
-                    onChange={(e) =>
-                      toggleProjectSelection(project.id, e as any)
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded border-slate-300"
-                    disabled={aggregatingProjects.has(project.id)}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-slate-900">
-                        {project.name}
-                      </h4>
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
-                        {project.product_count ?? 0} products
-                      </span>
-                      {project.use_case && (
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
-                          {project.use_case}
-                        </span>
-                      )}
-                      {getStatusBadge(project.source_status || "NA")}
-                      {aggregatingProjects.has(project.id) && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          Aggregating...
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {projectEnrichmentCounts[project.id] > 0 && (
-                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
-                        <ChevronRight className="w-3 h-3" />
-                        {projectEnrichmentCounts[project.id]} in Enrichment
-                      </span>
-                    )}
-                    {aggregatingProjects.has(project.id) ? (
-                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                    ) : expandedProjectId === project.id ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
-                    )}
-                  </div>
-                </div>
-                {expandedProjectId === project.id && (
-                  <div className="border-t border-slate-200">
-                    {project.operation_mode === "pdf_extraction" ? (
-                      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
-                        <button
-                          onClick={handleExtractAllInExpanded}
-                          disabled={
-                            loading ||
-                            (selectedProductIds.size > 0
-                              ? !expandedProjectProducts.some(
-                                  (p) =>
-                                    selectedProductIds.has(p.id) &&
-                                    p.completeness_score === 0 &&
-                                    p.enrichment_status !== "processing",
-                                )
-                              : expandedStats.pending === 0)
-                          }
-                          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+           <thead className="sticky top-0 z-30 bg-slate-50">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12 bg-white border-b border-slate-200">Select</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Project Name</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Use Case</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Products</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Completeness</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Status</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Enrichment Queue</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200 w-12">Actions</th>
+          </tr>
+        </thead>
+            <tbody className="divide-y divide-slate-200">
+              {projectsLoading ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+                    <p className="text-slate-500 text-sm">
+                      Loading projects...
+                    </p>
+                  </td>
+                </tr>
+              ) : filteredProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    No projects found
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {filteredProjects.map((project) => (
+                    <React.Fragment key={project.id}>
+                      <tr
+                        className={`
+                          hover:bg-slate-50 transition-colors cursor-pointer
+                          ${expandedProjectId === project.id ? "bg-blue-50" : ""}
+                          ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""}
+                          ${aggregatingProjects.has(project.id) ? "bg-blue-50/30" : ""}
+                        `}
+                        onClick={() => toggleExpandProject(project.id)}
+                      >
+                        <td
+                          className="px-4 py-3"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {loading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <FileText className="w-4 h-4" />
-                          )}
-                          {selectedProductIds.size > 0
-                            ? `Extract Selected (${selectedProductIds.size})`
-                            : "Extract All Pending"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
-                        {!(
-                          statusFilter.size === 1 &&
-                          statusFilter.has("completed")
-                        ) && (
-                          <button
-                            onClick={handleAggregateAllInExpanded}
-                            disabled={
-                              loading ||
-                              aggregatingProjects.has(project.id) ||
-                              (selectedProductIds.size > 0
-                                ? !expandedProjectProducts.some((p) =>
-                                    selectedProductIds.has(p.id),
-                                  )
-                                : expandedStats.pending === 0)
+                          <input
+                            type="checkbox"
+                            checked={selectedProjectIds.has(project.id)}
+                            onChange={(e) =>
+                              toggleProjectSelection(project.id, e as any)
                             }
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                          >
-                            {loading || aggregatingProjects.has(project.id) ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Play className="w-4 h-4" />
+                            className="rounded border-slate-300"
+                            disabled={aggregatingProjects.has(project.id)}
+                          />
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900">
+                              {project.name}
+                            </span>
+                            {aggregatingProjects.has(project.id) && (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Processing
+                              </span>
                             )}
-                            {aggregatingProjects.has(project.id)
-                              ? "Aggregating..."
-                              : selectedProductIds.size > 0
-                                ? `Aggregate Selected (${selectedProductIds.size})`
-                                : "Aggregate All"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <div className="overflow-x-auto max-h-[600px]">
-                      <table className="w-full border-separate border-spacing-0">
-                        <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 first:rounded-tl-lg">
-                              {!isExpandedProjectSelected && (
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    paginatedProducts.length > 0 &&
-                                    paginatedProducts.every((p) =>
-                                      selectedProductIds.has(p.id),
-                                    )
-                                  }
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedProductIds(
-                                        (prev) =>
-                                          new Set([
-                                            ...prev,
-                                            ...paginatedProducts.map(
-                                              (p) => p.id,
-                                            ),
-                                          ]),
-                                      );
-                                    } else {
-                                      setSelectedProductIds((prev) => {
-                                        const newSet = new Set(prev);
-                                        paginatedProducts.forEach((p) =>
-                                          newSet.delete(p.id),
-                                        );
-                                        return newSet;
-                                      });
-                                    }
-                                  }}
-                                  className="rounded border-slate-300"
-                                />
-                              )}
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Product Info
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Import Source
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Completeness
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Status
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 last:rounded-tr-lg">
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {expandedLoading ? (
-                            <tr>
-                              <td colSpan={6} className="px-4 py-8 text-center">
-                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-                              </td>
-                            </tr>
-                          ) : paginatedProducts.length === 0 ? (
-                            <tr>
-                              <td
-                                colSpan={6}
-                                className="px-4 py-8 text-center text-slate-500"
-                              >
-                                No products found
-                              </td>
-                            </tr>
-                          ) : (
-                            paginatedProducts.map((product) => (
-                              <tr
-                                key={product.id}
-                                onClick={() => setSelectedProduct(product.id)}
-                                className={`hover:bg-slate-50 cursor-pointer ${
-                                  selectedProduct === product.id
-                                    ? "bg-blue-100"
-                                    : ""
-                                }`}
-                              >
-                                <td
-                                  className="px-4 py-3"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {!isExpandedProjectSelected && (
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedProductIds.has(
-                                        product.id,
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedProductIds((prev) =>
-                                            new Set(prev).add(product.id),
-                                          );
-                                        } else {
-                                          setSelectedProductIds((prev) => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(product.id);
-                                            return newSet;
-                                          });
-                                        }
-                                      }}
-                                      className="rounded border-slate-300"
-                                    />
-                                  )}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div>
-                                    <div className="font-semibold text-slate-900 text-sm">
-                                      {product.product_name ||
-                                        product.product_code ||
-                                        "N/A"}
-                                    </div>
-                                    <div className="text-xs text-slate-500 font-mono">
-                                      {product.product_code ||
-                                        product.sku ||
-                                        "No SKU"}
-                                    </div>
-                                    {product.brand_name && (
-                                      <div className="text-xs text-slate-400">
-                                        {product.brand_name}
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                                    <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                                    <span
-                                      className="text-xs truncate max-w-[150px]"
-                                      title={
-                                        product.source_url || "Unknown source"
-                                      }
-                                    >
-                                      {product.source_url
-                                        ? product.source_url.startsWith(
-                                            "multi_pdf_batch_",
-                                          )
-                                          ? `Multi-PDF Batch ${product.source_url.slice(-8)}`
-                                          : product.source_url.startsWith(
-                                                "multi_pdf_",
-                                              )
-                                            ? `Multi-PDF Import`
-                                            : product.source_url.replace(
-                                                /^Manual_\d+_/,
-                                                "",
-                                              )
-                                        : "Manual Entry"}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden max-w-[120px]">
-                                      <div
-                                        className={`h-full rounded-full ${
-                                          (product.completeness_score || 0) > 80
-                                            ? "bg-green-500"
-                                            : (product.completeness_score ||
-                                                  0) > 50
-                                              ? "bg-amber-500"
-                                              : "bg-red-400"
-                                        }`}
-                                        style={{
-                                          width: `${
-                                            product.completeness_score || 10
-                                          }%`,
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-xs text-slate-600">
-                                      {product.completeness_score || 10}%
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  {getProductStatusBadge(
-                                    product.enrichment_status || "pending",
-                                  )}
-                                </td>
-                                <td
-                                  className="px-4 py-3"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {project.operation_mode ===
-                                  "pdf_extraction" ? (
-                                    <>
-                                      {product.source_url?.startsWith(
-                                        "blind_pdf",
-                                      ) &&
-                                        product.completeness_score === 0 && (
-                                          <button
-                                            onClick={() =>
-                                              handleBlindExtract(product.id)
-                                            }
-                                            disabled={extractingPdf.has(
-                                              product.id,
-                                            )}
-                                            className="text-teal-600 hover:text-teal-700 text-sm font-medium"
-                                          >
-                                            {extractingPdf.has(product.id) ? (
-                                              <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                              <>
-                                                <FileText className="w-4 h-4 inline mr-1" />
-                                                Extract
-                                              </>
-                                            )}
-                                          </button>
-                                        )}
-                                      {(product.source_url?.endsWith(".pdf") ||
-                                        product.source_url?.startsWith(
-                                          "multi_pdf_batch_",
-                                        ) ||
-                                        product.source_url?.startsWith(
-                                          "multi_pdf_",
-                                        ) ||
-                                        product.source_url?.includes(
-                                          "multi_pdf",
-                                        )) &&
-                                        product.completeness_score === 0 && (
-                                          <button
-                                            onClick={() =>
-                                              handleExtractFromPdf(
-                                                product.id,
-                                                product.product_code,
-                                              )
-                                            }
-                                            disabled={
-                                              extractingPdf.has(product.id) ||
-                                              product.enrichment_status ===
-                                                "processing"
-                                            }
-                                            className="text-purple-600 hover:text-purple-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                          >
-                                            {extractingPdf.has(product.id) ||
-                                            product.enrichment_status ===
-                                              "processing" ? (
-                                              <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                              <>
-                                                <FileText className="w-4 h-4 inline mr-1" />
-                                                Extract PDF
-                                              </>
-                                            )}
-                                          </button>
-                                        )}
-                                      {product.source_url ===
-                                        "web_search_pending" &&
-                                        product.completeness_score === 0 && (
-                                          <button
-                                            onClick={() =>
-                                              handleExtractFreshMpn(
-                                                product.id,
-                                                product.product_code,
-                                              )
-                                            }
-                                            disabled={
-                                              extractingPdf.has(product.id) ||
-                                              product.enrichment_status ===
-                                                "processing"
-                                            }
-                                            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-                                          >
-                                            {extractingPdf.has(product.id) ? (
-                                              <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                              <>
-                                                <Globe className="w-4 h-4 inline mr-1" />
-                                                Extract
-                                              </>
-                                            )}
-                                          </button>
-                                        )}
-                                      {product.enrichment_status === "failed" &&
-                                        product.completeness_score === 0 && (
-                                          <button
-                                            onClick={() =>
-                                              product.source_url ===
-                                              "web_search_pending"
-                                                ? handleExtractFreshMpn(
-                                                    product.id,
-                                                    product.product_code,
-                                                  )
-                                                : handleExtractFromPdf(
-                                                    product.id,
-                                                    product.product_code,
-                                                  )
-                                            }
-                                            className="text-amber-600 hover:text-amber-700 text-sm font-medium"
-                                          >
-                                            <RefreshCw className="w-4 h-4 inline mr-1" />
-                                            Retry
-                                          </button>
-                                        )}
-                                      {/* Completed - show success indicator */}
-                                      {product.completeness_score > 0 &&
-                                        product.enrichment_status ===
-                                          "completed" && (
-                                          <div className="flex items-center gap-1 text-green-600">
-                                            <CheckCircle className="w-4 h-4" />
-                                            <span className="text-xs">
-                                              Extracted
-                                            </span>
-                                          </div>
-                                        )}
-                                    </>
-                                  ) : (
-                                    <>
-                                      {product.enrichment_status !==
-                                        "processing" && (
-                                        <button
-                                          onClick={() =>
-                                            handleAggregate(product.id)
-                                          }
-                                          disabled={
-                                            loading ||
-                                            product.enrichment_status ===
-                                              "processing" ||
-                                            aggregatingProjects.has(project.id)
-                                          }
-                                          className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
-                                        >
-                                          {product.enrichment_status ===
-                                          "completed"
-                                            ? "Re-run"
-                                            : "Run"}
-                                        </button>
-                                      )}
-                                      {product.enrichment_status ===
-                                        "processing" && (
-                                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                                      )}
-                                    </>
-                                  )}
-                                </td>
-                              </tr>
-                            ))
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {project.use_case && (
+                            <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                              {project.use_case}
+                            </span>
                           )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {filteredExpandedProducts.length > 0 && (
-                      <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-                        <span>
-                          Showing {startIndex + 1} -{" "}
-                          {Math.min(
-                            startIndex + ITEMS_PER_PAGE,
-                            filteredExpandedProducts.length,
-                          )}{" "}
-                          of {filteredExpandedProducts.length} products
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              setCurrentPage(Math.max(1, currentPage - 1))
-                            }
-                            disabled={currentPage === 1}
-                            className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </button>
-                          <span>
-                            Page {currentPage} / {totalPages || 1}
+                        </td>
+
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                            {project.product_count ?? 0}
                           </span>
-                          <button
-                            onClick={() =>
-                              setCurrentPage(
-                                Math.min(totalPages, currentPage + 1),
-                              )
-                            }
-                            disabled={
-                              currentPage === totalPages || totalPages === 0
-                            }
-                            className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  (project.completeness_score || 0) > 80
+                                    ? "bg-green-500"
+                                    : (project.completeness_score || 0) > 50
+                                      ? "bg-amber-500"
+                                      : "bg-red-400"
+                                }`}
+                                style={{
+                                  width: `${project.completeness_score || 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+                              {project.completeness_score || 0}%
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            title={project.source_status || "NA"}
+                            className="cursor-default"
                           >
-                            <ChevronRight className="w-4 h-4" />
+                            {getStatusBadge(
+                              project.source_status || "NA",
+                              true,
+                            )}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {projectEnrichmentCounts[project.id] > 0 ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigateToProject?.("enrichment", project.id);
+                              }}
+                              className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1 w-fit hover:bg-purple-200 transition-colors cursor-pointer"
+                            >
+                              <ChevronRight className="w-3 h-3" />
+                              {projectEnrichmentCounts[project.id]} in
+                              Enrichment
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </td>
+
+                        <td
+                          className="px-4 py-3 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpandProject(project.id);
+                            }}
+                            className="p-1 hover:bg-slate-200 rounded transition-colors"
+                          >
+                            {aggregatingProjects.has(project.id) ? (
+                              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                            ) : expandedProjectId === project.id ? (
+                              <ChevronUp className="w-5 h-5 text-slate-600" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-slate-400" />
+                            )}
                           </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+                        </td>
+                      </tr>
+
+                      {expandedProjectId === project.id && (
+                        <tr>
+                          <td colSpan={8} className="p-0">
+                            <div className="bg-slate-50 border-t border-b border-slate-200">
+                              {project.operation_mode === "pdf_extraction" ? (
+                                <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3 bg-white">
+                                  <button
+                                    onClick={handleExtractAllInExpanded}
+                                    disabled={
+                                      loading ||
+                                      (selectedProductIds.size > 0
+                                        ? !expandedProjectProducts.some(
+                                            (p) =>
+                                              selectedProductIds.has(p.id) &&
+                                              p.completeness_score === 0 &&
+                                              p.enrichment_status !==
+                                                "processing",
+                                          )
+                                        : expandedStats.pending === 0)
+                                    }
+                                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+                                  >
+                                    {loading ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <FileText className="w-4 h-4" />
+                                    )}
+                                    {selectedProductIds.size > 0
+                                      ? `Extract Selected (${selectedProductIds.size})`
+                                      : "Extract All Pending"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3 bg-white">
+                                  {!(
+                                    statusFilter.size === 1 &&
+                                    statusFilter.has("completed")
+                                  ) && (
+                                    <button
+                                      onClick={handleAggregateAllInExpanded}
+                                      disabled={
+                                        loading ||
+                                        aggregatingProjects.has(project.id) ||
+                                        (selectedProductIds.size > 0
+                                          ? !expandedProjectProducts.some((p) =>
+                                              selectedProductIds.has(p.id),
+                                            )
+                                          : expandedStats.pending === 0)
+                                      }
+                                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                                    >
+                                      {loading ||
+                                      aggregatingProjects.has(project.id) ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Play className="w-4 h-4" />
+                                      )}
+                                      {aggregatingProjects.has(project.id)
+                                        ? "Aggregating..."
+                                        : selectedProductIds.size > 0
+                                          ? `Aggregate Selected (${selectedProductIds.size})`
+                                          : "Aggregate All"}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              <div className="overflow-x-auto max-h-[600px]">
+                                <table className="w-full border-separate border-spacing-0">
+                                  <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 first:rounded-tl-lg">
+                                        {!isExpandedProjectSelected && (
+                                          <input
+                                            type="checkbox"
+                                            checked={
+                                              paginatedProducts.length > 0 &&
+                                              paginatedProducts.every((p) =>
+                                                selectedProductIds.has(p.id),
+                                              )
+                                            }
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                setSelectedProductIds(
+                                                  (prev) =>
+                                                    new Set([
+                                                      ...prev,
+                                                      ...paginatedProducts.map(
+                                                        (p) => p.id,
+                                                      ),
+                                                    ]),
+                                                );
+                                              } else {
+                                                setSelectedProductIds(
+                                                  (prev) => {
+                                                    const newSet = new Set(
+                                                      prev,
+                                                    );
+                                                    paginatedProducts.forEach(
+                                                      (p) =>
+                                                        newSet.delete(p.id),
+                                                    );
+                                                    return newSet;
+                                                  },
+                                                );
+                                              }
+                                            }}
+                                            className="rounded border-slate-300"
+                                          />
+                                        )}
+                                      </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                                        Product Info
+                                      </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                                        Import Source
+                                      </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                                        Completeness
+                                      </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
+                                        Status
+                                      </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 last:rounded-tr-lg">
+                                        Action
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200">
+                                    {expandedLoading ? (
+                                      <tr>
+                                        <td
+                                          colSpan={6}
+                                          className="px-4 py-8 text-center"
+                                        >
+                                          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+                                        </td>
+                                      </tr>
+                                    ) : paginatedProducts.length === 0 ? (
+                                      <tr>
+                                        <td
+                                          colSpan={6}
+                                          className="px-4 py-8 text-center text-slate-500"
+                                        >
+                                          No products found
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      paginatedProducts.map((product) => (
+                                        <tr
+                                          key={product.id}
+                                          onClick={() =>
+                                            setSelectedProduct(product.id)
+                                          }
+                                          className={`hover:bg-slate-50 cursor-pointer ${
+                                            selectedProduct === product.id
+                                              ? "bg-blue-100"
+                                              : ""
+                                          }`}
+                                        >
+                                          <td
+                                            className="px-4 py-3"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {!isExpandedProjectSelected && (
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedProductIds.has(
+                                                  product.id,
+                                                )}
+                                                onChange={(e) => {
+                                                  if (e.target.checked) {
+                                                    setSelectedProductIds(
+                                                      (prev) =>
+                                                        new Set(prev).add(
+                                                          product.id,
+                                                        ),
+                                                    );
+                                                  } else {
+                                                    setSelectedProductIds(
+                                                      (prev) => {
+                                                        const newSet = new Set(
+                                                          prev,
+                                                        );
+                                                        newSet.delete(
+                                                          product.id,
+                                                        );
+                                                        return newSet;
+                                                      },
+                                                    );
+                                                  }
+                                                }}
+                                                className="rounded border-slate-300"
+                                              />
+                                            )}
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <div>
+                                              <div className="font-semibold text-slate-900 text-sm">
+                                                {product.product_name ||
+                                                  product.product_code ||
+                                                  "N/A"}
+                                              </div>
+                                              <div className="text-xs text-slate-500 font-mono">
+                                                {product.product_code ||
+                                                  product.sku ||
+                                                  "No SKU"}
+                                              </div>
+                                              {product.brand_name && (
+                                                <div className="text-xs text-slate-400">
+                                                  {product.brand_name}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                                              <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                              <span
+                                                className="text-xs truncate max-w-[150px]"
+                                                title={
+                                                  product.source_url ||
+                                                  "Unknown source"
+                                                }
+                                              >
+                                                {product.source_url
+                                                  ? product.source_url.startsWith(
+                                                      "multi_pdf_batch_",
+                                                    )
+                                                    ? `Multi-PDF Batch ${product.source_url.slice(-8)}`
+                                                    : product.source_url.startsWith(
+                                                          "multi_pdf_",
+                                                        )
+                                                      ? `Multi-PDF Import`
+                                                      : product.source_url.replace(
+                                                          /^Manual_\d+_/,
+                                                          "",
+                                                        )
+                                                  : "Manual Entry"}
+                                              </span>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden max-w-[120px]">
+                                                <div
+                                                  className={`h-full rounded-full ${
+                                                    (product.completeness_score ||
+                                                      0) > 80
+                                                      ? "bg-green-500"
+                                                      : (product.completeness_score ||
+                                                            0) > 50
+                                                        ? "bg-amber-500"
+                                                        : "bg-red-400"
+                                                  }`}
+                                                  style={{
+                                                    width: `${
+                                                      product.completeness_score ||
+                                                      10
+                                                    }%`,
+                                                  }}
+                                                />
+                                              </div>
+                                              <span className="text-xs text-slate-600">
+                                                {product.completeness_score ||
+                                                  10}
+                                                %
+                                              </span>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            {getProductStatusBadge(
+                                              product.enrichment_status ||
+                                                "pending",
+                                            )}
+                                          </td>
+                                          <td
+                                            className="px-4 py-3"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {project.operation_mode ===
+                                            "pdf_extraction" ? (
+                                              <>
+                                                {product.source_url?.startsWith(
+                                                  "blind_pdf",
+                                                ) &&
+                                                  product.completeness_score ===
+                                                    0 && (
+                                                    <button
+                                                      onClick={() =>
+                                                        handleBlindExtract(
+                                                          product.id,
+                                                        )
+                                                      }
+                                                      disabled={extractingPdf.has(
+                                                        product.id,
+                                                      )}
+                                                      className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+                                                    >
+                                                      {extractingPdf.has(
+                                                        product.id,
+                                                      ) ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                      ) : (
+                                                        <>
+                                                          <FileText className="w-4 h-4 inline mr-1" />
+                                                          Extract
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  )}
+                                                {(product.source_url?.endsWith(
+                                                  ".pdf",
+                                                ) ||
+                                                  product.source_url?.startsWith(
+                                                    "multi_pdf_batch_",
+                                                  ) ||
+                                                  product.source_url?.startsWith(
+                                                    "multi_pdf_",
+                                                  ) ||
+                                                  product.source_url?.includes(
+                                                    "multi_pdf",
+                                                  )) &&
+                                                  product.completeness_score ===
+                                                    0 && (
+                                                    <button
+                                                      onClick={() =>
+                                                        handleExtractFromPdf(
+                                                          product.id,
+                                                          product.product_code,
+                                                        )
+                                                      }
+                                                      disabled={
+                                                        extractingPdf.has(
+                                                          product.id,
+                                                        ) ||
+                                                        product.enrichment_status ===
+                                                          "processing"
+                                                      }
+                                                      className="text-purple-600 hover:text-purple-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                      {extractingPdf.has(
+                                                        product.id,
+                                                      ) ||
+                                                      product.enrichment_status ===
+                                                        "processing" ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                      ) : (
+                                                        <>
+                                                          <FileText className="w-4 h-4 inline mr-1" />
+                                                          Extract PDF
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  )}
+                                                {product.source_url ===
+                                                  "web_search_pending" &&
+                                                  product.completeness_score ===
+                                                    0 && (
+                                                    <button
+                                                      onClick={() =>
+                                                        handleExtractFreshMpn(
+                                                          product.id,
+                                                          product.product_code,
+                                                        )
+                                                      }
+                                                      disabled={
+                                                        extractingPdf.has(
+                                                          product.id,
+                                                        ) ||
+                                                        product.enrichment_status ===
+                                                          "processing"
+                                                      }
+                                                      className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                                                    >
+                                                      {extractingPdf.has(
+                                                        product.id,
+                                                      ) ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                      ) : (
+                                                        <>
+                                                          <Globe className="w-4 h-4 inline mr-1" />
+                                                          Extract
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  )}
+                                                {product.enrichment_status ===
+                                                  "failed" &&
+                                                  product.completeness_score ===
+                                                    0 && (
+                                                    <button
+                                                      onClick={() =>
+                                                        product.source_url ===
+                                                        "web_search_pending"
+                                                          ? handleExtractFreshMpn(
+                                                              product.id,
+                                                              product.product_code,
+                                                            )
+                                                          : handleExtractFromPdf(
+                                                              product.id,
+                                                              product.product_code,
+                                                            )
+                                                      }
+                                                      className="text-amber-600 hover:text-amber-700 text-sm font-medium"
+                                                    >
+                                                      <RefreshCw className="w-4 h-4 inline mr-1" />
+                                                      Retry
+                                                    </button>
+                                                  )}
+                                                {product.completeness_score >
+                                                  0 &&
+                                                  product.enrichment_status ===
+                                                    "completed" && (
+                                                    <div className="flex items-center gap-1 text-green-600">
+                                                      <CheckCircle className="w-4 h-4" />
+                                                      <span className="text-xs">
+                                                        Extracted
+                                                      </span>
+                                                    </div>
+                                                  )}
+                                              </>
+                                            ) : (
+                                              <>
+                                                {product.enrichment_status !==
+                                                  "processing" && (
+                                                  <button
+                                                    onClick={() =>
+                                                      handleAggregate(
+                                                        product.id,
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      loading ||
+                                                      product.enrichment_status ===
+                                                        "processing" ||
+                                                      aggregatingProjects.has(
+                                                        project.id,
+                                                      )
+                                                    }
+                                                    className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
+                                                  >
+                                                    {product.enrichment_status ===
+                                                    "completed"
+                                                      ? "Re-run"
+                                                      : "Run"}
+                                                  </button>
+                                                )}
+                                                {product.enrichment_status ===
+                                                  "processing" && (
+                                                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                                )}
+                                              </>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {filteredExpandedProducts.length > 0 && (
+                                <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+                                  <span>
+                                    Showing {startIndex + 1} -{" "}
+                                    {Math.min(
+                                      startIndex + ITEMS_PER_PAGE,
+                                      filteredExpandedProducts.length,
+                                    )}{" "}
+                                    of {filteredExpandedProducts.length}{" "}
+                                    products
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() =>
+                                        setCurrentPage(
+                                          Math.max(1, currentPage - 1),
+                                        )
+                                      }
+                                      disabled={currentPage === 1}
+                                      className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
+                                    >
+                                      <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <span>
+                                      Page {currentPage} / {totalPages || 1}
+                                    </span>
+                                    <button
+                                      onClick={() =>
+                                        setCurrentPage(
+                                          Math.min(totalPages, currentPage + 1),
+                                        )
+                                      }
+                                      disabled={
+                                        currentPage === totalPages ||
+                                        totalPages === 0
+                                      }
+                                      className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
+                                    >
+                                      <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
         </div>
       </div>
       {isDrawerOpen && selectedProductData && (

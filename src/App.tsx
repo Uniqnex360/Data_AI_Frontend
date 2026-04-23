@@ -100,6 +100,10 @@ function AppShell() {
     setSelectedProject(projectId);
     setActiveTab("sources");
   };
+  const handleNavigateToProject = (tab: TabId, projectId: string) => {
+  setActiveTab(tab);
+  setSelectedProject(projectId);
+};
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;
@@ -167,6 +171,9 @@ function AppShell() {
                     onClick={() => {
                       setActiveTab(tab.id);
                       if (tab.id === "aggregation") setAggregationFilter("all");
+                      if (tab.id !== "sources") {
+      setSelectedProject(undefined);  
+    }
                     }}
                     className={`
                       flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-lg transition-all mb-1
@@ -189,26 +196,23 @@ function AppShell() {
             </div>
           </nav>
           <main className="flex-1 overflow-y-auto bg-slate-50 p-2">
-            {ActiveComponent && (
-              <ActiveComponent
-                projectId={selectedProject}
-                onProjectSelect={
-                  currentTab?.id === "sources" ? handleProjectSelect : undefined
-                }
-                onNavigate={
-                  currentTab?.id === "dashboard"
-                    ? handleDashboardNavigate
-                    : undefined
-                }
-                initialFilter={
-                  currentTab?.id === "aggregation"
-                    ? aggregationFilter
-                    : undefined
-                }
-              />
-            )}
-            {!ActiveComponent && <Navigate to={`/${fallbackTab}`} replace />}
-          </main>
+  {ActiveComponent && (
+    <ActiveComponent
+      projectId={selectedProject}
+      onProjectSelect={
+        currentTab?.id === "sources" ? handleProjectSelect : undefined
+      }
+      onNavigate={handleDashboardNavigate} 
+       onNavigateToProject={handleNavigateToProject}  
+      initialFilter={
+        currentTab?.id === "aggregation"
+          ? aggregationFilter
+          : undefined
+      }
+    />
+  )}
+  {!ActiveComponent && <Navigate to={`/${fallbackTab}`} replace />}
+</main>
         </div>
       </div>
     </>

@@ -148,6 +148,8 @@ export interface AggregatedAttribute{
 export interface AggregationTabProps {
   projectId?: string;
   initialFilter?: string;
+   onNavigate?: (tab: string, filterStatus?: string) => void;
+    onNavigateToProject?: (tab: string, projectId: string) => void; 
 }
 export interface Project {
   id: string;
@@ -334,4 +336,10 @@ export interface FiltersBarProps {
   onBrandChange: (value: string) => void;
   onReset: () => void;
   showReset: boolean;
+}
+export interface EnrichmentTabProps {
+  projectId?: string;
+  initialFilter?: string;
+  onNavigate?: (tab: string, filterStatus?: string) => void;
+  onNavigateToProject?: (tab: string, projectId: string) => void;  
 }

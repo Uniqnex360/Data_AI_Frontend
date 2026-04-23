@@ -55,6 +55,8 @@ function StatusPill({ status }: { status?: string }) {
   const s = status || "pending";
   return (
     <span
+    title=      {PRODUCT_STATUS_LABEL[s] ?? s}
+
       className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${
         s === "completed"
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -66,7 +68,6 @@ function StatusPill({ status }: { status?: string }) {
       }`}
     >
       {PRODUCT_STATUS_ICON(s)}
-      {/* {PRODUCT_STATUS_LABEL[s] ?? s} */}
     </span>
   );
 }
@@ -1667,6 +1668,7 @@ export default function DataCleaningTab() {
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
                     >
                       <div className="flex justify-center">
+                        
                         <StatusPill status={product.enrichment_status} />
                       </div>
                     </td>
