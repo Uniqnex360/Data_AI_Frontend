@@ -299,7 +299,6 @@ useEffect(() => {
       const data = projectId
         ? await dashboardService.getProjectMetrics(projectId, rangeParams)
         : await dashboardService.getGlobalMetrics(rangeParams);
-      console.log("Dashboard API Response:", data);
       setGlobalStats(data);
 
       

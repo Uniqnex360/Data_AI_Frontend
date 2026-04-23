@@ -358,7 +358,7 @@ export default function DataCleaningTab() {
       );
       if (Array.isArray(result)) {
         setProducts(result);
-        setTotal(result.length);
+        setTotal(result.total?? 0);
       } else {
         setProducts(Array.isArray(result.products) ? result.products : []);
         setTotal(result.total ?? 0);
