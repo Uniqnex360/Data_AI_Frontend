@@ -355,6 +355,12 @@ export default function DataCleaningTab() {
         undefined,
         skip,
         pageSize,
+        {
+          brand:brandFilter||undefined,
+          category:categoryFilter||undefined,
+          search:searchTerm||undefined,
+          enrichment_status:statusFilter||undefined
+        }
       );
       if (Array.isArray(result)) {
         setProducts(result);

@@ -87,46 +87,45 @@ async getProjectProductStats(
   },
 
   async getProductsByProject(
-    projectId: string,
-    workflow_stage?: string,
-    skip = 0,
-    limit = 100,
-  ): Promise<{
-    products: Product[];
-    total: number;
-    skip: number;
-    limit: number;
-    project: Project | null;
-  }> {
-    const response = await api.get("/products/", {
-      params: { project_id: projectId, skip, limit, workflow_stage },
-    });
+  projectId: string,
+  workflow_stage?: string,
+  skip = 0,
+  limit = 100,
+  filters?: {
+    brand?: string;
+    category?: string;
+    search?: string;
+    enrichment_status?: string;
+  }
+): Promise<{
+  products: Product[];
+  total: number;
+  skip: number;
+  limit: number;
+  project: Project | null;
+}> {
+  const params: Record<string, any> = { 
+    project_id: projectId, 
+    skip, 
+    limit, 
+    workflow_stage 
+  };
+  
+  if (filters?.brand) params.brand_name = filters.brand;
+  if (filters?.category) params.category_1 = filters.category;
+  if (filters?.search) params.search = filters.search;
+  if (filters?.enrichment_status) params.enrichment_status = filters.enrichment_status;
+  
+  const response = await api.get("/products/", { params });
 
-    if (
-      response.data &&
-      typeof response.data === "object" &&
-      "products" in response.data
-    ) {
-      return {
-        products: Array.isArray(response.data.products)
-          ? response.data.products
-          : [],
-        total: response.data.total ?? 0,
-        skip: response.data.skip ?? skip,
-        limit: response.data.limit ?? limit,
-        project: response.data.project ?? null,
-      };
-    }
-
-    console.warn("Unexpected API response format:", response.data);
-    return {
-      products: [],
-      total: 0,
-      skip,
-      limit,
-      project: null,
-    };
-  },
+  return {
+    products: response.data?.products ?? [],
+    total: response.data?.total ?? 0,
+    skip: response.data?.skip ?? skip,
+    limit: response.data?.limit ?? limit,
+    project: response.data?.project ?? null,
+  };
+},
 
   async getProductByCode(code: string): Promise<Product> {
     const response = await api.get(`/products/${code}`);
