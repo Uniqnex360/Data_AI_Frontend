@@ -67,7 +67,7 @@ async getProjectProductStats(
     }
   },
 
-  async getProjectFilters(projectId?: string,brand?:string,category?:string): Promise<{
+  async getProjectFilters(projectId?: string,brand?:string,category?:string, workflowStage?: string): Promise<{
     categories: string[];
     brands: string[];
   }> {
@@ -76,6 +76,7 @@ async getProjectProductStats(
        if (projectId) params.project_id = projectId;
     if (brand) params.brand_name = brand;      
     if (category) params.category_1 = category;
+    if (workflowStage) params.workflow_stage = workflowStage; 
       const { data } = await api.get("/products/filters", { params });
 
       return {

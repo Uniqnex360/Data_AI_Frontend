@@ -6,7 +6,7 @@ export function useProjectFilters() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [filtersLoading, setFiltersLoading] = useState(false);
 
-  const loadProjectFilters = useCallback(async (projectId?: string,brand?:string,category?:string) => {
+  const loadProjectFilters = useCallback(async (projectId?: string,brand?:string,category?:string, workflowStage?: string) => {
     try {
       if (!projectId) {
       setAvailableBrands([]);
@@ -14,7 +14,7 @@ export function useProjectFilters() {
       return;
     }
       setFiltersLoading(true);
-      const data = await productService.getProjectFilters(projectId,brand,category);
+      const data = await productService.getProjectFilters(projectId,brand,category,workflowStage);
       setAvailableBrands(data.brands || []);
       setAvailableCategories(data.categories || []);
     } catch (error) {

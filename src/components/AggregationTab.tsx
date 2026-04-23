@@ -1821,7 +1821,7 @@ export default function AggregationTab({
       setExpandedProjectId(projectId);
       setExpandedLoading(true);
       try {
-        await loadProjectFilters(projectId);
+         await loadProjectFilters(projectId, undefined, undefined, "aggregation"); 
 
         const result = await productService.getProductsByProject(
           projectId,
@@ -2450,7 +2450,7 @@ export default function AggregationTab({
           newSet.delete(projectId);
         } else {
           newSet.add(projectId);
-          loadProjectFilters(projectId);
+           loadProjectFilters(projectId, undefined, undefined, "aggregation");  
 
           if (expandedProjectId === projectId) {
             setSelectedProductIds(new Set());
@@ -2459,7 +2459,7 @@ export default function AggregationTab({
         return newSet;
       });
     },
-    [expandedProjectId],
+    [expandedProjectId,loadProjectFilters]
   );
   const selectedProductData = expandedProjectProducts.find(
     (p) => p.id === selectedProduct,
