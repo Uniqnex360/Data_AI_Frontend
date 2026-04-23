@@ -1376,7 +1376,24 @@ export default function DataCleaningTab() {
                 </span>
               )}
             </div>
-            <span className="text-slate-500">Total {total} products</span>
+            <div className="flex items-center gap-2">
+              {hasActiveFilters ? (
+                <>
+                <span className="text-slate-500">
+                  <span className="font-medium text-slate-700">{total}</span> matching products
+                </span>
+                <span className="text-slate-400 text-xs">*</span>
+                <span className="text-slate-400 text-xs">
+                  out of {selectedProject?.product_count ?? 0} total
+                  </span>
+                </>
+              ):(
+                <span className="text-slate-500">
+                  <span className="text-slate-500">Total {total} products</span>
+                </span>
+              )}
+            </div>
+            
           </div>
           {isCurrentPageFullySelected &&
             !allProductsSelected &&
