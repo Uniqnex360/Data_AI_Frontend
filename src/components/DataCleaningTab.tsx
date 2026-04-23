@@ -66,22 +66,25 @@ function StatusPill({ status }: { status?: string }) {
       }`}
     >
       {PRODUCT_STATUS_ICON(s)}
-      {PRODUCT_STATUS_LABEL[s] ?? s}
+      {/* {PRODUCT_STATUS_LABEL[s] ?? s} */}
     </span>
   );
 }
+
 const COL_CHECKBOX = 44;
-const COL_STATUS = 140;
-const COL_THUMB = 56;
-const COL_MPN = 140;
+const COL_STATUS = 60;
 const COL_NAME = 360;
+const COL_MPN = 140;
+const COL_THUMB = 60;
 const COL_BRAND = 160;
 const COL_CATEGORY = 180;
 const COL_ATTR = 200;
 const COL_ACTION = 110;
+
+const LEFT_CHECKBOX = 0;
 const LEFT_STATUS = COL_CHECKBOX;
-const LEFT_THUMB = LEFT_STATUS + COL_STATUS;
-const LEFT_MPN = LEFT_THUMB + COL_THUMB;
+const LEFT_NAME = LEFT_STATUS + COL_STATUS;
+const LEFT_MPN = LEFT_NAME + COL_NAME;
 const getProjectSourceStatus = (project?: Project) =>
   project?.source_status || "Yet to Start";
 function ProductThumbnail({ src, alt }: { src?: string | null; alt?: string }) {
@@ -120,28 +123,7 @@ function AttributeValueTags({
       </span>
     );
   }
-  return (
-    <div className="flex flex-wrap gap-2 mt-2">
-      {values.map((value) => (
-        <span
-          key={value}
-          title={value}
-          className="relative inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs border bg-emerald-50 text-emerald-700 border-emerald-200 max-w-full pr-6"
-        >
-          <Check className="w-4 h-4" />
-          <span className="truncate max-w-[200px]">{value}</span>
-          <button
-            type="button"
-            onClick={() => onRemove(value)}
-            title="Remove value"
-            className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-white border border-emerald-200 shadow-sm flex items-center justify-center text-emerald-700 hover:text-emerald-900 hover:border-emerald-300"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </span>
-      ))}
-    </div>
-  );
+  return null;
 }
 function AttrHeader({
   attr,
@@ -286,6 +268,8 @@ export default function DataCleaningTab() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [projectSwitching, setProjectSwitching] = useState(false);
+
   const [downloading, setDownloading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [bulkUpdating, setBulkUpdating] = useState(false);
@@ -298,13 +282,13 @@ export default function DataCleaningTab() {
   const [savingAttributes, setSavingAttributes] = useState<
     Record<string, boolean>
   >({});
-  const [filteredStats,setFilteredStats]=useState({
-    total:0,
-    completed:0,
-    pending:0,
-    processing:0,
-    failed:0
-  })
+  const [filteredStats, setFilteredStats] = useState({
+    total: 0,
+    completed: 0,
+    pending: 0,
+    processing: 0,
+    failed: 0,
+  });
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
@@ -356,15 +340,15 @@ export default function DataCleaningTab() {
         skip,
         pageSize,
         {
-          brand:brandFilter||undefined,
-          category:categoryFilter||undefined,
-          search:searchTerm||undefined,
-          enrichment_status:statusFilter||undefined
-        }
+          brand: brandFilter || undefined,
+          category: categoryFilter || undefined,
+          search: searchTerm || undefined,
+          enrichment_status: statusFilter || undefined,
+        },
       );
       if (Array.isArray(result)) {
         setProducts(result);
-        setTotal(result.total?? 0);
+        setTotal(result.total ?? 0);
       } else {
         setProducts(Array.isArray(result.products) ? result.products : []);
         setTotal(result.total ?? 0);
@@ -397,6 +381,31 @@ export default function DataCleaningTab() {
     },
     [],
   );
+  const handleBrandChange = async (brand: string) => {
+    setBrandFilter(brand);
+    setPage(1);
+    if (selectedProjectId) {
+      await loadProjectFilters(
+        selectedProjectId,
+        brand || undefined,
+        categoryFilter || undefined,
+      );
+    }
+  };
+  const handleCategoryChange = async (category: string) => {
+    setCategoryFilter(category);
+    setPage(1);
+    setColSorts([]);
+    setColFilters([]);
+    if (selectedProjectId) {
+      await loadProjectFilters(
+        selectedProjectId,
+        brandFilter || undefined,
+        category || undefined,
+      );
+      await loadProjectAttributes(selectedProjectId, category || undefined);
+    }
+  };
   const toggleSort = (attr: string) => {
     setColSorts((prev) => {
       const existing = prev.find((s) => s.attr === attr);
@@ -475,7 +484,7 @@ export default function DataCleaningTab() {
     colFilters,
     colSorts,
   ]);
-  
+
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
     [projects, selectedProjectId],
@@ -494,7 +503,7 @@ export default function DataCleaningTab() {
               bulk_attributes:
                 selectedBulkAttributes.length > 0
                   ? selectedBulkAttributes
-                  : undefined, 
+                  : undefined,
             }
           : undefined;
         const stats = await productService.getProjectProductStats(
@@ -537,28 +546,33 @@ export default function DataCleaningTab() {
     colFilters,
     selectedBulkAttributes,
   ]);
-  const projectStatusSummary = useMemo(()=>{
-    if(hasActiveFilters)
-    {
-      return filteredStats
+  const projectStatusSummary = useMemo(() => {
+    if (hasActiveFilters) {
+      return filteredStats;
     }
-    return projectStats
-  },[hasActiveFilters,filteredStats,projectStats])
+    return projectStats;
+  }, [hasActiveFilters, filteredStats, projectStats]);
   useEffect(() => {
     if (selectedProjectId) {
       if (hasActiveFilters) {
-        loadProjectStats(selectedProjectId,true);
+        loadProjectStats(selectedProjectId, true);
       } else {
         loadProjectStats(selectedProjectId, false);
       }
     }
   }, [selectedProjectId, hasActiveFilters, loadProjectStats]);
   useEffect(() => {
-  if (selectedProjectId) {
-    setPage(1);
-    loadProducts();
-  }
-}, [selectedProjectId, statusFilter, brandFilter, categoryFilter, searchTerm]);
+    if (selectedProjectId) {
+      setPage(1);
+      loadProducts();
+    }
+  }, [
+    selectedProjectId,
+    statusFilter,
+    brandFilter,
+    categoryFilter,
+    searchTerm,
+  ]);
   const isCurrentPageFullySelected =
     filteredSortedProducts.length > 0 &&
     filteredSortedProducts.every((p) => selectedProductIds.has(p.id));
@@ -968,21 +982,30 @@ export default function DataCleaningTab() {
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Project
               </label>
-              <select
-                value={selectedProjectId}
-                onChange={async (e) => {
-                  const id = e.target.value;
-                  setSelectedProjectId(id);
-                  setPage(1);
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                  setColSorts([]);
-                  setColFilters([]);
-                  await loadProjectFilters(id || undefined);
-                  await loadProjectAttributes(id);
-                }}
-                className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+             <select
+  value={selectedProjectId}
+  onChange={async (e) => {
+    const id = e.target.value;
+    setProjectSwitching(true); 
+    setSelectedProjectId(id);
+    setPage(1);
+    setAllProductsSelected(false);
+    setSelectedProductIds(new Set());
+    setColSorts([]);
+    setColFilters([]);
+    try {
+      await loadProjectFilters(
+        id || undefined,
+        brandFilter || undefined,
+        categoryFilter || undefined,
+      );
+      await loadProjectAttributes(id);
+    } finally {
+      setProjectSwitching(false);
+    }
+  }}
+  className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
                 <option value="">All Projects</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1012,7 +1035,7 @@ export default function DataCleaningTab() {
               </label>
               <select
                 value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
+                onChange={(e) => handleBrandChange(e.target.value)}
                 disabled={availableBrands.length === 0}
                 className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
               >
@@ -1028,20 +1051,12 @@ export default function DataCleaningTab() {
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Category
               </label>
-             <select
-  value={categoryFilter}
-  onChange={async (e) => {
-    const cat = e.target.value;
-    setCategoryFilter(cat);
-    setColSorts([]);
-    setColFilters([]);
-    setPage(1); // ✅ Reset to first page
-    await loadProjectAttributes(selectedProjectId, cat || undefined);
-    // ✅ loadProducts will be triggered by the useEffect below
-  }}
-  disabled={availableCategories.length === 0}
-  className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
->
+              <select
+                value={categoryFilter}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                disabled={availableCategories.length === 0}
+                className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+              >
                 <option value="">All Categories</option>
                 {availableCategories.map((c) => (
                   <option key={c} value={c}>
@@ -1320,14 +1335,19 @@ export default function DataCleaningTab() {
                 <button
                   key={project.id}
                   type="button"
-                  onClick={async () => {
-                    setSelectedProjectId(project.id);
-                    setPage(1);
-                    setAllProductsSelected(false);
-                    setSelectedProductIds(new Set());
-                    await loadProjectFilters(project.id);
-                    await loadProjectAttributes(project.id);
-                  }}
+                 onClick={async () => {
+  setProjectSwitching(true); 
+  setSelectedProjectId(project.id);
+  setPage(1);
+  setAllProductsSelected(false);
+  setSelectedProductIds(new Set());
+  try {
+    await loadProjectFilters(project.id);
+    await loadProjectAttributes(project.id);
+  } finally {
+    setProjectSwitching(false); 
+  }
+}}
                   className="w-full p-3 border border-slate-200 rounded-lg text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
                 >
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1350,7 +1370,7 @@ export default function DataCleaningTab() {
             </div>
           )}
         </div>
-      ) : loading ? (
+     ) : loading || projectSwitching ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         </div>
@@ -1384,21 +1404,21 @@ export default function DataCleaningTab() {
             <div className="flex items-center gap-2">
               {hasActiveFilters ? (
                 <>
-                <span className="text-slate-500">
-                  <span className="font-medium text-slate-700">{total}</span> matching products
-                </span>
-                <span className="text-slate-400 text-xs">*</span>
-                <span className="text-slate-400 text-xs">
-                  out of {selectedProject?.product_count ?? 0} total
+                  <span className="text-slate-500">
+                    <span className="font-medium text-slate-700">{total}</span>{" "}
+                    matching products
+                  </span>
+                  <span className="text-slate-400 text-xs">*</span>
+                  <span className="text-slate-400 text-xs">
+                    out of {selectedProject?.product_count ?? 0} total
                   </span>
                 </>
-              ):(
+              ) : (
                 <span className="text-slate-500">
                   <span className="text-slate-500">Total {total} products</span>
                 </span>
               )}
             </div>
-            
           </div>
           {isCurrentPageFullySelected &&
             !allProductsSelected &&
@@ -1495,9 +1515,9 @@ export default function DataCleaningTab() {
                 width:
                   COL_CHECKBOX +
                   COL_STATUS +
-                  COL_THUMB +
-                  COL_MPN +
                   COL_NAME +
+                  COL_MPN +
+                  COL_THUMB +
                   COL_BRAND +
                   COL_CATEGORY +
                   COL_ACTION +
@@ -1510,7 +1530,7 @@ export default function DataCleaningTab() {
                     style={{
                       width: COL_CHECKBOX,
                       minWidth: COL_CHECKBOX,
-                      left: 0,
+                      left: LEFT_CHECKBOX,
                       position: "sticky",
                       zIndex: 50,
                     }}
@@ -1525,6 +1545,7 @@ export default function DataCleaningTab() {
                       className="rounded border-slate-300 text-blue-600"
                     />
                   </th>
+
                   <th
                     style={{
                       width: COL_STATUS,
@@ -1533,22 +1554,24 @@ export default function DataCleaningTab() {
                       position: "sticky",
                       zIndex: 50,
                     }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
                   >
                     Status
                   </th>
+
                   <th
                     style={{
-                      width: COL_THUMB,
-                      minWidth: COL_THUMB,
-                      left: LEFT_THUMB,
+                      width: COL_NAME,
+                      minWidth: COL_NAME,
+                      left: LEFT_NAME,
                       position: "sticky",
                       zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
-                    Image
+                    Product Name
                   </th>
+
                   <th
                     style={{
                       width: COL_MPN,
@@ -1561,32 +1584,28 @@ export default function DataCleaningTab() {
                   >
                     MPN
                   </th>
+
                   <th
-                    style={{ width: COL_NAME, minWidth: COL_NAME, zIndex: 40 }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                    style={{ width: COL_THUMB, minWidth: COL_THUMB }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
                   >
-                    Product Name
+                    Image
                   </th>
+
                   <th
-                    style={{
-                      width: COL_BRAND,
-                      minWidth: COL_BRAND,
-                      zIndex: 40,
-                    }}
+                    style={{ width: COL_BRAND, minWidth: COL_BRAND }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Brand
                   </th>
+
                   <th
-                    style={{
-                      width: COL_CATEGORY,
-                      minWidth: COL_CATEGORY,
-                      zIndex: 40,
-                    }}
+                    style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Category
                   </th>
+
                   {availableAttributes.map((attr) => (
                     <AttrHeader
                       key={attr}
@@ -1597,6 +1616,7 @@ export default function DataCleaningTab() {
                       onFilter={(v) => setColFilter(attr, v)}
                     />
                   ))}
+
                   <th
                     style={{
                       width: COL_ACTION,
@@ -1621,7 +1641,7 @@ export default function DataCleaningTab() {
                       style={{
                         width: COL_CHECKBOX,
                         position: "sticky",
-                        left: 0,
+                        left: LEFT_CHECKBOX,
                         zIndex: 20,
                       }}
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
@@ -1636,6 +1656,7 @@ export default function DataCleaningTab() {
                         className="rounded border-slate-300 text-blue-600"
                       />
                     </td>
+
                     <td
                       style={{
                         width: COL_STATUS,
@@ -1645,22 +1666,28 @@ export default function DataCleaningTab() {
                       }}
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
                     >
-                      <StatusPill status={product.enrichment_status} />
+                      <div className="flex justify-center">
+                        <StatusPill status={product.enrichment_status} />
+                      </div>
                     </td>
+
                     <td
                       style={{
-                        width: COL_THUMB,
+                        width: COL_NAME,
                         position: "sticky",
-                        left: LEFT_THUMB,
+                        left: LEFT_NAME,
                         zIndex: 20,
                       }}
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
                     >
-                      <ProductThumbnail
-                        src={(product as any).image_url_1}
-                        alt={product.product_name}
-                      />
+                      <span
+                        className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
+                        title={product.product_name}
+                      >
+                        {product.product_name}
+                      </span>
                     </td>
+
                     <td
                       style={{
                         width: COL_MPN,
@@ -1677,17 +1704,19 @@ export default function DataCleaningTab() {
                         {product.product_code}
                       </span>
                     </td>
+
                     <td
-                      style={{ width: COL_NAME }}
+                      style={{ width: COL_THUMB }}
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
                     >
-                      <span
-                        className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
-                        title={product.product_name}
-                      >
-                        {product.product_name}
-                      </span>
+                      <div className="flex justify-center">
+                        <ProductThumbnail
+                          src={(product as any).image_url_1}
+                          alt={product.product_name}
+                        />
+                      </div>
                     </td>
+
                     <td
                       style={{ width: COL_BRAND }}
                       className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
@@ -1696,6 +1725,7 @@ export default function DataCleaningTab() {
                         {product.brand_name}
                       </span>
                     </td>
+
                     <td
                       style={{ width: COL_CATEGORY }}
                       className="px-3 py-4 border-r border-slate-200 bg-white group-hover:bg-slate-50/70"
@@ -1704,6 +1734,7 @@ export default function DataCleaningTab() {
                         {product.category_1}
                       </span>
                     </td>
+
                     {availableAttributes.map((attr) => {
                       const dynAttr = (product.dynamic_attributes || []).find(
                         (a) => a.name === attr,
@@ -1722,9 +1753,7 @@ export default function DataCleaningTab() {
                         <td
                           key={attr}
                           style={{ width: COL_ATTR, minWidth: COL_ATTR }}
-                          className={`border-r border-slate-100 align-top ${
-                            conflict ? "bg-amber-50/30" : ""
-                          }`}
+                          className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}
                         >
                           <div className="px-2 py-3">
                             <div className="flex items-start gap-2">
@@ -1774,6 +1803,7 @@ export default function DataCleaningTab() {
                         </td>
                       );
                     })}
+
                     <td
                       style={{
                         width: COL_ACTION,

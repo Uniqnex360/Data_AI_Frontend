@@ -6,10 +6,15 @@ export function useProjectFilters() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [filtersLoading, setFiltersLoading] = useState(false);
 
-  const loadProjectFilters = useCallback(async (projectId?: string) => {
+  const loadProjectFilters = useCallback(async (projectId?: string,brand?:string,category?:string) => {
     try {
+      if (!projectId) {
+      setAvailableBrands([]);
+      setAvailableCategories([]);
+      return;
+    }
       setFiltersLoading(true);
-      const data = await productService.getProjectFilters(projectId);
+      const data = await productService.getProjectFilters(projectId,brand,category);
       setAvailableBrands(data.brands || []);
       setAvailableCategories(data.categories || []);
     } catch (error) {

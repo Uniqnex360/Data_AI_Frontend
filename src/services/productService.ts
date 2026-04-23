@@ -67,13 +67,15 @@ async getProjectProductStats(
     }
   },
 
-  async getProjectFilters(projectId?: string): Promise<{
+  async getProjectFilters(projectId?: string,brand?:string,category?:string): Promise<{
     categories: string[];
     brands: string[];
   }> {
     try {
-      const params = projectId ? { project_id: projectId } : undefined;
-
+      const params: Record<string, string> = {};
+       if (projectId) params.project_id = projectId;
+    if (brand) params.brand_name = brand;      
+    if (category) params.category_1 = category;
       const { data } = await api.get("/products/filters", { params });
 
       return {
