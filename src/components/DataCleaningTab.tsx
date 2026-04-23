@@ -553,6 +553,12 @@ export default function DataCleaningTab() {
       }
     }
   }, [selectedProjectId, hasActiveFilters, loadProjectStats]);
+  useEffect(() => {
+  if (selectedProjectId) {
+    setPage(1);
+    loadProducts();
+  }
+}, [selectedProjectId, statusFilter, brandFilter, categoryFilter, searchTerm]);
   const isCurrentPageFullySelected =
     filteredSortedProducts.length > 0 &&
     filteredSortedProducts.every((p) => selectedProductIds.has(p.id));
@@ -1022,21 +1028,20 @@ export default function DataCleaningTab() {
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Category
               </label>
-              <select
-                value={categoryFilter}
-                onChange={async (e) => {
-                  const cat = e.target.value;
-                  setCategoryFilter(cat);
-                  setColSorts([]);
-                  setColFilters([]);
-                  await loadProjectAttributes(
-                    selectedProjectId,
-                    cat || undefined,
-                  );
-                }}
-                disabled={availableCategories.length === 0}
-                className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
-              >
+             <select
+  value={categoryFilter}
+  onChange={async (e) => {
+    const cat = e.target.value;
+    setCategoryFilter(cat);
+    setColSorts([]);
+    setColFilters([]);
+    setPage(1); // ✅ Reset to first page
+    await loadProjectAttributes(selectedProjectId, cat || undefined);
+    // ✅ loadProducts will be triggered by the useEffect below
+  }}
+  disabled={availableCategories.length === 0}
+  className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+>
                 <option value="">All Categories</option>
                 {availableCategories.map((c) => (
                   <option key={c} value={c}>
