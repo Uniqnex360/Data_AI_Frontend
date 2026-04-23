@@ -23,7 +23,6 @@ import { Product, Project } from "../types/business-rules.types.ts";
 import { cleansingService } from "../services/cleansingService";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
-
 type SortDir = "asc" | "desc" | null;
 interface ColSort {
   attr: string;
@@ -33,7 +32,6 @@ interface ColFilter {
   attr: string;
   value: string;
 }
-
 const PRODUCT_STATUS_ICON = (status?: string) => {
   switch (status) {
     case "completed":
@@ -47,14 +45,12 @@ const PRODUCT_STATUS_ICON = (status?: string) => {
       return <Clock className="w-4 h-4 text-amber-600" />;
   }
 };
-
 const PRODUCT_STATUS_LABEL: Record<string, string> = {
   completed: "Completed",
   pending: "Pending",
   failed: "Failed",
   processing: "Processing",
 };
-
 function StatusPill({ status }: { status?: string }) {
   const s = status || "pending";
   return (
@@ -74,7 +70,6 @@ function StatusPill({ status }: { status?: string }) {
     </span>
   );
 }
-
 const COL_CHECKBOX = 44;
 const COL_STATUS = 140;
 const COL_THUMB = 56;
@@ -84,14 +79,11 @@ const COL_BRAND = 160;
 const COL_CATEGORY = 180;
 const COL_ATTR = 200;
 const COL_ACTION = 110;
-
 const LEFT_STATUS = COL_CHECKBOX;
 const LEFT_THUMB = LEFT_STATUS + COL_STATUS;
 const LEFT_MPN = LEFT_THUMB + COL_THUMB;
-
 const getProjectSourceStatus = (project?: Project) =>
   project?.source_status || "Yet to Start";
-
 function ProductThumbnail({ src, alt }: { src?: string | null; alt?: string }) {
   if (!src) {
     return (
@@ -113,7 +105,6 @@ function ProductThumbnail({ src, alt }: { src?: string | null; alt?: string }) {
     </div>
   );
 }
-
 function AttributeValueTags({
   values,
   onRemove,
@@ -129,7 +120,6 @@ function AttributeValueTags({
       </span>
     );
   }
-
   return (
     <div className="flex flex-wrap gap-2 mt-2">
       {values.map((value) => (
@@ -153,7 +143,6 @@ function AttributeValueTags({
     </div>
   );
 }
-
 function AttrHeader({
   attr,
   sort,
@@ -170,7 +159,6 @@ function AttrHeader({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filter);
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node))
@@ -179,10 +167,8 @@ function AttrHeader({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
   const SortIcon =
     sort === "asc" ? ArrowUp : sort === "desc" ? ArrowDown : ArrowUpDown;
-
   return (
     <th
       style={{ width: COL_ATTR, minWidth: COL_ATTR, zIndex: 40 }}
@@ -210,7 +196,6 @@ function AttrHeader({
         >
           <Filter className="w-3.5 h-3.5" />
         </button>
-
         {open && (
           <div className="absolute top-full left-0 z-50 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3">
             <div className="mb-2">
@@ -280,48 +265,46 @@ function AttrHeader({
     </th>
   );
 }
-
 export default function DataCleaningTab() {
-  // ── Pagination ────────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [total, setTotal] = useState(0);
-
-  // ── Selection ─────────────────────────────────────────────────────────────
   const [allProductsSelected, setAllProductsSelected] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     new Set(),
   );
   const [projectStats, setProjectStats] = useState({
-  total: 0,
-  completed: 0,
-  pending: 0,
-  processing: 0,
-  failed: 0,
-});
-const [statsLoading, setStatsLoading] = useState(false);
-
-  // ── Projects / Products ───────────────────────────────────────────────────
+    total: 0,
+    completed: 0,
+    pending: 0,
+    processing: 0,
+    failed: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // ── Actions ───────────────────────────────────────────────────────────────
   const [downloading, setDownloading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [bulkUpdating, setBulkUpdating] = useState(false);
-
-  // ── Attribute editing ─────────────────────────────────────────────────────
   const [editingAttributes, setEditingAttributes] = useState<
-    Record<string, Record<string, { value: string; uom: string; values?: string[] }>>
+    Record<
+      string,
+      Record<string, { value: string; uom: string; values?: string[] }>
+    >
   >({});
   const [savingAttributes, setSavingAttributes] = useState<
     Record<string, boolean>
   >({});
-
-  // ── Filters / sorts ───────────────────────────────────────────────────────
+  const [filteredStats,setFilteredStats]=useState({
+    total:0,
+    completed:0,
+    pending:0,
+    processing:0,
+    failed:0
+  })
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
@@ -329,8 +312,6 @@ const [statsLoading, setStatsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [colSorts, setColSorts] = useState<ColSort[]>([]);
   const [colFilters, setColFilters] = useState<ColFilter[]>([]);
-
-  // ── Bulk attributes ───────────────────────────────────────────────────────
   const [availableAttributes, setAvailableAttributes] = useState<string[]>([]);
   const [selectedBulkAttributes, setSelectedBulkAttributes] = useState<
     string[]
@@ -339,71 +320,57 @@ const [statsLoading, setStatsLoading] = useState(false);
     Record<string, string>
   >({});
   const [bulkSearch, setBulkSearch] = useState("");
-
   const { availableBrands, availableCategories, loadProjectFilters } =
     useProjectFilters();
-
   const llmOptions = [
     { value: "openai", label: "Datavio Algo-1" },
     { value: "gemini", label: "Datavio Algo-2" },
     { value: "claude", label: "Datavio Algo-3" },
   ];
-
-  // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
     loadProjects();
     loadProjectFilters();
   }, [loadProjectFilters]);
-
   useEffect(() => {
     if (selectedProjectId) loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProjectId, page, pageSize]);
-
-  // ── Data loaders ──────────────────────────────────────────────────────────
   const loadProjects = async () => {
     setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects();
-      setProjects(
-        data.filter((p: Project) => p.operation_mode === "cleaning"),
-      );
+      setProjects(data.filter((p: Project) => p.operation_mode === "cleaning"));
     } catch {
       notify.error("Failed to load projects");
     } finally {
       setProjectsLoading(false);
     }
   };
-
   const loadProducts = async () => {
-  if (!selectedProjectId) return;
-  setLoading(true);
-  try {
-    const skip = (page - 1) * pageSize;
-    const result = await productService.getProductsByProject(
-      selectedProjectId,
-      undefined,
-      skip,
-      pageSize,
-    );
-
-    // ✅ Safety: handle both array and paginated object responses
-    if (Array.isArray(result)) {
-      setProducts(result);
-      setTotal(result.length);
-    } else {
-      setProducts(Array.isArray(result.products) ? result.products : []);
-      setTotal(result.total ?? 0);
+    if (!selectedProjectId) return;
+    setLoading(true);
+    try {
+      const skip = (page - 1) * pageSize;
+      const result = await productService.getProductsByProject(
+        selectedProjectId,
+        undefined,
+        skip,
+        pageSize,
+      );
+      if (Array.isArray(result)) {
+        setProducts(result);
+        setTotal(result.length);
+      } else {
+        setProducts(Array.isArray(result.products) ? result.products : []);
+        setTotal(result.total ?? 0);
+      }
+    } catch {
+      notify.error("Failed to load products");
+      setProducts([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-  } catch {
-    notify.error("Failed to load products");
-    setProducts([]); // ✅ prevent "not iterable" crash
-    setTotal(0);
-  } finally {
-    setLoading(false);
-  }
-};
-  
+  };
   const loadProjectAttributes = useCallback(
     async (projectId: string, category?: string) => {
       if (!projectId) {
@@ -424,8 +391,6 @@ const [statsLoading, setStatsLoading] = useState(false);
     },
     [],
   );
-
-  // ── Sort / filter helpers ─────────────────────────────────────────────────
   const toggleSort = (attr: string) => {
     setColSorts((prev) => {
       const existing = prev.find((s) => s.attr === attr);
@@ -435,30 +400,23 @@ const [statsLoading, setStatsLoading] = useState(false);
       return prev.filter((s) => s.attr !== attr);
     });
   };
-
   const setColFilter = (attr: string, value: string) => {
     setColFilters((prev) => {
       const without = prev.filter((f) => f.attr !== attr);
       return value ? [...without, { attr, value }] : without;
     });
   };
-
   const getSort = (attr: string): SortDir =>
     colSorts.find((s) => s.attr === attr)?.dir ?? null;
-
   const getFilter = (attr: string): string =>
     colFilters.find((f) => f.attr === attr)?.value ?? "";
-
-  // ── Derived lists ─────────────────────────────────────────────────────────
   const filteredSortedProducts = useMemo(() => {
     let list = [...products];
-
     if (statusFilter)
       list = list.filter((p) => p.enrichment_status === statusFilter);
     if (brandFilter) list = list.filter((p) => p.brand_name === brandFilter);
     if (categoryFilter)
       list = list.filter((p) => p.category_1 === categoryFilter);
-
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       list = list.filter(
@@ -469,7 +427,6 @@ const [statsLoading, setStatsLoading] = useState(false);
           (p.category_1 || "").toLowerCase().includes(q),
       );
     }
-
     if (selectedBulkAttributes.length > 0) {
       list = list.filter((product) => {
         const productAttrs = (product.dynamic_attributes || []).map(
@@ -480,7 +437,6 @@ const [statsLoading, setStatsLoading] = useState(false);
         );
       });
     }
-
     for (const { attr, value } of colFilters) {
       const v = value.toLowerCase();
       list = list.filter((p) => {
@@ -488,7 +444,6 @@ const [statsLoading, setStatsLoading] = useState(false);
         return (a?.value ?? "").toLowerCase().includes(v);
       });
     }
-
     for (const { attr, dir } of [...colSorts].reverse()) {
       list.sort((a, b) => {
         const va =
@@ -503,7 +458,6 @@ const [statsLoading, setStatsLoading] = useState(false);
         return dir === "asc" ? cmp : -cmp;
       });
     }
-
     return list;
   }, [
     products,
@@ -516,43 +470,87 @@ const [statsLoading, setStatsLoading] = useState(false);
     colSorts,
   ]);
   
-  const projectStatusSummary = projectStats;
-
-
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
     [projects, selectedProjectId],
   );
-  const loadProjectStats = useCallback(async (projectId: string) => {
-  if (!projectId) return;
-  
-  setStatsLoading(true);
-  try {
-    const stats = await productService.getProjectProductStats(projectId);
-    setProjectStats(stats);
-  } catch (error) {
-    console.error('Failed to load project stats:', error);
-    // Fallback to product_count from selected project
-    setProjectStats(prev => ({
-      ...prev,
-      total: selectedProject?.product_count ?? 0,
-    }));
-  } finally {
-    setStatsLoading(false);
-  }
-}, [selectedProject]);
-  // ── Selection helpers ─────────────────────────────────────────────────────
+  const loadProjectStats = useCallback(
+    async (projectId: string, useFilters = false) => {
+      if (!projectId) return;
+      setStatsLoading(true);
+      try {
+        const filters = useFilters
+          ? {
+              brand: brandFilter || undefined,
+              category: categoryFilter || undefined,
+              search: searchTerm || undefined,
+              enrichment_status: statusFilter || undefined,
+              bulk_attributes:
+                selectedBulkAttributes.length > 0
+                  ? selectedBulkAttributes
+                  : undefined, 
+            }
+          : undefined;
+        const stats = await productService.getProjectProductStats(
+          projectId,
+          filters,
+        );
+        if (useFilters) {
+          setFilteredStats(stats);
+        } else {
+          setProjectStats(stats);
+        }
+      } catch (error) {
+        console.error("Failed to load project stats:", error);
+      } finally {
+        setStatsLoading(false);
+      }
+    },
+    [
+      brandFilter,
+      categoryFilter,
+      searchTerm,
+      statusFilter,
+      selectedBulkAttributes,
+    ],
+  );
+  const hasActiveFilters = useMemo(() => {
+    return !!(
+      statusFilter ||
+      brandFilter ||
+      categoryFilter ||
+      searchTerm ||
+      colFilters.length > 0 ||
+      selectedBulkAttributes.length > 0
+    );
+  }, [
+    statusFilter,
+    brandFilter,
+    categoryFilter,
+    searchTerm,
+    colFilters,
+    selectedBulkAttributes,
+  ]);
+  const projectStatusSummary = useMemo(()=>{
+    if(hasActiveFilters)
+    {
+      return filteredStats
+    }
+    return projectStats
+  },[hasActiveFilters,filteredStats,projectStats])
   useEffect(() => {
-  if (selectedProjectId) {
-    loadProjectStats(selectedProjectId);
-  }
-}, [selectedProjectId, loadProjectStats]);
+    if (selectedProjectId) {
+      if (hasActiveFilters) {
+        loadProjectStats(selectedProjectId,true);
+      } else {
+        loadProjectStats(selectedProjectId, false);
+      }
+    }
+  }, [selectedProjectId, hasActiveFilters, loadProjectStats]);
   const isCurrentPageFullySelected =
     filteredSortedProducts.length > 0 &&
     filteredSortedProducts.every((p) => selectedProductIds.has(p.id));
-
   const toggleProduct = (id: string) => {
-    // deselect all-products mode when user manually toggles
     setAllProductsSelected(false);
     setSelectedProductIds((prev) => {
       const next = new Set(prev);
@@ -560,49 +558,35 @@ const [statsLoading, setStatsLoading] = useState(false);
       return next;
     });
   };
-
-  /**
-   * Header checkbox behaviour:
-   *  • If allProductsSelected → clear everything
-   *  • If current page fully selected → clear current page
-   *  • Otherwise → select current page
-   */
   const toggleAll = () => {
     if (allProductsSelected) {
       setAllProductsSelected(false);
       setSelectedProductIds(new Set());
       return;
     }
-
     if (isCurrentPageFullySelected) {
-      // Deselect current page only
       setSelectedProductIds((prev) => {
         const next = new Set(prev);
         filteredSortedProducts.forEach((p) => next.delete(p.id));
         return next;
       });
     } else {
-      // Select all on current page
-      setSelectedProductIds(
-        new Set(filteredSortedProducts.map((p) => p.id)),
-      );
+      setSelectedProductIds(new Set(filteredSortedProducts.map((p) => p.id)));
     }
   };
-
-  // ── Attribute helpers ─────────────────────────────────────────────────────
   const getAttrValues = (product: Product, attrName: string): string[] => {
     const editedEntry = editingAttributes[product.id]?.[attrName];
-
     if (editedEntry?.values) return editedEntry.values;
-
     if (typeof editedEntry?.value === "string") {
       const s = editedEntry.value.trim();
       if (!s) return [];
       return s.includes("|")
-        ? s.split("|").map((v) => v.trim()).filter(Boolean)
+        ? s
+            .split("|")
+            .map((v) => v.trim())
+            .filter(Boolean)
         : [s];
     }
-
     const dynAttr = (product.dynamic_attributes || []).find(
       (a) => a.name === attrName,
     );
@@ -611,12 +595,14 @@ const [statsLoading, setStatsLoading] = useState(false);
       return dynAttr.value.filter(Boolean).map(String);
     if (typeof dynAttr.value === "string") {
       return dynAttr.value.includes("|")
-        ? dynAttr.value.split("|").map((v) => v.trim()).filter(Boolean)
+        ? dynAttr.value
+            .split("|")
+            .map((v) => v.trim())
+            .filter(Boolean)
         : [dynAttr.value];
     }
     return [String(dynAttr.value)];
   };
-
   const handleAttributeChange = (
     productId: string,
     attrName: string,
@@ -642,7 +628,6 @@ const [statsLoading, setStatsLoading] = useState(false);
       },
     }));
   };
-
   const handleRemoveAttributeValue = (
     product: Product,
     attrName: string,
@@ -682,11 +667,9 @@ const [statsLoading, setStatsLoading] = useState(false);
       },
     });
   };
-
   const handleSaveAttributes = async (productId: string) => {
     const changes = editingAttributes[productId];
     if (!changes || Object.keys(changes).length === 0) return;
-
     setSavingAttributes((prev) => ({ ...prev, [productId]: true }));
     try {
       await cleansingService.updateProductAttributes(
@@ -715,8 +698,6 @@ const [statsLoading, setStatsLoading] = useState(false);
       });
     }
   };
-
-  // ── Cleaning ──────────────────────────────────────────────────────────────
   const pollCleaning = (taskId: string, productIds: string[]) => {
     const iv = setInterval(async () => {
       try {
@@ -746,7 +727,6 @@ const [statsLoading, setStatsLoading] = useState(false);
       }
     }, 2500);
   };
-
   const handleCleanProduct = async (productId: string) => {
     setCleaning(true);
     setProducts((prev) =>
@@ -772,14 +752,11 @@ const [statsLoading, setStatsLoading] = useState(false);
       setCleaning(false);
     }
   };
-
   const handleCleanSelected = async () => {
-    // ✅ FIX: allow action when allProductsSelected even if selectedProductIds is empty
     if (!allProductsSelected && selectedProductIds.size === 0) {
       notify.info("No products selected");
       return;
     }
-
     setCleaning(true);
     try {
       let result;
@@ -787,8 +764,8 @@ const [statsLoading, setStatsLoading] = useState(false);
         result = await cleansingService.runCleaning(
           selectedProjectId,
           selectedLLM,
-          [],    // empty → backend cleans all by project_id
-          true,  // allProducts flag
+          [],
+          true,
         );
         notify.success("Cleaning started", `Cleaning all ${total} products`);
       } else {
@@ -805,7 +782,6 @@ const [statsLoading, setStatsLoading] = useState(false);
         );
         notify.success("Cleaning started", `Cleaning ${ids.length} product(s)`);
       }
-
       pollCleaning(result.task_id, Array.from(selectedProductIds));
       setSelectedProductIds(new Set());
       setAllProductsSelected(false);
@@ -814,16 +790,12 @@ const [statsLoading, setStatsLoading] = useState(false);
       setCleaning(false);
     }
   };
-
-  // ── Download ──────────────────────────────────────────────────────────────
   const handleDownloadSelected = async () => {
     setDownloading(true);
     try {
       const blob = await cleansingService.downloadSelected({
         project_ids: allProductsSelected ? [selectedProjectId] : [],
-        product_ids: allProductsSelected
-          ? []
-          : Array.from(selectedProductIds),
+        product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -840,8 +812,6 @@ const [statsLoading, setStatsLoading] = useState(false);
       setDownloading(false);
     }
   };
-
-  // ── Bulk update ───────────────────────────────────────────────────────────
   const handleBulkUpdate = async () => {
     if (!allProductsSelected && selectedProductIds.size === 0) {
       notify.info("No products selected");
@@ -859,9 +829,7 @@ const [statsLoading, setStatsLoading] = useState(false);
     setBulkUpdating(true);
     try {
       await cleansingService.bulkUpdateProductAttributes({
-        product_ids: allProductsSelected
-          ? []
-          : Array.from(selectedProductIds),
+        product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
         project_id: allProductsSelected ? selectedProjectId : undefined,
         attributes: attrs,
       });
@@ -877,14 +845,12 @@ const [statsLoading, setStatsLoading] = useState(false);
       setBulkUpdating(false);
     }
   };
-
-  // ── Reset ─────────────────────────────────────────────────────────────────
   const handleReset = () => {
     setSelectedProjectId("");
     setSelectedProductIds(new Set());
-    setAllProductsSelected(false); // ✅ FIX: reset this too
-    setPage(1);                    // ✅ FIX: reset page
-    setTotal(0);                   // ✅ FIX: reset total
+    setAllProductsSelected(false);
+    setPage(1);
+    setTotal(0);
     setStatusFilter("");
     setBrandFilter("");
     setCategoryFilter("");
@@ -900,25 +866,16 @@ const [statsLoading, setStatsLoading] = useState(false);
     loadProjectFilters();
   };
   const pageSizeOptions = useMemo(() => {
-  if (!total) return [pageSize];
-
-  return Array.from(
-    new Set([
-      pageSize,                    // keep current selected value valid
-      Math.max(1, Math.ceil(total / 4)),
-      Math.max(1, Math.ceil(total / 2)),
-      total,                       // show all products in project
-    ]),
-  ).sort((a, b) => a - b);
-}, [total, pageSize]);
-  // ── Derived flags ─────────────────────────────────────────────────────────
-  const hasActiveFilters =
-    !!statusFilter ||
-    !!brandFilter ||
-    !!categoryFilter ||
-    !!searchTerm ||
-    colFilters.length > 0;
-
+    if (!total) return [pageSize];
+    return Array.from(
+      new Set([
+        pageSize,
+        Math.max(1, Math.ceil(total / 4)),
+        Math.max(1, Math.ceil(total / 2)),
+        total,
+      ]),
+    ).sort((a, b) => a - b);
+  }, [total, pageSize]);
   const canDownload =
     allProductsSelected ||
     (selectedProductIds.size > 0 &&
@@ -926,24 +883,16 @@ const [statsLoading, setStatsLoading] = useState(false);
         (p) =>
           selectedProductIds.has(p.id) && p.enrichment_status !== "pending",
       ));
-
-  // ✅ FIX: Clean button should be enabled when allProductsSelected too
   const canClean =
-    !cleaning &&
-    (allProductsSelected || selectedProductIds.size > 0);
-
+    !cleaning && (allProductsSelected || selectedProductIds.size > 0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
   const filteredBulkAttributes = useMemo(() => {
     if (!bulkSearch.trim()) return availableAttributes;
     const q = bulkSearch.toLowerCase().trim();
     return availableAttributes.filter((a) => a.toLowerCase().includes(q));
   }, [availableAttributes, bulkSearch]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-4 bg-slate-50 min-h-screen font-sans">
-      {/* ── Page header ── */}
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -953,10 +902,8 @@ const [statsLoading, setStatsLoading] = useState(false);
             Select a project, then clean and standardise product attributes
           </p>
         </div>
-
         {selectedProjectId && (
           <div className="flex items-center gap-2">
-            {/* ✅ FIX: use canClean instead of raw disabled condition */}
             <button
               onClick={handleCleanSelected}
               disabled={!canClean}
@@ -986,12 +933,9 @@ const [statsLoading, setStatsLoading] = useState(false);
           </div>
         )}
       </div>
-
-      {/* ── Filters bar ── */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-3">
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
-            {/* Algorithm */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Algorithm
@@ -1008,8 +952,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                 ))}
               </select>
             </div>
-
-            {/* Project */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Project
@@ -1020,8 +962,8 @@ const [statsLoading, setStatsLoading] = useState(false);
                   const id = e.target.value;
                   setSelectedProjectId(id);
                   setPage(1);
-                  setAllProductsSelected(false);   // ✅ reset on project change
-                  setSelectedProductIds(new Set()); // ✅ reset on project change
+                  setAllProductsSelected(false);
+                  setSelectedProductIds(new Set());
                   setColSorts([]);
                   setColFilters([]);
                   await loadProjectFilters(id || undefined);
@@ -1037,8 +979,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                 ))}
               </select>
             </div>
-
-            {/* Status */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Status
@@ -1054,8 +994,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                 <option value="failed">Failed</option>
               </select>
             </div>
-
-            {/* Brand */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Brand
@@ -1074,8 +1012,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                 ))}
               </select>
             </div>
-
-            {/* Category */}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Category
@@ -1103,8 +1039,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                 ))}
               </select>
             </div>
-
-            {/* Search */}
             <div className="md:col-span-2 xl:col-span-1">
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Search
@@ -1120,7 +1054,6 @@ const [statsLoading, setStatsLoading] = useState(false);
               </div>
             </div>
           </div>
-
           {hasActiveFilters && (
             <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
               <button
@@ -1137,8 +1070,7 @@ const [statsLoading, setStatsLoading] = useState(false);
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200"
                   >
                     <Filter className="w-3 h-3" />
-                    {attr}:{" "}
-                    <strong className="font-semibold">{value}</strong>
+                    {attr}: <strong className="font-semibold">{value}</strong>
                     <button
                       onClick={() => setColFilter(attr, "")}
                       className="ml-0.5 hover:text-blue-900"
@@ -1160,9 +1092,7 @@ const [statsLoading, setStatsLoading] = useState(false);
                     {attr}
                     <button
                       onClick={() =>
-                        setColSorts((p) =>
-                          p.filter((s) => s.attr !== attr),
-                        )
+                        setColSorts((p) => p.filter((s) => s.attr !== attr))
                       }
                       className="ml-0.5 hover:text-violet-900"
                     >
@@ -1174,8 +1104,6 @@ const [statsLoading, setStatsLoading] = useState(false);
             </div>
           )}
         </div>
-
-        {/* Project summary bar */}
         {selectedProject && (
           <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
@@ -1212,157 +1140,151 @@ const [statsLoading, setStatsLoading] = useState(false);
           </div>
         )}
       </div>
-
-      {/* ── Bulk attributes panel ── */}
-      {/* ── Bulk attributes panel ── */}
-{selectedProjectId && availableAttributes.length > 0 && (
-  <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
-    <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
-      <div>
-        <p className="text-sm font-semibold text-slate-900">
-          Bulk Update Attributes
-        </p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Select attributes and values to apply to selected products
-        </p>
-        {selectedBulkAttributes.length > 0 && (
-          <div className="mt-2">
-            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
-              Showing {filteredSortedProducts.length} products on this
-              page with selected attributes
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            setSelectedBulkAttributes([]);
-            setBulkAttributeValues({});
-          }}
-          disabled={selectedBulkAttributes.length === 0}
-          className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
-        >
-          <X className="w-4 h-4" />
-          Clear All
-        </button>
-        <button
-          onClick={handleBulkUpdate}
-          disabled={
-            bulkUpdating ||
-            (!allProductsSelected && selectedProductIds.size === 0) ||
-            selectedBulkAttributes.length === 0
-          }
-          className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
-        >
-          {bulkUpdating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Updating…
-            </>
-          ) : (
-            <>
-              <Check className="w-4 h-4" />
-              {allProductsSelected
-                ? `Update All (${total})`
-                : `Update ${selectedProductIds.size} selected`}
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-
-    <div className="p-4">
-      <div className="relative mb-3 max-w-2xl">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          value={bulkSearch}
-          onChange={(e) => setBulkSearch(e.target.value)}
-          placeholder="Search attributes..."
-          className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
-        />
-      </div>
-      
-      {/* Fixed height scrollable container for attribute chips */}
-      <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
-        <div className="flex flex-wrap gap-2">
-          {filteredBulkAttributes.length === 0 ? (
-            <p className="text-sm text-slate-500 py-2">No attributes found</p>
-          ) : (
-            filteredBulkAttributes.map((attr) => {
-              const active = selectedBulkAttributes.includes(attr);
-              return (
-                <button
-                  key={attr}
-                  type="button"
-                  onClick={() => {
-                    if (active) {
-                      setSelectedBulkAttributes((p) =>
-                        p.filter((a) => a !== attr),
-                      );
-                      setBulkAttributeValues((p) => {
-                        const n = { ...p };
-                        delete n[attr];
-                        return n;
-                      });
-                    } else {
-                      setSelectedBulkAttributes((p) => [...p, attr]);
-                    }
-                  }}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                    active
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                  title={attr}
-                >
-                  {active && <Check className="w-4 h-4 shrink-0" />}
-                  <span className="truncate max-w-[260px]">{attr}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {selectedBulkAttributes.length > 0 && (
-        <div className="mt-5 pt-5 border-t border-slate-100">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Set values for selected attributes ({selectedBulkAttributes.length} selected)
-          </p>
-          
-          {/* Fixed height scrollable container for value inputs */}
-          <div className="mt-3 max-h-64 overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
-              {selectedBulkAttributes.map((attr) => (
-                <div key={attr} className="space-y-1">
-                  <label className="text-sm font-medium text-slate-800 truncate block" title={attr}>
-                    {attr}
-                  </label>
-                  <input
-                    value={bulkAttributeValues[attr] || ""}
-                    onChange={(e) =>
-                      setBulkAttributeValues((p) => ({
-                        ...p,
-                        [attr]: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter value"
-                    className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
-                  />
+      {selectedProjectId && availableAttributes.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
+          <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Bulk Update Attributes
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Select attributes and values to apply to selected products
+              </p>
+              {selectedBulkAttributes.length > 0 && (
+                <div className="mt-2">
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
+                    Showing {filteredSortedProducts.length} products on this
+                    page with selected attributes
+                  </span>
                 </div>
-              ))}
+              )}
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setSelectedBulkAttributes([]);
+                  setBulkAttributeValues({});
+                }}
+                disabled={selectedBulkAttributes.length === 0}
+                className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear All
+              </button>
+              <button
+                onClick={handleBulkUpdate}
+                disabled={
+                  bulkUpdating ||
+                  (!allProductsSelected && selectedProductIds.size === 0) ||
+                  selectedBulkAttributes.length === 0
+                }
+                className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
+              >
+                {bulkUpdating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Updating…
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    {allProductsSelected
+                      ? `Update All (${total})`
+                      : `Update ${selectedProductIds.size} selected`}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="relative mb-3 max-w-2xl">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={bulkSearch}
+                onChange={(e) => setBulkSearch(e.target.value)}
+                placeholder="Search attributes..."
+                className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
+              />
+            </div>
+            <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+              <div className="flex flex-wrap gap-2">
+                {filteredBulkAttributes.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-2">
+                    No attributes found
+                  </p>
+                ) : (
+                  filteredBulkAttributes.map((attr) => {
+                    const active = selectedBulkAttributes.includes(attr);
+                    return (
+                      <button
+                        key={attr}
+                        type="button"
+                        onClick={() => {
+                          if (active) {
+                            setSelectedBulkAttributes((p) =>
+                              p.filter((a) => a !== attr),
+                            );
+                            setBulkAttributeValues((p) => {
+                              const n = { ...p };
+                              delete n[attr];
+                              return n;
+                            });
+                          } else {
+                            setSelectedBulkAttributes((p) => [...p, attr]);
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                          active
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                        title={attr}
+                      >
+                        {active && <Check className="w-4 h-4 shrink-0" />}
+                        <span className="truncate max-w-[260px]">{attr}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+            {selectedBulkAttributes.length > 0 && (
+              <div className="mt-5 pt-5 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Set values for selected attributes (
+                  {selectedBulkAttributes.length} selected)
+                </p>
+                <div className="mt-3 max-h-64 overflow-y-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
+                    {selectedBulkAttributes.map((attr) => (
+                      <div key={attr} className="space-y-1">
+                        <label
+                          className="text-sm font-medium text-slate-800 truncate block"
+                          title={attr}
+                        >
+                          {attr}
+                        </label>
+                        <input
+                          value={bulkAttributeValues[attr] || ""}
+                          onChange={(e) =>
+                            setBulkAttributeValues((p) => ({
+                              ...p,
+                              [attr]: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter value"
+                          className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
-    </div>
-  </div>
-)}
-
-      {/* ── Main content area ── */}
       {!selectedProjectId ? (
-        /* Project list */
         <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-1">
             Cleaning Projects
@@ -1428,8 +1350,6 @@ const [statsLoading, setStatsLoading] = useState(false);
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-
-          {/* ── Table header bar ── */}
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
             <div className="flex items-center gap-3">
               <input
@@ -1452,26 +1372,22 @@ const [statsLoading, setStatsLoading] = useState(false);
             </div>
             <span className="text-slate-500">Total {total} products</span>
           </div>
-
-          {/* ✅ "Select all N products" banner — shown when current page is
-               fully selected but the user hasn't yet selected across all pages */}
-          {isCurrentPageFullySelected && !allProductsSelected && total > pageSize && (
-            <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-center gap-2 text-sm text-blue-700">
-              <span>
-                All{" "}
-                <strong>{filteredSortedProducts.length}</strong> products on
-                this page are selected.
-              </span>
-              <button
-                onClick={() => setAllProductsSelected(true)}
-                className="font-semibold underline hover:text-blue-900 transition-colors"
-              >
-                Select all {total} products in this project
-              </button>
-            </div>
-          )}
-
-          {/* ✅ "All N selected" confirmation banner */}
+          {isCurrentPageFullySelected &&
+            !allProductsSelected &&
+            total > pageSize && (
+              <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-center gap-2 text-sm text-blue-700">
+                <span>
+                  All <strong>{filteredSortedProducts.length}</strong> products
+                  on this page are selected.
+                </span>
+                <button
+                  onClick={() => setAllProductsSelected(true)}
+                  className="font-semibold underline hover:text-blue-900 transition-colors"
+                >
+                  Select all {total} products in this project
+                </button>
+              </div>
+            )}
           {allProductsSelected && (
             <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-center gap-2 text-sm text-blue-700">
               <span>
@@ -1489,8 +1405,57 @@ const [statsLoading, setStatsLoading] = useState(false);
               </button>
             </div>
           )}
-
-          {/* ── Scrollable table ── */}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-slate-500">
+                Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}–
+                {Math.min(page * pageSize, total)} of {total}
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                  setAllProductsSelected(false);
+                  setSelectedProductIds(new Set());
+                }}
+                className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size === total ? `All (${size})` : `${size} / page`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setPage((p) => Math.max(1, p - 1));
+                  setAllProductsSelected(false);
+                  setSelectedProductIds(new Set());
+                }}
+                disabled={page === 1 || loading}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="text-slate-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => {
+                  setPage((p) => Math.min(totalPages, p + 1));
+                  setAllProductsSelected(false);
+                  setSelectedProductIds(new Set());
+                }}
+                disabled={page >= totalPages || loading}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
           <div
             className="overflow-auto relative"
             style={{ maxHeight: "calc(100vh - 280px)" }}
@@ -1594,7 +1559,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                   >
                     Category
                   </th>
-
                   {availableAttributes.map((attr) => (
                     <AttrHeader
                       key={attr}
@@ -1605,7 +1569,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                       onFilter={(v) => setColFilter(attr, v)}
                     />
                   ))}
-
                   <th
                     style={{
                       width: COL_ACTION,
@@ -1620,7 +1583,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                   </th>
                 </tr>
               </thead>
-
               <tbody>
                 {filteredSortedProducts.map((product) => (
                   <tr
@@ -1714,11 +1676,10 @@ const [statsLoading, setStatsLoading] = useState(false);
                         {product.category_1}
                       </span>
                     </td>
-
                     {availableAttributes.map((attr) => {
-                      const dynAttr = (
-                        product.dynamic_attributes || []
-                      ).find((a) => a.name === attr);
+                      const dynAttr = (product.dynamic_attributes || []).find(
+                        (a) => a.name === attr,
+                      );
                       const edited = editingAttributes[product.id]?.[attr];
                       const currentValues = getAttrValues(product, attr);
                       const curVal =
@@ -1729,7 +1690,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                         (dynAttr as any)?.uom ??
                         "";
                       const conflict = product.validation_conflicts?.[attr];
-
                       return (
                         <td
                           key={attr}
@@ -1765,11 +1725,7 @@ const [statsLoading, setStatsLoading] = useState(false);
                             <AttributeValueTags
                               values={currentValues}
                               onRemove={(value) =>
-                                handleRemoveAttributeValue(
-                                  product,
-                                  attr,
-                                  value,
-                                )
+                                handleRemoveAttributeValue(product, attr, value)
                               }
                             />
                             <input
@@ -1790,7 +1746,6 @@ const [statsLoading, setStatsLoading] = useState(false);
                         </td>
                       );
                     })}
-
                     <td
                       style={{
                         width: COL_ACTION,
@@ -1820,10 +1775,8 @@ const [statsLoading, setStatsLoading] = useState(false);
                             "Clean"
                           )}
                         </button>
-
-                        {Object.keys(
-                          editingAttributes[product.id] || {},
-                        ).length > 0 && (
+                        {Object.keys(editingAttributes[product.id] || {})
+                          .length > 0 && (
                           <button
                             onClick={() => handleSaveAttributes(product.id)}
                             disabled={savingAttributes[product.id]}
@@ -1849,59 +1802,28 @@ const [statsLoading, setStatsLoading] = useState(false);
               </tbody>
             </table>
           </div>
-
-          {/* ── Pagination bar ── */}
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-white text-sm">
             <div className="flex items-center gap-3">
               <span className="text-slate-500">
-                Showing{" "}
-                {total === 0 ? 0 : (page - 1) * pageSize + 1}–
+                Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}–
                 {Math.min(page * pageSize, total)} of {total}
               </span>
               <select
-  value={pageSize}
-  onChange={(e) => {
-    setPageSize(Number(e.target.value));
-    setPage(1);
-    setAllProductsSelected(false);
-    setSelectedProductIds(new Set());
-  }}
-  className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
->
-  {pageSizeOptions.map((size) => (
-    <option key={size} value={size}>
-      {size === total ? `All (${size})` : `${size} / page`}
-    </option>
-  ))}
-</select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setPage((p) => Math.max(1, p - 1));
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
                   setAllProductsSelected(false);
                   setSelectedProductIds(new Set());
                 }}
-                disabled={page === 1 || loading}
-                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
               >
-                Prev
-              </button>
-              <span className="text-slate-600">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => {
-                  setPage((p) => Math.min(totalPages, p + 1));
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                disabled={page >= totalPages || loading}
-                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-              >
-                Next
-              </button>
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size === total ? `All (${size})` : `${size} / page`}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

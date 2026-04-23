@@ -477,7 +477,6 @@ export default function AggregationTab({
         "aggregation",
       );
       
-      // ✅ FIX: Extract products array from result
       let products = [];
       if (Array.isArray(result)) {
         products = result;
@@ -502,13 +501,13 @@ export default function AggregationTab({
     } catch (error) {
       console.error("Failed to load products for project", projectId, error);
       notify.error("Failed to load products");
-      setExpandedProjectProducts([]); // ✅ Ensure it's always an array
+      setExpandedProjectProducts([]); 
     } finally {
       setExpandedLoading(false);
       setSelectedProductIds(new Set());
     }
   },
-  [expandedProjectId, resetLocalFilters], // Fixed dependency
+  [expandedProjectId, resetLocalFilters], 
 );
   useEffect(() => {
     const hasActiveProjects = projects.some(

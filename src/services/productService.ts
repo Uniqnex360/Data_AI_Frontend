@@ -1,6 +1,6 @@
 import api from "../lib/api";
 import type { Product, ProductAttributes } from "../types/database.types";
-import { Project } from '../types/business-rules.types';
+import { Project } from "../types/business-rules.types";
 
 export const productService = {
   async getAllProducts(skip = 0, limit = 100): Promise<Product[]> {
@@ -9,29 +9,46 @@ export const productService = {
     });
     return response.data;
   },
-  
-  async getProjectProductStats(projectId: string): Promise<{
-    total: number;
-    completed: number;
-    pending: number;
-    processing: number;
-    failed: number;
-  }> {
-    try {
-      const { data } = await api.get(`/products/stats/project/${projectId}`);
-      return data;
-    } catch (error) {
-      console.error("Failed to fetch project product stats", error);
-      return {
-        total: 0,
-        completed: 0,
-        pending: 0,
-        processing: 0,
-        failed: 0,
-      };
+async getProjectProductStats(
+  projectId: string,
+  filters?: {
+    brand?: string;
+    category?: string;
+    search?: string;
+    enrichment_status?: string;
+    bulk_attributes?: string[];  
+  }
+): Promise<{
+  total: number;
+  completed: number;
+  pending: number;
+  processing: number;
+  failed: number;
+}> {
+  try {
+    const params: Record<string, any> = {};
+    if (filters?.brand) params.brand_name = filters.brand;
+    if (filters?.category) params.category_1 = filters.category;
+    if (filters?.search) params.search = filters.search;
+    if (filters?.enrichment_status) params.enrichment_status = filters.enrichment_status;
+    if (filters?.bulk_attributes && filters.bulk_attributes.length > 0) {
+      params.bulk_attributes = filters.bulk_attributes;
     }
-  },
-  
+    
+    const { data } = await api.get(`/products/stats/project/${projectId}`, { params });
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch project product stats", error);
+    return {
+      total: 0,
+      completed: 0,
+      pending: 0,
+      processing: 0,
+      failed: 0,
+    };
+  }
+},
+
   async getProjectAttributes(
     projectId: string,
     category?: string,
@@ -49,7 +66,7 @@ export const productService = {
       throw error;
     }
   },
-  
+
   async getProjectFilters(projectId?: string): Promise<{
     categories: string[];
     brands: string[];
@@ -68,61 +85,67 @@ export const productService = {
       throw error;
     }
   },
-  
+
   async getProductsByProject(
-  projectId: string,
-  workflow_stage?: string,
-  skip = 0,
-  limit = 100
-): Promise<{
-  products: Product[];
-  total: number;
-  skip: number;
-  limit: number;
-  project: Project | null;
-}> {
-  const response = await api.get("/products/", {
-    params: { project_id: projectId, skip, limit, workflow_stage },
-  });
+    projectId: string,
+    workflow_stage?: string,
+    skip = 0,
+    limit = 100,
+  ): Promise<{
+    products: Product[];
+    total: number;
+    skip: number;
+    limit: number;
+    project: Project | null;
+  }> {
+    const response = await api.get("/products/", {
+      params: { project_id: projectId, skip, limit, workflow_stage },
+    });
 
-  if (response.data && typeof response.data === 'object' && 'products' in response.data) {
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "products" in response.data
+    ) {
+      return {
+        products: Array.isArray(response.data.products)
+          ? response.data.products
+          : [],
+        total: response.data.total ?? 0,
+        skip: response.data.skip ?? skip,
+        limit: response.data.limit ?? limit,
+        project: response.data.project ?? null,
+      };
+    }
+
+    console.warn("Unexpected API response format:", response.data);
     return {
-      products: Array.isArray(response.data.products) ? response.data.products : [],
-      total: response.data.total ?? 0,
-      skip: response.data.skip ?? skip,
-      limit: response.data.limit ?? limit,
-      project: response.data.project ?? null,
+      products: [],
+      total: 0,
+      skip,
+      limit,
+      project: null,
     };
-  }
+  },
 
-  console.warn('Unexpected API response format:', response.data);
-  return {
-    products: [],
-    total: 0,
-    skip,
-    limit,
-    project: null,
-  };
-},
-  
   async getProductByCode(code: string): Promise<Product> {
     const response = await api.get(`/products/${code}`);
     return response.data;
   },
-  
+
   async aggregate(mpn?: string, upc?: string, title?: string) {
     return api.post("/aggregate/", null, {
       params: { mpn, upc, title },
     });
   },
-  
+
   async standardize(productCode: string, attributes: ProductAttributes) {
     return api.post("/standardize/", {
       product_key: productCode,
       data: attributes,
     });
   },
-  
+
   async enrich(
     productCode: string,
     brand: string,
@@ -136,7 +159,7 @@ export const productService = {
       standardized_attributes: attributes,
     });
   },
-  
+
   async getBatchStatus(batchId: string) {
     return api.get(`/batch-status/${batchId}`);
   },
