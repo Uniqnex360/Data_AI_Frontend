@@ -154,9 +154,12 @@ export interface Project {
   name: string;
   client?: string;
   use_case?: string;
+  completeness_score?:number
   operation_mode?:string;
   product_count?: number;
   source_status?: string;
+  created_at?: string;  
+  updated_at?: string; 
   processing_status?:
     | "pending"
     | "failed"
@@ -251,3 +254,84 @@ export type DateRangeParams = {
   end_date?: string;
   date_field?: "created_at" | "updated_at";
 };
+export interface ExpandedStats {
+  success: number;
+  failed: number;
+  pending: number;
+}
+
+export interface ProjectsTableProps {
+  projects: Project[];
+  loading: boolean;
+  selectedProjectIds: Set<string>;
+  aggregatingProjects: Set<string>;
+  projectEnrichmentCounts: Record<string, number>;
+  onToggleSelectAll: () => void;
+  onToggleProjectSelection: (projectId: string, e?: React.MouseEvent) => void;
+  onSelectProject: (projectId: string) => void;
+  selectedProjectId: string | null;
+}
+
+export interface ProjectProductsViewProps {
+  project: Project;
+  products: Product[];
+  loading: boolean;
+  expandedStats: ExpandedStats;
+  statusFilter: Set<string>;
+  selectedProductIds: Set<string>;
+  isExpandedProjectSelected: boolean;
+  aggregatingProjects: Set<string>;
+  extractingPdf: Set<string>;
+  currentPage: number;
+  totalPages: number;
+  paginatedProducts: Product[];
+  filteredExpandedProducts: Product[];
+  startIndex: number;
+  onClose: () => void;
+  onToggleStatusFilter: (status: "completed" | "failed" | "pending") => void;
+  onSelectAllProducts: (checked: boolean) => void;
+  onToggleProductSelection: (productId: string, checked: boolean) => void;
+  onViewAttributes: (productId: string) => void;
+  onAggregateAll: () => void;
+  onExtractAll: () => void;
+  onAggregate: (productId: string) => void;
+  onExtractFreshMpn: (productId: string, mpn: string) => void;
+  onExtractFromPdf: (productId: string, mpn: string) => void;
+  onBlindExtract: (productId: string) => void;
+  onPageChange: (page: number) => void;
+  selectedProductId: string | null;
+}
+
+export interface ProductAttributesViewProps {
+  isOpen: boolean;
+  product: Product | undefined;
+  attributes: AggregatedAttribute[];
+  loading: boolean;
+  project: Project | undefined;
+  onClose: () => void;
+  onAggregate: (productId: string) => void;
+  onBack: () => void;
+}
+
+export interface FiltersBarProps {
+  selectedLLM: string;
+  llmOptions: Array<{ value: string; label: string }>;
+  selectedUseCase: string;
+  useCases: string[];
+  selectedProjectId: string;
+  filteredProjects: Project[];
+  projectStatusFilter: string;
+  categoryFilter: string;
+  availableCategories: string[];
+  brandFilter: string;
+  availableBrands: string[];
+  statusFilter: Set<string>;
+  onLLMChange: (value: string) => void;
+  onUseCaseChange: (value: string) => void;
+  onProjectChange: (value: string) => void;
+  onProjectStatusChange: (value: string) => void;
+  onCategoryChange: (value: string) => void;
+  onBrandChange: (value: string) => void;
+  onReset: () => void;
+  showReset: boolean;
+}

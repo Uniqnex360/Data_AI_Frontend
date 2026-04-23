@@ -10,24 +10,19 @@ import {
   Target,
   LogOut,
 } from "lucide-react";
-
 import DashboardTab from "./components/DashboardTab";
 import SourcesTab from "./components/SourcesTab";
 import AggregationTab from "./components/AggregationTab";
 import BusinessRulesTab from "./components/BusinessRulesTab";
 import EnrichmentTab from "./components/EnrichmentTab";
 import DataCleaningTab from "./components/DataCleaningTab";
-
-
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-
 import { Toaster } from "sonner";
 import logo from "./logo/logo.png";
 import LoginPage from "./components/LoginPage.tsx";
 import RegisterPage from "./components/RegisterPage.tsx";
 import UnauthorizedPage from "./components/UnauthorizedPage.tsx";
-
 type TabId =
   | "dashboard"
   | "sources"
@@ -36,7 +31,6 @@ type TabId =
   | "enrichment"
   | "golden"
   | "datacleaning";
-
 interface Tab {
   id: TabId;
   label: string;
@@ -44,7 +38,6 @@ interface Tab {
   component: React.ComponentType<any>;
   roles?: string[];
 }
-
 const tabs: Tab[] = [
   {
     id: "dashboard",
@@ -88,40 +81,25 @@ const tabs: Tab[] = [
     component: EnrichmentTab,
     roles: ["admin", "editor", "viewer"],
   },
-  // {
-  //   id: "golden",
-  //   label: "Golden Records",
-  //   icon: Database,
-  //   component: GoldenRecordsTab,
-  //   roles: ["admin", "editor", "viewer"],
-  // },
 ];
-
 function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [selectedProject, setSelectedProject] = useState<string | undefined>(
     undefined,
   );
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
-
   const { user, logout } = useAuth();
-
   const allowedTabs = tabs.filter(
     (tab) => !tab.roles || (user && tab.roles.includes(user.role)),
   );
-
   const fallbackTab = allowedTabs[0]?.id || "dashboard";
-
   const currentTab =
     allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
-
   const ActiveComponent = currentTab?.component;
-
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
     setActiveTab("sources");
   };
-
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;
@@ -130,7 +108,6 @@ function AppShell() {
       setAggregationFilter(filterStatus);
     }
   };
-
   return (
     <>
       <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -139,7 +116,6 @@ function AppShell() {
             <div className="w-64 px-6 py-4 border-r border-slate-200 shrink-0 hidden md:flex items-center">
               <img src={logo} alt="Logo" className="w-full h-16 object-cover" />
             </div>
-
             <div className="flex-1 px-6 py-4 flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-semibold text-slate-900">
@@ -159,7 +135,6 @@ function AppShell() {
                   </div>
                 )}
               </div>
-
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-900">
@@ -180,14 +155,12 @@ function AppShell() {
             </div>
           </div>
         </header>
-
         <div className="flex flex-1 overflow-hidden">
           <nav className="w-64 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
             <div className="p-2">
               {allowedTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = currentTab?.id === tab.id;
-
                 return (
                   <button
                     key={tab.id}
@@ -215,7 +188,6 @@ function AppShell() {
               })}
             </div>
           </nav>
-
           <main className="flex-1 overflow-y-auto bg-slate-50 p-2">
             {ActiveComponent && (
               <ActiveComponent
@@ -242,14 +214,12 @@ function AppShell() {
     </>
   );
 }
-
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
       <Route
         path="/*"
         element={
@@ -261,7 +231,6 @@ function AppRoutes() {
     </Routes>
   );
 }
-
 function App() {
   return (
     <AuthProvider>
@@ -270,5 +239,4 @@ function App() {
     </AuthProvider>
   );
 }
-
 export default App;
