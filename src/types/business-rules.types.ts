@@ -249,7 +249,9 @@ export interface ProjectOverview {
   aggregationFailed?: number;
   overallPct: number;
   status: ProjectStatus;
-  lastActive: string; 
+  lastActive: string;
+  operationMode?: string;
+  useCase?: string;
 }
 export type DateRangeParams = {
   start_date?: string;

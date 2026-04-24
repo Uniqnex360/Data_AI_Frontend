@@ -1312,30 +1312,55 @@ export default function DataCleaningTab() {
         </div>
       )}
       {!selectedProjectId ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h4 className="text-base font-semibold text-slate-900 mb-1">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className='flex items-center justify-between p-4 border border-slate-200 bg-slate-20'>
+            <div className="flex items-center gap-2">
+
+          <h4 className="text-base font-semibold text-slate-900">
             Cleaning Projects
           </h4>
-          <p className="text-sm text-slate-500 mb-4">
-            Select a project to view and clean products
-          </p>
+          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+            {projects.length}
+          </span>
+         </div>
+         </div>
+         <div className="overflow-auto" style={{maxHeight:'calc(100vh-250px)'}}>
+         <table className="w-full table-fixed">
+  <colgroup>
+    <col style={{ width: "35%" }} />
+    <col style={{ width: "15%" }} />
+    <col style={{ width: "20%" }} />
+    <col style={{ width: "15%" }} />
+    <col style={{ width: "15%" }} />
+  </colgroup>
+  <thead className="sticky top-0 z-10 bg-slate-50">
+    <tr>
+      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Project Name</th>
+      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Products</th>
+      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Use Case</th>
+      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th>
+      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Actions</th>
+    </tr>
+  </thead>
+            <tbody className="divide-y divide-slate-200">
+              
+            
           {projectsLoading ? (
-            <div className="py-10 text-center">
+            <tr>
+            <td colSpan={5} className="p-8 text-center">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" />
-            </div>
+               <p className="text-slate-500 text-sm">Loading projects...</p>
+            </td>
+            </tr>
           ) : projects.length === 0 ? (
-            <div className="py-10 text-center">
-              <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-slate-500 text-sm">
-                No cleaning projects found
-              </p>
-            </div>
+           <tr>
+            <td colSpan={5} className="p-8 text-center text-slate-500">No cleaning projects found</td>
+           </tr>
           ) : (
-            <div className="space-y-2">
-              {projects.map((project) => (
-                <button
+             projects.map((project) => (
+                <tr
                   key={project.id}
-                  type="button"
+                  className="hover:bg-slate-50 cursor-pointer transition-colors"
                  onClick={async () => {
   setProjectSwitching(true); 
   setSelectedProjectId(project.id);
@@ -1349,28 +1374,40 @@ export default function DataCleaningTab() {
     setProjectSwitching(false); 
   }
 }}
-                  className="w-full p-3 border border-slate-200 rounded-lg text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                 
                 >
-                  <div className="flex items-center gap-2 flex-wrap">
+                 <td className="px-4 py-4">
                     <span className="text-sm font-semibold text-slate-900">
                       {project.name}
-                    </span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+
+
                     <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
                       {project.product_count ?? 0} products
                     </span>
-                    {project.use_case && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
-                        {project.use_case}
-                      </span>
-                    )}
-                    {project.source_status &&
-                      getStatusBadge(project.source_status)}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                    </td>
+                    <td className="px-4 py-4">
+                  {project.use_case ? (
+                    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-4">
+                    {getStatusBadge(project.source_status || "NA", true)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="text-xs text-blue-600 font-medium">View Products</span>
+                   </td>
+            </tr>
+        ))
+      )}
+         </tbody>
+        </table>
+      </div>
+    </div>
      ) : loading || projectSwitching ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -1510,7 +1547,9 @@ export default function DataCleaningTab() {
             style={{ maxHeight: "calc(100vh - 280px)" }}
           >
             <table
-              className="border-collapse"
+             className="border-separate border-spacing-0"
+
+
               style={{
                 tableLayout: "fixed",
                 width:
@@ -1536,6 +1575,7 @@ export default function DataCleaningTab() {
                       zIndex: 50,
                     }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+
                   >
                     <input
                       type="checkbox"

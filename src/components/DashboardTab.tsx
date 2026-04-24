@@ -217,7 +217,7 @@ const [projectsLoading, setProjectsLoading] = useState(true);
   const [startDate, setStartDate] = useState<string>(toYMD(startOfMonth(new Date())));
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
   const [dateField, setDateField] = useState<DateField>("updated_at"); 
-
+  
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [metrics, setMetrics] = useState<any[]>([]);
 

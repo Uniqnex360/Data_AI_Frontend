@@ -31,6 +31,7 @@ import {
 } from "../types/business-rules.types.ts";
 import ProjectsOverviewTab from "./ProjectsOverviewTab.tsx";
 import { dashboardService } from "../services/dashboardService.ts";
+import { ChevronLeft } from "lucide-react";
 type DateFilterMode = "all" | "day" | "week" | "month";
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
@@ -84,7 +85,7 @@ export default function SourcesTab({
   const importPdfInputRef = useRef<HTMLInputElement>(null);
   const [importExtracting, setImportExtracting] = useState(false);
   const [productDetails, setProductDetails] = useState("");
-  const [viewMode, setViewMode] = useState<"overview" | "sources">("sources");
+  const [viewMode, setViewMode] = useState<"overview" | "sources">("overview");
   const [importIdentifiers, setImportIdentifiers] = useState<string[]>([]);
   const [currentImportIdentifier, setCurrentImportIdentifier] = useState("");
   const [operationMode, setOperationMode] =
@@ -130,7 +131,7 @@ export default function SourcesTab({
     null,
   );
   const onProjectSelectRef = useRef(onProjectSelect);
-onProjectSelectRef.current = onProjectSelect;
+  onProjectSelectRef.current = onProjectSelect;
   const [unstructuredExtracting, setUnstructuredExtracting] = useState(false);
   const [structuredExtracting, setStructuredExtracting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -163,7 +164,7 @@ onProjectSelectRef.current = onProjectSelect;
       loadProjectsOverview();
     }
   }, [projectId]);
- 
+
   useEffect(() => {
     loadSources();
     loadProjects();
@@ -1063,39 +1064,50 @@ onProjectSelectRef.current = onProjectSelect;
     });
   }, [activeProject]);
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-6 flex-wrap">
+    <div className="space-y-4">
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
-            Product Input Data Sources
+            {viewMode === "sources" ? (
+              <span className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode("overview")}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  title="Back to Overview"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                {activeProject?.name || "Sources"}
+              </span>
+            ) : (
+              "Projects Overview"
+            )}
           </h3>
-          <p className="text-sm text-slate-600 mt-1">
-            Import in bulk via Excel/PDF or add products manually
+          <p className="text-sm text-slate-500 mt-0.5">
+            {viewMode === "sources"
+              ? "Import products and manage sources for this project"
+              : "All projects and their pipeline progress"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+
+        <div className="flex items-center gap-2">
+          {/* Clear selection — only when a project is active */}
+          {projectId && (
             <button
-              onClick={() => setViewMode("sources")}
-              className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                viewMode === "sources"
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-700 hover:bg-slate-50"
-              }`}
+              onClick={() => {
+                setSelectedProject(null);
+                setOperationMode("aggregation" as OperationMode);
+                setSelectedUseCase("");
+                onProjectSelect?.("");
+                setViewMode("overview");
+              }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              Sources
+              <X className="w-4 h-4" />
+              Clear Selection
             </button>
-            <button
-              onClick={() => setViewMode("overview")}
-              className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                viewMode === "overview"
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              Projects Overview
-            </button>
-          </div>
+          )}
           <button
             onClick={() => setShowProjectModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
@@ -1105,11 +1117,13 @@ onProjectSelectRef.current = onProjectSelect;
           </button>
         </div>
       </div>
-      {projectId && (
+
+      {/* ── Active project pill (sources view) ── */}
+      {viewMode === "sources" && projectId && (
         <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
-              <FolderOpen className="w-5 h-5 text-blue-700" />
+            <div className="w-9 h-9 rounded-xl bg-blue-600/10 flex items-center justify-center shrink-0">
+              <FolderOpen className="w-4 h-4 text-blue-700" />
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold text-blue-600">
@@ -1120,31 +1134,40 @@ onProjectSelectRef.current = onProjectSelect;
               </div>
             </div>
           </div>
-          <div className="text-xs text-slate-500 whitespace-nowrap">
-            {activeProjectCreatedAt ? `Created: ${activeProjectCreatedAt}` : ""}
+          <div className="flex items-center gap-3 shrink-0 text-xs text-slate-500">
+            {activeProject?.operation_mode && (
+              <span className="px-2 py-1 bg-slate-100 rounded-full capitalize">
+                {activeProject.operation_mode}
+              </span>
+            )}
+            {activeProjectCreatedAt && (
+              <span>Created: {activeProjectCreatedAt}</span>
+            )}
           </div>
         </div>
       )}
+
+      {/* ── Create project form ── */}
       {showProjectModal && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h4 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h4 className="text-base font-semibold text-slate-900 mb-4">
             Create New Project
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-start">
-            <div className="w-full">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+          <div className="flex flex-wrap lg:flex-nowrap items-start gap-3 mb-5">
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
                 Project Name
               </label>
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Project Name"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Q3 Product Catalog"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="w-full">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
                 Operation Mode
               </label>
               <select
@@ -1155,52 +1178,36 @@ onProjectSelectRef.current = onProjectSelect;
                   setSelectedUseCase("");
                   setShowUseCaseDropdown(false);
                 }}
-                className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="aggregation"> Aggregation</option>
-                <option value="cleaning"> Cleaning</option>
-                <option value="enrichment"> Enrichment</option>
+                <option value="aggregation">Aggregation</option>
+                <option value="cleaning">Cleaning</option>
+                <option value="enrichment">Enrichment</option>
               </select>
-              <p className="text-xs text-slate-500 mt-1">
-                {operationMode === "aggregation"
-                  ? "Discover, extract, and enrich from external sources"
-                  : operationMode === "enrichment"
-                    ? "Backfill missing attributes and validate existing data"
-                    : operationMode === "cleaning"
-                      ? "Clean and standardize existing product data"
-                      : "Extract product data from PDFs and web sources"}{" "}
-              </p>
-              {operationMode === "aggregation" && (
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Aggregation Type
-                  </label>
-                  <select
-                    value={aggregationType}
-                    onChange={(e) => {
-                      setAggregationType(e.target.value as "web" | "pdf" | "");
-                      setSelectedUseCase("");
-                      setShowUseCaseDropdown(false);
-                    }}
-                    className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-md text-slate-700"
-                  >
-                    <option value="">Select Aggregation Type</option>
-                    <option value="web">Web Aggregation</option>
-                    <option value="pdf">PDF Extraction</option>
-                  </select>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {aggregationType === "web"
-                      ? "Extract data from web sources"
-                      : aggregationType === "pdf"
-                        ? "Extract data from uploaded PDFs"
-                        : "Choose how data will be aggregated"}
-                  </p>
-                </div>
-              )}
             </div>
-            <div className="w-full">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Select Use Cases
+            {operationMode === "aggregation" && (
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  Aggregation Type
+                </label>
+                <select
+                  value={aggregationType}
+                  onChange={(e) => {
+                    setAggregationType(e.target.value as "web" | "pdf" | "");
+                    setSelectedUseCase("");
+                    setShowUseCaseDropdown(false);
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select type</option>
+                  <option value="web">Web Aggregation</option>
+                  <option value="pdf">PDF Extraction</option>
+                </select>
+              </div>
+            )}
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                Use Case
               </label>
               <div className="relative">
                 <button
@@ -1208,38 +1215,26 @@ onProjectSelectRef.current = onProjectSelect;
                     e.stopPropagation();
                     setShowUseCaseDropdown(!showUseCaseDropdown);
                   }}
-                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-md text-slate-700 flex items-center justify-between hover:bg-slate-50 truncate"
+                  disabled={useCaseOptions.length === 0}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 flex items-center justify-between hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span
-                    className={
-                      selectedUseCase ? "text-slate-700" : "text-slate-500"
-                    }
+                    className={`truncate ${selectedUseCase ? "text-slate-700" : "text-slate-400"}`}
                   >
-                    {selectedUseCase ||
-                      `Select ${
-                        operationMode === "aggregation"
-                          ? "Aggregation"
-                          : operationMode === "enrichment"
-                            ? "Enrichment"
-                            : operationMode === "pdf_extraction"
-                              ? "PDF Extraction"
-                              : "Cleaning"
-                      } Use Case`}
+                    {selectedUseCase || "Select use case"}
                   </span>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 transition-transform ${
-                      showUseCaseDropdown ? "rotate-180" : ""
-                    }`}
+                    className={`w-4 h-4 text-slate-400 shrink-0 ml-1 transition-transform ${showUseCaseDropdown ? "rotate-180" : ""}`}
                   />
                 </button>
                 {showUseCaseDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {useCaseOptions.map((useCase) => (
                       <button
                         key={useCase}
                         type="button"
                         onClick={() => handleSelectUseCase(useCase)}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                           selectedUseCase === useCase
                             ? "bg-blue-50 text-blue-700 font-medium"
                             : "text-slate-700 hover:bg-slate-50"
@@ -1253,35 +1248,37 @@ onProjectSelectRef.current = onProjectSelect;
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleCreate}
-              disabled={!projectName.trim() || loading || !selectedUseCase}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "Creating..." : "Create Project"}
-            </button>
+          <div className="flex justify-end gap-2">
             <button
               onClick={() => {
                 setShowProjectModal(false);
                 handleCancel();
               }}
-              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50"
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors"
             >
               Cancel
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={!projectName.trim() || loading || !selectedUseCase}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? "Creating..." : "Create Project"}
             </button>
           </div>
         </div>
       )}
+
+      {/* ── Overview view (default) ── */}
       {viewMode === "overview" &&
-        !projectId &&
         (overviewLoading ? (
-          <div className="flex justify-center py-8">
+          <div className="flex justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : (
-          <ProjectsOverviewTab
+                    <ProjectsOverviewTab
             projects={projectsOverview}
+            selectedProjectId={projectId}
             onOpenProject={(id) => {
               const project = projects.find((p) => p.id === id);
               if (project) {
@@ -1293,11 +1290,29 @@ onProjectSelectRef.current = onProjectSelect;
                 setViewMode("sources");
               }
             }}
+            onSelectProject={(id) => {
+              const project = projects.find((p) => p.id === id);
+              if (project) {
+                setSelectedProject(project);
+                setOperationMode(project.operation_mode as OperationMode);
+                setSelectedUseCase(project.use_case || "");
+                onProjectSelect?.(id);
+              }
+            }}
+            onDeselectProject={() => {
+              setSelectedProject(null);
+              setOperationMode("aggregation" as OperationMode);
+              setSelectedUseCase("");
+              onProjectSelect?.("");
+            }}
           />
         ))}
+
+      {/* ── Sources view ── */}
       {viewMode === "sources" && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 lg:items-start">
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden lg:overflow-y-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:items-start">
+          {/* Left: import panel */}
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 pt-5 border-b border-slate-200">
               <div className="flex items-center gap-6">
                 <button
@@ -1356,7 +1371,137 @@ onProjectSelectRef.current = onProjectSelect;
                   ) &&
                   projectId &&
                   !showProjectModal ? (
-                    <div className="space-y-5">...</div>
+                    <div className="space-y-5">
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                          <h4 className="font-semibold text-blue-900">
+                            Title & Description Based PDF Extraction
+                          </h4>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          Upload one or more PDFs and optionally provide product
+                          hints (title, MPN, keywords). The system will extract
+                          all matching products it finds.
+                        </p>
+                      </div>
+
+                      {/* PDF upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          PDF Files
+                        </label>
+                        <input
+                          ref={importPdfInputRef}
+                          type="file"
+                          accept=".pdf"
+                          multiple
+                          onChange={(e) => handleAddImportPdfs(e.target.files)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                        />
+                        {importPdfFiles.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {importPdfFiles.map((f, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs"
+                              >
+                                <FileText className="w-3 h-3 text-slate-500" />
+                                {f.name}
+                                <button
+                                  onClick={() => handleRemoveImportPdf(i)}
+                                >
+                                  <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Optional identifiers */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Product Hints{" "}
+                          <span className="text-slate-400 font-normal">
+                            (optional — MPN, title, keyword)
+                          </span>
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={currentImportIdentifier}
+                            onChange={(e) =>
+                              setCurrentImportIdentifier(e.target.value)
+                            }
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleAddImportIdentifier()
+                            }
+                            placeholder="e.g., LED Bulb, ABC-123"
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={handleAddImportIdentifier}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {importIdentifiers.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {importIdentifiers.map((id) => (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700"
+                              >
+                                {id}
+                                <button
+                                  onClick={() =>
+                                    handleRemoveImportIdentifier(id)
+                                  }
+                                >
+                                  <X className="w-3 h-3 hover:text-red-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Optional product details */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Additional Details{" "}
+                          <span className="text-slate-400 font-normal">
+                            (optional)
+                          </span>
+                        </label>
+                        <textarea
+                          value={productDetails}
+                          onChange={(e) => setProductDetails(e.target.value)}
+                          placeholder="Any additional context about the products..."
+                          rows={2}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleImportPdfExtraction}
+                        disabled={
+                          importExtracting || importPdfFiles.length === 0
+                        }
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {importExtracting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4" />
+                        )}
+                        {importExtracting
+                          ? "Extracting..."
+                          : "Start Extraction"}
+                      </button>
+                    </div>
                   ) : operationMode === "pdf_extraction" &&
                     selectedUseCase?.includes("Structured PDF Extraction") &&
                     projectId &&
@@ -1523,12 +1668,251 @@ onProjectSelectRef.current = onProjectSelect;
                     ) &&
                     projectId &&
                     !showProjectModal ? (
-                    <div className="space-y-4">...</div>
+                    <div className="space-y-4">
+                      <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText className="w-5 h-5 text-violet-600" />
+                          <h4 className="font-semibold text-violet-900">
+                            Multi-PDF & Multi-MPN Extraction
+                          </h4>
+                        </div>
+                        <p className="text-sm text-violet-700">
+                          Upload multiple PDFs and provide multiple MPNs. The
+                          system will match each MPN against all PDFs and
+                          extract the relevant product data.
+                        </p>
+                      </div>
+
+                      {/* MPNs */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          MPNs{" "}
+                          <span className="text-slate-400 font-normal">
+                            (comma-separated or one at a time)
+                          </span>
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={currentMultiMpn}
+                            onChange={(e) => setCurrentMultiMpn(e.target.value)}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleAddMultiMpn()
+                            }
+                            placeholder="e.g., ABC-001, XYZ-002"
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={handleAddMultiMpn}
+                            className="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowMpnExcelModal(true)}
+                            className="px-3 py-2 border border-violet-300 text-violet-700 rounded-md hover:bg-violet-50 text-sm font-medium flex items-center gap-1.5"
+                            title="Import MPNs from Excel"
+                          >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Excel
+                          </button>
+                        </div>
+                        {multiMpns.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                            {multiMpns.map((mpn) => (
+                              <span
+                                key={mpn}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-violet-50 border border-violet-200 rounded-md text-xs text-violet-700"
+                              >
+                                {mpn}
+                                <button
+                                  onClick={() => handleRemoveMultiMpn(mpn)}
+                                >
+                                  <X className="w-3 h-3 hover:text-red-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {multiMpns.length > 0 && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            {multiMpns.length} MPN(s) added · max 50
+                          </p>
+                        )}
+                      </div>
+
+                      {/* PDFs */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          PDF Files{" "}
+                          <span className="text-slate-400 font-normal">
+                            (max 20)
+                          </span>
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          multiple
+                          onChange={(e) => handleAddMultiPdFs(e.target.files)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                        />
+                        {multiPdFs.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                            {multiPdFs.map((f, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs"
+                              >
+                                <FileText className="w-3 h-3 text-slate-500" />
+                                {f.name}
+                                <button onClick={() => handleRemoveMultiPdf(i)}>
+                                  <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {multiPdFs.length > 0 && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            {multiPdFs.length} file(s) selected · max 20
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleMultiExtraction}
+                        disabled={
+                          multiExtracting ||
+                          multiPdFs.length === 0 ||
+                          multiMpns.length === 0
+                        }
+                        className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50"
+                      >
+                        {multiExtracting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FileText className="w-4 h-4" />
+                        )}
+                        {multiExtracting ? "Saving..." : "Save for Extraction"}
+                      </button>
+                    </div>
                   ) : operationMode === "pdf_extraction" &&
                     selectedUseCase?.includes("MPN/UPC based PDF Extraction") &&
                     projectId &&
                     !showProjectModal ? (
-                    <div className="space-y-4">...</div>
+                    <div className="space-y-4">
+                      <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText className="w-5 h-5 text-teal-600" />
+                          <h4 className="font-semibold text-teal-900">
+                            MPN/UPC Based PDF Extraction
+                          </h4>
+                        </div>
+                        <p className="text-sm text-teal-700">
+                          Upload a PDF and provide one or more MPNs or UPC
+                          codes. The system will locate and extract only those
+                          specific products from the PDF.
+                        </p>
+                      </div>
+
+                      {/* MPNs */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          MPN / UPC Codes
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={currentImportIdentifier}
+                            onChange={(e) =>
+                              setCurrentImportIdentifier(e.target.value)
+                            }
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleAddImportIdentifier()
+                            }
+                            placeholder="e.g., 203-602 or 012345678901"
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          />
+                          <button
+                            onClick={handleAddImportIdentifier}
+                            className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {importIdentifiers.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {importIdentifiers.map((id) => (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 border border-teal-200 rounded-md text-xs text-teal-700"
+                              >
+                                {id}
+                                <button
+                                  onClick={() =>
+                                    handleRemoveImportIdentifier(id)
+                                  }
+                                >
+                                  <X className="w-3 h-3 hover:text-red-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PDF */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          PDF Files
+                        </label>
+                        <input
+                          ref={importPdfInputRef}
+                          type="file"
+                          accept=".pdf"
+                          multiple
+                          onChange={(e) => handleAddImportPdfs(e.target.files)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                        />
+                        {importPdfFiles.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {importPdfFiles.map((f, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs"
+                              >
+                                <FileText className="w-3 h-3 text-slate-500" />
+                                {f.name}
+                                <button
+                                  onClick={() => handleRemoveImportPdf(i)}
+                                >
+                                  <X className="w-3 h-3 text-slate-500 hover:text-red-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleImportPdfExtraction}
+                        disabled={
+                          importExtracting ||
+                          importPdfFiles.length === 0 ||
+                          importIdentifiers.length === 0
+                        }
+                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
+                      >
+                        {importExtracting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FileText className="w-4 h-4" />
+                        )}
+                        {importExtracting
+                          ? "Extracting..."
+                          : "Save for Extraction"}
+                      </button>
+                    </div>
                   ) : (
                     <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
@@ -1537,150 +1921,151 @@ onProjectSelectRef.current = onProjectSelect;
                   )}
                 </>
               )}
-             {uiTab === "bulk" && (
-  <>
-    {activeMode === "bulk" &&
-    operationMode === "pdf_extraction" &&
-    selectedUseCase?.includes("Fresh PDF Aggregation") &&
-    projectId &&
-    !showProjectModal ? (
-      <div className="space-y-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Globe className="w-5 h-5 text-blue-600" />
-            <h4 className="font-semibold text-blue-900">
-              Fresh PDF Aggregation
-            </h4>
-          </div>
-          <p className="text-sm text-blue-700">
-            Enter MPN, Model Number, or UPC. The system will
-            search manufacturer websites and automatically extract
-            product data. Products will be created and ready for
-            aggregation.
-          </p>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            MPN / Model Number / UPC
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={currentFreshMpn}
-              onChange={(e) => setCurrentFreshMpn(e.target.value)}
-              onKeyPress={(e) =>
-                e.key === "Enter" && handleAddFreshMpn()
-              }
-              placeholder="e.g., 203-602, iPhone 14, 123456789012"
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleAddFreshMpn}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        {freshMpns.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Items to Process ({freshMpns.length})
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {freshMpns.map((mpn) => (
-                <span
-                  key={mpn}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-sm"
-                >
-                  {mpn}
-                  <button
-                    onClick={() => handleRemoveFreshMpn(mpn)}
-                  >
-                    <X className="w-3 h-3 text-slate-500" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        <button
-          onClick={handleFreshAggregation}
-          disabled={freshAggregating || freshMpns.length === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-        >
-          {freshAggregating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving MPNs...
-            </>
-          ) : (
-            <>
-              <Globe className="w-4 h-4" />
-              Save MPNs for Extraction
-            </>
-          )}
-        </button>
-      </div>
-    ) : operationMode === "pdf_extraction" ? (
-      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
-        <AlertCircle className="w-4 h-4" />
-        Select a PDF extraction use case from the options above to begin.
-      </div>
-    ) : (
-      <div>
-        <div className="mb-4">
-          <button
-            onClick={downloadTemplate}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
-          >
-            <Download className="w-4 h-4" />
-            Download Template
-          </button>
-          <p className="text-xs text-slate-500 mt-2">
-            Download the template, fill it with your product data,
-            and upload it below
-          </p>
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Upload Excel file
-          </label>
-          <input
-            type="file"
-            disabled={!projectId}
-            ref={fileInputRef}
-            accept=".xlsx, .xls, .csv"
-            onChange={(e) =>
-              setBulkFile(e.target.files?.[0] || null)
-            }
-            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {bulkFile && (
-            <p className="text-sm text-green-600 mt-2">
-              Selected: {bulkFile.name}
-            </p>
-          )}
-        </div>
-        {projectId ? (
-          <button
-            onClick={handleBulkUpload}
-            disabled={loading || !bulkFile}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload className="w-4 h-4" />
-            {loading ? "Importing..." : "Import Products"}
-          </button>
-        ) : (
-          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Select a project to enable file imports
-          </div>
-        )}
-      </div>
-    )}
-  </>
-)}
+              {uiTab === "bulk" && (
+                <>
+                  {activeMode === "bulk" &&
+                  operationMode === "pdf_extraction" &&
+                  selectedUseCase?.includes("Fresh PDF Aggregation") &&
+                  projectId &&
+                  !showProjectModal ? (
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Globe className="w-5 h-5 text-blue-600" />
+                          <h4 className="font-semibold text-blue-900">
+                            Fresh PDF Aggregation
+                          </h4>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          Enter MPN, Model Number, or UPC. The system will
+                          search manufacturer websites and automatically extract
+                          product data. Products will be created and ready for
+                          aggregation.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          MPN / Model Number / UPC
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={currentFreshMpn}
+                            onChange={(e) => setCurrentFreshMpn(e.target.value)}
+                            onKeyPress={(e) =>
+                              e.key === "Enter" && handleAddFreshMpn()
+                            }
+                            placeholder="e.g., 203-602, iPhone 14, 123456789012"
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={handleAddFreshMpn}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {freshMpns.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Items to Process ({freshMpns.length})
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {freshMpns.map((mpn) => (
+                              <span
+                                key={mpn}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-sm"
+                              >
+                                {mpn}
+                                <button
+                                  onClick={() => handleRemoveFreshMpn(mpn)}
+                                >
+                                  <X className="w-3 h-3 text-slate-500" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={handleFreshAggregation}
+                        disabled={freshAggregating || freshMpns.length === 0}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {freshAggregating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving MPNs...
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="w-4 h-4" />
+                            Save MPNs for Extraction
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : operationMode === "pdf_extraction" ? (
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Select a PDF extraction use case from the options above to
+                      begin.
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="mb-4">
+                        <button
+                          onClick={downloadTemplate}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download Template
+                        </button>
+                        <p className="text-xs text-slate-500 mt-2">
+                          Download the template, fill it with your product data,
+                          and upload it below
+                        </p>
+                      </div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Upload Excel file
+                        </label>
+                        <input
+                          type="file"
+                          disabled={!projectId}
+                          ref={fileInputRef}
+                          accept=".xlsx, .xls, .csv"
+                          onChange={(e) =>
+                            setBulkFile(e.target.files?.[0] || null)
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        {bulkFile && (
+                          <p className="text-sm text-green-600 mt-2">
+                            Selected: {bulkFile.name}
+                          </p>
+                        )}
+                      </div>
+                      {projectId ? (
+                        <button
+                          onClick={handleBulkUpload}
+                          disabled={loading || !bulkFile}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Upload className="w-4 h-4" />
+                          {loading ? "Importing..." : "Import Products"}
+                        </button>
+                      ) : (
+                        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4" />
+                          Select a project to enable file imports
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
               {uiTab === "manual" && (
                 <div>
                   {errors.unique_identifier && (
@@ -1873,146 +2258,151 @@ onProjectSelectRef.current = onProjectSelect;
               )}
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:sticky lg:top-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <h4 className="text-lg font-semibold text-slate-900">
-                  Projects
-                </h4>
-                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                  {filteredProjects.length}
-                </span>
-              </div>
-              <div className="relative" ref={calendarRef}>
-                <button
-                  type="button"
-                  onClick={() => setCalendarOpen((v) => !v)}
-                  className={`h-9 px-3 rounded-xl border text-sm font-semibold inline-flex items-center gap-2 ${
-                    dateRange
-                      ? "border-blue-300 bg-blue-50 text-blue-700"
-                      : "border-slate-200 bg-white text-slate-700"
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  {dateFilterMode === "all"
-                    ? "All time"
-                    : dateFilterMode === "day"
-                      ? "Day"
-                      : dateFilterMode === "week"
-                        ? "Week"
-                        : "Month"}
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                </button>
-                {calendarOpen && (
-                  <div className="absolute right-0 mt-2 w-[320px] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-slate-900">
-                        Filter by created date
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setCalendarOpen(false)}
-                        className="p-1 rounded-lg hover:bg-slate-100"
-                        aria-label="Close"
-                      >
-                        <X className="w-4 h-4 text-slate-500" />
-                      </button>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                          Mode
-                        </label>
-                        <select
-                          value={dateFilterMode}
-                          onChange={(e) => {
-                            const mode = e.target.value as DateFilterMode;
-                            setDateFilterMode(mode);
-                          }}
-                          className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm"
+          {/* <div
+            className="bg-white rounded-2xl border border-slate-200 lg:sticky lg:top-6 flex flex-col overflow-hidden"
+            style={{ maxHeight: "calc(100vh - 200px)" }}
+          >
+            <div className="shrink-0 p-5 pb-3 border-b border-slate-100 bg-white">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-base font-semibold text-slate-900">
+                    Projects
+                  </h4>
+                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {filteredProjects.length}
+                  </span>
+                </div>
+                <div className="relative" ref={calendarRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarOpen((v) => !v)}
+                    className={`h-8 px-2.5 rounded-xl border text-xs font-semibold inline-flex items-center gap-1.5 ${
+                      dateRange
+                        ? "border-blue-300 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    {dateFilterMode === "all"
+                      ? "All time"
+                      : dateFilterMode === "day"
+                        ? "Day"
+                        : dateFilterMode === "week"
+                          ? "Week"
+                          : "Month"}
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
+                  {calendarOpen && (
+                    <div className="absolute right-0 mt-2 w-[300px] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold text-slate-900">
+                          Filter by created date
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCalendarOpen(false)}
+                          className="p-1 rounded-lg hover:bg-slate-100"
                         >
-                          <option value="all">All time</option>
-                          <option value="day">Day</option>
-                          <option value="week">Week</option>
-                          <option value="month">Month</option>
-                        </select>
+                          <X className="w-4 h-4 text-slate-500" />
+                        </button>
                       </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                          Pick date
-                        </label>
-                        <input
-                          type="date"
-                          max={toDateInputValue(new Date())}
-                          value={toDateInputValue(dateAnchor)}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (!v) return;
-                            const [yy, mm, dd] = v.split("-").map(Number);
-                            const picked = new Date(yy, mm - 1, dd);
-                            const today = new Date();
-                            const todayOnly = new Date(
-                              today.getFullYear(),
-                              today.getMonth(),
-                              today.getDate(),
-                            );
-                            setDateAnchor(
-                              picked > todayOnly ? todayOnly : picked,
-                            );
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                            Mode
+                          </label>
+                          <select
+                            value={dateFilterMode}
+                            onChange={(e) =>
+                              setDateFilterMode(
+                                e.target.value as DateFilterMode,
+                              )
+                            }
+                            className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm"
+                          >
+                            <option value="all">All time</option>
+                            <option value="day">Day</option>
+                            <option value="week">Week</option>
+                            <option value="month">Month</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                            Pick date
+                          </label>
+                          <input
+                            type="date"
+                            max={toDateInputValue(new Date())}
+                            value={toDateInputValue(dateAnchor)}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (!v) return;
+                              const [yy, mm, dd] = v.split("-").map(Number);
+                              const picked = new Date(yy, mm - 1, dd);
+                              const todayOnly = new Date(
+                                new Date().getFullYear(),
+                                new Date().getMonth(),
+                                new Date().getDate(),
+                              );
+                              setDateAnchor(
+                                picked > todayOnly ? todayOnly : picked,
+                              );
+                            }}
+                            disabled={dateFilterMode === "all"}
+                            className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
+                      {dateRange && (
+                        <div className="mt-3 text-xs text-slate-600">
+                          Showing:{" "}
+                          <span className="font-semibold text-slate-900">
+                            {formatRange(dateRange.start, dateRange.end)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDateFilterMode("all");
+                            setCalendarOpen(false);
                           }}
-                          disabled={dateFilterMode === "all"}
-                          className="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm disabled:opacity-50"
-                        />
+                          className="flex-1 h-9 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50"
+                        >
+                          Clear
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCalendarOpen(false)}
+                          className="flex-1 h-9 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+                        >
+                          Apply
+                        </button>
                       </div>
                     </div>
-                    {dateRange && (
-                      <div className="mt-3 text-xs text-slate-600">
-                        Showing projects created:{" "}
-                        <span className="font-semibold text-slate-900">
-                          {formatRange(dateRange.start, dateRange.end)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDateFilterMode("all");
-                          setCalendarOpen(false);
-                        }}
-                        className="flex-1 h-9 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50"
-                      >
-                        Clear
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCalendarOpen(false)}
-                        className="flex-1 h-9 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              </div>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
-            <div className="relative mb-4">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search projects..."
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="space-y-3">
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {filteredProjects.length === 0 ? (
-                <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
-                  <Search className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-600 text-sm">
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200">
+                  <Search className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">
                     {searchQuery
-                      ? `No projects found matching "${searchQuery}"`
+                      ? `No projects matching "${searchQuery}"`
                       : "No projects yet"}
                   </p>
                 </div>
@@ -2023,73 +2413,64 @@ onProjectSelectRef.current = onProjectSelect;
                   return (
                     <div
                       key={project.id}
-                      className={`rounded-2xl border p-4 transition-colors ${
+                      className={`rounded-2xl border p-3.5 transition-colors ${
                         selected
                           ? "border-blue-500 bg-blue-50/40"
                           : "border-slate-200 hover:bg-slate-50"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
-                              selected
-                                ? "bg-blue-600 text-white"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${selected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}
                           >
                             {index + 1}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-[11px] font-bold text-slate-400 tracking-widest uppercase">
-                              Project {index + 1}
-                            </div>
                             <div className="text-sm font-semibold text-slate-900 truncate">
                               {project.name}
                             </div>
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize">
+                            <div className="mt-0.5 flex flex-wrap gap-1">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize">
                                 {project.operation_mode}
                               </span>
                               {project.use_case && (
-                                <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 truncate max-w-[140px]"
+                                  title={project.use_case}
+                                >
                                   {project.use_case}
                                 </span>
                               )}
                               {selected && (
-                                <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
                                   Active
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => {
-                              if(selected)
-                              {
-                                setSelectedProject(null)
-                                setOperationMode('aggregation' as OperationMode)
-                                setSelectedUseCase('')
-                                 onProjectSelect?.("") 
+                              if (selected) {
+                                setSelectedProject(null);
+                                setOperationMode(
+                                  "aggregation" as OperationMode,
+                                );
+                                setSelectedUseCase("");
+                                onProjectSelect?.("");
+                              } else {
+                                setSelectedProject(project);
+                                setOperationMode(
+                                  project.operation_mode as OperationMode,
+                                );
+                                setSelectedUseCase(project.use_case || "");
+                                loadSourcesForProject(project.id);
+                                onProjectSelect?.(project.id);
                               }
-                              else
-                              {
-                              setSelectedProject(project);
-                              setOperationMode(
-                                project.operation_mode as OperationMode,
-                              );
-                              setSelectedUseCase(project.use_case || "");
-                              loadSourcesForProject(project.id);
-                              onProjectSelect?.(project.id);
-
-                              }
-                              
-                                
-                              
                             }}
-                            className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                               selected
                                 ? "bg-blue-600 text-white"
                                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -2099,27 +2480,27 @@ onProjectSelectRef.current = onProjectSelect;
                           </button>
                           <button
                             onClick={() => toggleProject(project.id)}
-                            className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50"
+                            className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50"
                             type="button"
-                            aria-label="Toggle project details"
                           >
                             {expanded ? (
-                              <ChevronUp className="w-4 h-4 text-slate-600" />
+                              <ChevronUp className="w-3.5 h-3.5 text-slate-600" />
                             ) : (
-                              <ChevronDown className="w-4 h-4 text-slate-600" />
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
                             )}
                           </button>
                         </div>
                       </div>
+
                       {expanded && (
-                        <div className="mt-4 border-t border-slate-200/70 pt-4">
-                          <h6 className="text-sm font-medium text-slate-700 mb-3">
+                        <div className="mt-3 border-t border-slate-200/70 pt-3">
+                          <h6 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                             Import History
                           </h6>
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {projectSources[project.id]?.length === 0 ? (
-                              <div className="text-center py-4 bg-slate-50 rounded-md text-sm text-slate-500">
-                                No imports for this project yet
+                              <div className="text-center py-3 bg-slate-50 rounded-lg text-xs text-slate-500">
+                                No imports yet
                               </div>
                             ) : (
                               projectSources[project.id]?.map((source) => {
@@ -2128,7 +2509,7 @@ onProjectSelectRef.current = onProjectSelect;
                                 const isEnrichmentProject =
                                   project.operation_mode === "enrichment";
                                 const isPdfExtractionProject =
-                                  project.operation_mode == "pdf_extraction";
+                                  project.operation_mode === "pdf_extraction";
                                 const processStatus = isCleaningProject
                                   ? source.metadata?.cleaning_status ||
                                     source.metadata?.processing_status
@@ -2147,7 +2528,7 @@ onProjectSelectRef.current = onProjectSelect;
                                   : isEnrichmentProject
                                     ? "Needs Enrichment"
                                     : isPdfExtractionProject
-                                      ? "Needs extraction"
+                                      ? "Needs Extraction"
                                       : "Needs Aggregation";
                                 const processingLabel = isCleaningProject
                                   ? "Cleaning..."
@@ -2157,64 +2538,86 @@ onProjectSelectRef.current = onProjectSelect;
                                 return (
                                   <div
                                     key={source.id}
-                                    className="flex items-center justify-between p-3 bg-slate-50 rounded-md text-sm"
+                                    className="flex items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-lg text-xs"
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <FileSpreadsheet className="w-4 h-4 text-blue-600" />
-                                      <span className="text-slate-700">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                      <span
+                                        className="truncate text-slate-700"
+                                        title={source.source_url}
+                                      >
                                         {source.source_url}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                      <button
-                                        onClick={() =>
-                                          extractionService.download(
-                                            source.id,
-                                            "input",
-                                          )
-                                        }
-                                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
-                                      >
-                                        <Download className="w-3.5 h-3.5" />{" "}
-                                        Input
-                                      </button>
-                                      {isCompleted ? (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <div className="relative group/tip">
                                         <button
                                           onClick={() =>
-                                            isCleaningProject
-                                              ? handleDownloadCleanedProject(
-                                                  project.id,
-                                                )
-                                              : extractionService.download(
-                                                  source.id,
-                                                  "output",
-                                                )
+                                            extractionService.download(
+                                              source.id,
+                                              "input",
+                                            )
                                           }
-                                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-100"
+                                          className="w-7 h-7 flex items-center justify-center rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100"
                                         >
-                                          <Download className="w-3.5 h-3.5" />{" "}
-                                          Output
+                                          <Download className="w-3 h-3" />
                                         </button>
+                                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                          Download Input
+                                        </span>
+                                      </div>
+                                      {isCompleted ? (
+                                        <div className="relative group/tip">
+                                          <button
+                                            onClick={() =>
+                                              isCleaningProject
+                                                ? handleDownloadCleanedProject(
+                                                    project.id,
+                                                  )
+                                                : extractionService.download(
+                                                    source.id,
+                                                    "output",
+                                                  )
+                                            }
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100"
+                                          >
+                                            <Download className="w-3 h-3" />
+                                          </button>
+                                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                            Download Output
+                                          </span>
+                                        </div>
                                       ) : isProcessing ? (
-                                        <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-purple-600 italic">
-                                          <Clock className="w-3.5 h-3.5 animate-spin" />{" "}
-                                          {processingLabel}
+                                        <div className="relative group/tip">
+                                          <div className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-600 bg-purple-50 border border-purple-100">
+                                            <Clock className="w-3 h-3 animate-spin" />
+                                          </div>
+                                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                            {processingLabel}
+                                          </span>
                                         </div>
                                       ) : isFailed ? (
-                                        <div
-                                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg border border-red-100 cursor-help"
-                                          title="Some products failed to process."
-                                        >
-                                          <XCircle className="w-3.5 h-3.5" />{" "}
-                                          Failed
+                                        <div className="relative group/tip">
+                                          <div className="w-7 h-7 flex items-center justify-center rounded-lg text-red-600 bg-red-50 border border-red-100">
+                                            <XCircle className="w-3 h-3" />
+                                          </div>
+                                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                            Failed
+                                          </span>
                                         </div>
                                       ) : (
-                                        <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-600 italic">
-                                          <AlertCircle className="w-3.5 h-3.5" />{" "}
-                                          {pendingLabel}
+                                        <div className="relative group/tip">
+                                          <div className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-600 bg-amber-50 border border-amber-100">
+                                            <AlertCircle className="w-3 h-3" />
+                                          </div>
+                                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                            {pendingLabel}
+                                          </span>
                                         </div>
                                       )}
-                                      {getStatusIcon(source.status)}
+                                      <div className="w-7 h-7 flex items-center justify-center">
+                                        {getStatusIcon(source.status)}
+                                      </div>
                                     </div>
                                   </div>
                                 );
@@ -2227,18 +2630,19 @@ onProjectSelectRef.current = onProjectSelect;
                   );
                 })
               )}
+              <button
+                type="button"
+                onClick={() => setShowProjectModal(true)}
+                className="w-full py-2.5 rounded-2xl border border-dashed border-blue-300 text-blue-600 text-sm font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                New Project
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowProjectModal(true)}
-              className="mt-6 w-full py-3 rounded-2xl border border-dashed border-blue-300 text-blue-600 font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              New Project
-            </button>
-          </div>
+          </div> */}
         </div>
       )}
+
       {showMpnExcelModal && <MpnExcelModal />}
     </div>
   );

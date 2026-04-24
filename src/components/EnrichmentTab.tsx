@@ -200,7 +200,7 @@ export default function EnrichmentTab({
       
       setExpandedProjectProducts(products);
       setCurrentPage(1);
-      await loadProjectFilters(projectId);
+      await loadProjectFilters(projectId,undefined,undefined,'enrichment');
 
       const processingProductIds = products
         .filter((p) => p.enrichment_status === "processing")
@@ -617,6 +617,7 @@ export default function EnrichmentTab({
           newSet.delete(projectId);
         } else {
           newSet.add(projectId);
+          loadProjectFilters(projectId,undefined,undefined,'enrichment')
           if (expandedProjectId === projectId) {
             setSelectedProductIds(new Set());
           }
@@ -624,7 +625,7 @@ export default function EnrichmentTab({
         return newSet;
       });
     },
-    [expandedProjectId],
+    [expandedProjectId,loadProjectFilters],
   );
 
   const canDownloadSelected = useMemo(() => {
@@ -998,8 +999,8 @@ export default function EnrichmentTab({
         )}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-lg">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -1016,72 +1017,117 @@ export default function EnrichmentTab({
           </div>
         </div>
 
-        <div className="divide-y divide-slate-200">
-          {projectsLoading ? (
-            <div className="p-8 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
-              <p className="text-slate-500 text-sm">Loading projects...</p>
-            </div>
-          ) : filteredProjects.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">No projects found</div>
-          ) : (
-            filteredProjects.map((project) => (
-              <div key={project.id}>
-                <div
-                  className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
-                    expandedProjectId === project.id ? "bg-blue-50" : ""
-                  } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
-                    enrichingProjects.has(project.id) ? "bg-blue-50/30" : ""
-                  }`}
-                  onClick={() => toggleExpandProject(project.id)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedProjectIds.has(project.id)}
-                    onChange={(e) => toggleProjectSelection(project.id, e as any)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded border-slate-300"
-                    disabled={enrichingProjects.has(project.id)}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-slate-900">{project.name}</h4>
-
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
-                        {project.product_count ?? 0} products
-                      </span>
-
-                      {project.use_case && (
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
-                          {project.use_case}
-                        </span>
-                      )}
-
-                      {getStatusBadge(project.source_status || "NA")}
-
-                      {enrichingProjects.has(project.id) && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          Enriching...
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {enrichingProjects.has(project.id) ? (
-                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                    ) : expandedProjectId === project.id ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
-                    )}
-                  </div>
+         <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 350px)" }}>
+  <table className="w-full">
+    <thead className="sticky  top-0 z-10 bg-slate-50 border-b border-slate-200">
+      <tr>
+        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12">Select</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Project Name</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Use Case</th>
+        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Products</th>
+        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Completeness</th>
+        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Status</th>
+        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 w-12">Actions</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-slate-200">
+      {projectsLoading ? (
+        <tr>
+          <td colSpan={7} className="p-8 text-center">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+            <p className="text-slate-500 text-sm">Loading projects...</p>
+          </td>
+        </tr>
+      ) : filteredProjects.length === 0 ? (
+        <tr>
+          <td colSpan={7} className="p-8 text-center text-slate-500">No projects found</td>
+        </tr>
+      ) : (
+        filteredProjects.map((project) => (
+          <React.Fragment key={project.id}>
+            <tr
+              className={`hover:bg-slate-50 transition-colors cursor-pointer ${
+                expandedProjectId === project.id ? "bg-blue-50" : ""
+              } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
+                enrichingProjects.has(project.id) ? "bg-blue-50/30" : ""
+              }`}
+              onClick={() => toggleExpandProject(project.id)}
+            >
+              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedProjectIds.has(project.id)}
+                  onChange={(e) => toggleProjectSelection(project.id, e as any)}
+                  className="rounded border-slate-300"
+                  disabled={enrichingProjects.has(project.id)}
+                />
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-900">{project.name}</span>
+                  {enrichingProjects.has(project.id) && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Processing
+                    </span>
+                  )}
                 </div>
+              </td>
+              <td className="px-4 py-3">
+                {project.use_case ? (
+                  <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span>
+                ) : (
+                  <span className="text-slate-400 text-xs">—</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-center">
+                <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                  {project.product_count ?? 0}
+                </span>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        (project.completeness_score || 0) > 80 ? "bg-green-500" :
+                        (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"
+                      }`}
+                      style={{ width: `${project.completeness_score || 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+                    {project.completeness_score || 0}%
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-center">
+                <span title={project.source_status || "NA"} className="cursor-default">
+                  {getStatusBadge(project.source_status || "NA", true)}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleExpandProject(project.id); }}
+                  className="p-1 hover:bg-slate-200 rounded transition-colors"
+                >
+                  {enrichingProjects.has(project.id) ? (
+                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                  ) : expandedProjectId === project.id ? (
+                    <ChevronUp className="w-5 h-5 text-slate-600" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-400" />
+                  )}
+                </button>
+              </td>
+            </tr>
 
-                {expandedProjectId === project.id && (
-                  <div className="border-t border-slate-200">
-                    <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3">
+            {/* Expanded products section */}
+            {expandedProjectId === project.id && (
+              <tr>
+                <td colSpan={7} className="p-0">
+                  <div className="bg-slate-50 border-t border-b border-slate-200">
+                    <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3 bg-white">
                       {!(statusFilter === "completed") && (
                         <button
                           onClick={handleEnrichAllInExpanded}
@@ -1116,16 +1162,10 @@ export default function EnrichmentTab({
                               {!isExpandedProjectSelected && (
                                 <input
                                   type="checkbox"
-                                  checked={
-                                    paginatedProducts.length > 0 &&
-                                    paginatedProducts.every((p) => selectedProductIds.has(p.id))
-                                  }
+                                  checked={paginatedProducts.length > 0 && paginatedProducts.every((p) => selectedProductIds.has(p.id))}
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      setSelectedProductIds(
-                                        (prev) =>
-                                          new Set([...prev, ...paginatedProducts.map((p) => p.id)]),
-                                      );
+                                      setSelectedProductIds((prev) => new Set([...prev, ...paginatedProducts.map((p) => p.id)]));
                                     } else {
                                       setSelectedProductIds((prev) => {
                                         const newSet = new Set(prev);
@@ -1138,29 +1178,13 @@ export default function EnrichmentTab({
                                 />
                               )}
                             </th>
-
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Product
-                            </th>
-
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Completeness
-                            </th>
-
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Missing Attributes
-                            </th>
-
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              Status
-                            </th>
-
-                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 bg-slate-50">
-                              Action
-                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Product</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Completeness</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Missing Attributes</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Status</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 bg-slate-50">Action</th>
                           </tr>
                         </thead>
-
                         <tbody className="divide-y divide-slate-200">
                           {expandedLoading ? (
                             <tr>
@@ -1171,46 +1195,26 @@ export default function EnrichmentTab({
                           ) : paginatedProducts.length === 0 ? (
                             <tr>
                               <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                                {searchQuery || categoryFilter || brandFilter
-                                  ? "No products match your filters"
-                                  : "No products found"}
+                                {searchQuery || categoryFilter || brandFilter ? "No products match your filters" : "No products found"}
                               </td>
                             </tr>
                           ) : (
                             paginatedProducts.map((product) => {
                               const missing = getMissingAttributes(product);
                               const score = product.completeness_score || 0;
-
                               return (
-                                <tr
-                                  key={product.id}
-                                  onClick={() => setSelectedProduct(product.id)}
-                                  className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                                    selectedProduct === product.id ? "bg-blue-50" : ""
-                                  }`}
-                                >
+                                <tr key={product.id} onClick={() => setSelectedProduct(product.id)}
+                                    className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedProduct === product.id ? "bg-blue-50" : ""}`}>
                                   <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                                     {!isExpandedProjectSelected && (
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedProductIds.has(product.id)}
+                                      <input type="checkbox" checked={selectedProductIds.has(product.id)}
                                         onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setSelectedProductIds((prev) => new Set(prev).add(product.id));
-                                          } else {
-                                            setSelectedProductIds((prev) => {
-                                              const newSet = new Set(prev);
-                                              newSet.delete(product.id);
-                                              return newSet;
-                                            });
-                                          }
+                                          if (e.target.checked) setSelectedProductIds((prev) => new Set(prev).add(product.id));
+                                          else setSelectedProductIds((prev) => { const newSet = new Set(prev); newSet.delete(product.id); return newSet; });
                                         }}
-                                        className="rounded border-slate-300"
-                                      />
+                                        className="rounded border-slate-300" />
                                     )}
                                   </td>
-
-                                  {/* Product cell (UI like screenshot) */}
                                   <td className="px-4 py-4">
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="min-w-0">
@@ -1218,119 +1222,55 @@ export default function EnrichmentTab({
                                           <div className="font-semibold text-slate-900 text-sm truncate max-w-[520px]">
                                             {product.product_name || product.product_code || "N/A"}
                                           </div>
-
                                           {product.category_1 ? (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                              {product.category_1}
-                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">{product.category_1}</span>
                                           ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                                              <TagIcon />
-                                              No Category
-                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><TagIcon />No Category</span>
                                           )}
                                         </div>
-
                                         <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                                          <span className="font-mono">
-                                            {product.product_code || product.sku || "No SKU"}
-                                          </span>
+                                          <span className="font-mono">{product.product_code || product.sku || "No SKU"}</span>
                                           <span className="text-slate-300">•</span>
                                           <span>{product.brand_name || "—"}</span>
                                         </div>
                                       </div>
                                     </div>
                                   </td>
-
-                                  {/* Completeness */}
                                   <td className="px-4 py-4">
                                     <div className="space-y-1">
                                       <div className="text-xs text-slate-500">Completeness</div>
                                       <div className="flex items-center gap-3">
                                         <div className="w-[120px] h-2 bg-slate-200 rounded-full overflow-hidden">
-                                          <div
-                                            className={`h-full rounded-full transition-all duration-300 ${
-                                              score >= 90
-                                                ? "bg-emerald-500"
-                                                : score >= 60
-                                                  ? "bg-amber-500"
-                                                  : "bg-rose-400"
-                                            }`}
-                                            style={{ width: `${score}%` }}
-                                          />
+                                          <div className={`h-full rounded-full transition-all duration-300 ${score >= 90 ? "bg-emerald-500" : score >= 60 ? "bg-amber-500" : "bg-rose-400"}`}
+                                            style={{ width: `${score}%` }} />
                                         </div>
-                                        <div
-                                          className={`text-sm font-semibold ${
-                                            score >= 90
-                                              ? "text-emerald-600"
-                                              : score >= 60
-                                                ? "text-amber-600"
-                                                : "text-rose-600"
-                                          }`}
-                                        >
-                                          {score}%
-                                        </div>
+                                        <div className={`text-sm font-semibold ${score >= 90 ? "text-emerald-600" : score >= 60 ? "text-amber-600" : "text-rose-600"}`}>{score}%</div>
                                       </div>
                                     </div>
                                   </td>
-
-                                  {/* Missing attributes */}
                                   <td className="px-4 py-4">
                                     {missing.length === 0 ? (
                                       <span className="text-sm text-slate-400">—</span>
                                     ) : (
                                       <div className="flex flex-wrap gap-2">
                                         {missing.slice(0, 3).map((m) => (
-                                          <span
-                                            key={m}
-                                            className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
-                                          >
-                                            {m}
-                                          </span>
+                                          <span key={m} className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">{m}</span>
                                         ))}
-                                        {missing.length > 3 && (
-                                          <span className="text-xs text-slate-500 px-2 py-1">
-                                            +{missing.length - 3} more
-                                          </span>
-                                        )}
+                                        {missing.length > 3 && <span className="text-xs text-slate-500 px-2 py-1">+{missing.length - 3} more</span>}
                                       </div>
                                     )}
                                   </td>
-
-                                  {/* Status */}
-                                  <td className="px-4 py-4">
-                                    {getProductStatusBadge(product.enrichment_status || "pending")}
-                                  </td>
-
-                                  {/* Action (Backfill UI) */}
+                                  <td className="px-4 py-4">{getProductStatusBadge(product.enrichment_status || "pending")}</td>
                                   <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                     {product.enrichment_status !== "processing" && (
-                                      <button
-                                        onClick={() => handleEnrich(product.id)}
-                                        disabled={
-                                          loading ||
-                                          product.enrichment_status === "processing" ||
-                                          enrichingProjects.has(project.id)
-                                        }
-                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                      >
-                                        {product.enrichment_status === "completed" ? (
-                                          <>
-                                            <RefreshCw className="w-4 h-4" />
-                                            Backfill
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Zap className="w-4 h-4" />
-                                            Backfill
-                                          </>
-                                        )}
+                                      <button onClick={() => handleEnrich(product.id)}
+                                        disabled={loading || product.enrichment_status === "processing" || enrichingProjects.has(project.id)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                                        {product.enrichment_status === "completed" ? (<><RefreshCw className="w-4 h-4" />Backfill</>) : (<><Zap className="w-4 h-4" />Backfill</>)}
                                       </button>
                                     )}
                                     {product.enrichment_status === "processing" && (
-                                      <span className="inline-flex items-center gap-2 text-sm text-blue-600">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      </span>
+                                      <span className="inline-flex items-center gap-2 text-sm text-blue-600"><Loader2 className="w-4 h-4 animate-spin" /></span>
                                     )}
                                   </td>
                                 </tr>
@@ -1340,47 +1280,28 @@ export default function EnrichmentTab({
                         </tbody>
                       </table>
                     </div>
-
                     {filteredExpandedProducts.length > 0 && (
                       <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-                        <span>
-                          Showing {startIndex + 1} -{" "}
-                          {Math.min(startIndex + ITEMS_PER_PAGE, filteredExpandedProducts.length)}{" "}
-                          of {filteredExpandedProducts.length} products
-                        </span>
-
+                        <span>Showing {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredExpandedProducts.length)} of {filteredExpandedProducts.length} products</span>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                            disabled={currentPage === 1}
-                            className="p-1 hover:bg-slate-100 rounded disabled:opacity-50 transition-colors"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </button>
-
-                          <span>
-                            Page {currentPage} / {totalPages || 1}
-                          </span>
-
-                          <button
-                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage === totalPages || totalPages === 0}
-                            className="p-1 hover:bg-slate-100 rounded disabled:opacity-50 transition-colors"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
+                          <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button>
+                          <span>Page {currentPage} / {totalPages || 1}</span>
+                          <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages || totalPages === 0} className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"><ChevronRight className="w-4 h-4" /></button>
                         </div>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+                </td>
+              </tr>
+            )}
+          </React.Fragment>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
       </div>
 
-      {/* Drawer (UI updated like screenshot; same data + same actions) */}
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div

@@ -117,7 +117,8 @@ function AppShell() {
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <header className="bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center">
-            <div className="w-64 px-6 py-4 border-r border-slate-200 shrink-0 hidden md:flex items-center">
+           <div className="w-48 px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center">
+
               <img src={logo} alt="Logo" className="w-full h-16 object-cover" />
             </div>
             <div className="flex-1 px-6 py-4 flex items-center justify-between">
@@ -160,8 +161,9 @@ function AppShell() {
           </div>
         </header>
         <div className="flex flex-1 overflow-hidden">
-          <nav className="w-64 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
-            <div className="p-2">
+         <nav className="w-48 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
+
+            <div className="p-1.5">
               {allowedTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = currentTab?.id === tab.id;
@@ -176,7 +178,7 @@ function AppShell() {
     }
                     }}
                     className={`
-                      flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-lg transition-all mb-1
+                     flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium rounded-lg transition-all mb-1
                       ${
                         isActive
                           ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
