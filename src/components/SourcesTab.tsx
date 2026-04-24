@@ -148,23 +148,32 @@ export default function SourcesTab({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [projectName, setProjectName] = useState<string>("");
-  const loadProjectsOverview = async () => {
+  const [overviewPage, setOverviewPage] = useState(1);
+  const [overviewTotalPages, setOverviewTotalPages] = useState(1);
+  const OVERVIEW_PAGE_SIZE = 20;
+  const loadProjectsOverview = async (page = 1) => {
     setOverviewLoading(true);
     try {
-      const data = await dashboardService.getProjectsOverview();
-      setProjectsOverview(data);
+      const data = await dashboardService.getProjectsOverview({ page, page_size: OVERVIEW_PAGE_SIZE });
+      setProjectsOverview(Array.isArray(data) ? data : []);
+      if (data.length < OVERVIEW_PAGE_SIZE) {
+        setOverviewTotalPages(page);
+      } else {
+        setOverviewTotalPages(page + 1);
+      }
     } catch (error) {
       console.error("Failed to load projects overview:", error);
     } finally {
       setOverviewLoading(false);
     }
   };
-  useEffect(() => {
-    if (!projectId) {
-      loadProjectsOverview();
-    }
-  }, [projectId]);
+ const handleOverviewPageChange = (page: number) => {
+    setOverviewPage(page);
+  };
 
+  useEffect(() => {
+    loadProjectsOverview(overviewPage);
+  }, [overviewPage]);
   useEffect(() => {
     loadSources();
     loadProjects();
@@ -1279,6 +1288,9 @@ export default function SourcesTab({
                     <ProjectsOverviewTab
             projects={projectsOverview}
             selectedProjectId={projectId}
+            page={overviewPage}
+            totalPages={overviewTotalPages}
+            onPageChange={handleOverviewPageChange}
             onOpenProject={(id) => {
               const project = projects.find((p) => p.id === id);
               if (project) {

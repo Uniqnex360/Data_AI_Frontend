@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Folder, Search, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Folder, Search, Download, FileSpreadsheet, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   ProjectOverview,
   ProjectStatus,
@@ -16,6 +16,9 @@ interface Props {
   onOpenProject?: (id: string) => void;
   onSelectProject?: (id: string) => void;
   onDeselectProject?: (id: string) => void;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 function ProgressBar({
@@ -49,6 +52,9 @@ export default function ProjectsOverviewTab({
   onOpenProject,
   onSelectProject,
   onDeselectProject,
+  page = 1,
+  totalPages = 1,
+  onPageChange,
 }: Props) {
   const [filter, setFilter] = useState<"all" | ProjectStatus>("all");
   const [search, setSearch] = useState("");
@@ -108,7 +114,7 @@ export default function ProjectsOverviewTab({
     return sources.some((s) => s.status === "completed");
   };
 
-    const handleDownloadOutput = async (e: React.MouseEvent, projectId: string) => {
+  const handleDownloadOutput = async (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
     const project = projects.find((p) => p.id === projectId);
     const projectName = project?.name || "project";
@@ -148,6 +154,7 @@ export default function ProjectsOverviewTab({
       });
     }
   };
+
   const getOutputTooltip = (projectId: string): string => {
     const project = projects.find((p) => p.id === projectId);
     if (project?.operationMode === "cleaning") return "Download Cleaned Data";
@@ -156,8 +163,12 @@ export default function ProjectsOverviewTab({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 220px)" }}>
-      <div className="shrink-0 border-b border-slate-200 bg-white">
+    <div
+      className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
+      style={{ maxHeight: "calc(100vh - 220px)" }}
+    >
+      {/* Fixed header section */}
+      <div className="shrink-0 bg-white">
         <div className="flex items-center justify-between px-6 pt-5 pb-3 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <Folder className="w-5 h-5 text-slate-700" />
@@ -191,132 +202,201 @@ export default function ProjectsOverviewTab({
             />
           </div>
         </div>
+      </div>
 
-        <div className="overflow-x-auto border-t border-slate-100">
-          <table className="w-full text-sm table-fixed" style={{ minWidth: 1100 }}>
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wide">
-              <tr>
-                <th className="px-6 py-3 text-left w-[200px]">Project Name</th>
-                <th className="px-6 py-3 text-left w-[120px]">Operation Mode</th>
-                <th className="px-6 py-3 text-left w-[180px]">Use Case</th>
-                <th className="px-6 py-3 text-center w-[80px]">Products</th>
-                <th className="px-6 py-3 text-left w-[140px]">Aggregated</th>
-                <th className="px-6 py-3 text-left w-[140px]">Enriched</th>
-                <th className="px-6 py-3 text-left w-[140px]">Cleaned</th>
-                <th className="px-6 py-3 text-left w-[130px]">Import File</th>
-                <th className="px-6 py-3 text-center w-[80px]">Output</th>
-                  <th className="px-6 py-3 text-center w-[90px]">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((p) => {
-                const isSelected = p.id === selectedProjectId;
-                const importFileName = getImportFileName(p.id);
-                const hasOutput = isOutputReady(p.id);
-                const isLoading = loadingSources.has(p.id);
-                const isDownloading = downloading.has(p.id);
+      {/* Scrollable table section */}
+      <div className="flex-1 overflow-auto min-h-0 border-t border-slate-100">
+        <table className="w-full text-sm table-fixed" style={{ minWidth: 1100 }}>
+          <thead
+            className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wide"
+            style={{ position: "sticky", top: 0, zIndex: 10 }}
+          >
+            <tr>
+              <th className="px-6 py-3 text-left w-[200px]">Project Name</th>
+              <th className="px-6 py-3 text-left w-[120px]">Operation Mode</th>
+              <th className="px-6 py-3 text-left w-[180px]">Use Case</th>
+              <th className="px-6 py-3 text-center w-[80px]">Products</th>
+              <th className="px-6 py-3 text-left w-[140px]">Aggregated</th>
+              <th className="px-6 py-3 text-left w-[140px]">Enriched</th>
+              <th className="px-6 py-3 text-left w-[140px]">Cleaned</th>
+              <th className="px-6 py-3 text-left w-[130px]">Import File</th>
+              <th className="px-6 py-3 text-center w-[80px]">Output</th>
+              <th className="px-6 py-3 text-center w-[90px]">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filtered.map((p) => {
+              const isSelected = p.id === selectedProjectId;
+              const importFileName = getImportFileName(p.id);
+              const hasOutput = isOutputReady(p.id);
+              const isLoading = loadingSources.has(p.id);
+              const isDownloading = downloading.has(p.id);
 
-                return (
-                  <tr
-                    key={p.id}
-                    onClick={() => onOpenProject?.(p.id)}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected ? "bg-blue-50 hover:bg-blue-100/60" : "hover:bg-slate-50"
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <div className={`font-semibold truncate ${isSelected ? "text-blue-700" : "text-slate-900"}`}>
-                        {isSelected && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 mr-2 mb-0.5" />}
-                        {p.name}
+              return (
+                <tr
+                  key={p.id}
+                  onClick={() => onOpenProject?.(p.id)}
+                  className={`cursor-pointer transition-colors ${
+                    isSelected ? "bg-blue-50 hover:bg-blue-100/60" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <td className="px-6 py-4">
+                    <div className={`font-semibold truncate ${isSelected ? "text-blue-700" : "text-slate-900"}`}>
+                      {isSelected && (
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 mr-2 mb-0.5" />
+                      )}
+                      {p.name}
+                    </div>
+                    {p.description && (
+                      <div className="text-xs text-slate-400 truncate mt-0.5">{p.description}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
+                      {p.operationMode || "—"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs text-slate-600 line-clamp-2" title={p.useCase}>
+                      {p.useCase || "—"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center font-bold text-slate-800 text-sm">
+                    {p.totalProducts}
+                  </td>
+                  <td className="px-6 py-4 w-36">
+                    <ProgressBar
+                      value={p.aggregated}
+                      total={p.totalProducts}
+                      color="bg-blue-500"
+                      failed={p.aggregationFailed}
+                    />
+                  </td>
+                  <td className="px-6 py-4 w-36">
+                    <ProgressBar
+                      value={p.enrichment}
+                      total={p.totalProducts}
+                      color="bg-orange-500"
+                      failed={p.enrichmentFailed}
+                    />
+                  </td>
+                  <td className="px-6 py-4 w-36">
+                    <ProgressBar
+                      value={p.cleaning}
+                      total={p.totalProducts}
+                      color="bg-emerald-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    {isLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                    ) : importFileName ? (
+                      <div className="flex items-center gap-1.5">
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <span
+                          className="text-xs text-slate-600 font-mono truncate block max-w-[100px]"
+                          title={importFileName}
+                        >
+                          {importFileName}
+                        </span>
                       </div>
-                      {p.description && <div className="text-xs text-slate-400 truncate mt-0.5">{p.description}</div>}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">{p.operationMode || "—"}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs text-slate-600 line-clamp-2" title={p.useCase}>{p.useCase || "—"}</span>
-                    </td>
-                    <td className="px-6 py-4 text-center font-bold text-slate-800 text-sm">{p.totalProducts}</td>
-                    <td className="px-6 py-4 w-36">
-                      <ProgressBar value={p.aggregated} total={p.totalProducts} color="bg-blue-500" failed={p.aggregationFailed} />
-                    </td>
-                    <td className="px-6 py-4 w-36">
-                      <ProgressBar value={p.enrichment} total={p.totalProducts} color="bg-orange-500" failed={p.enrichmentFailed} />
-                    </td>
-                    <td className="px-6 py-4 w-36">
-                      <ProgressBar value={p.cleaning} total={p.totalProducts} color="bg-emerald-500" />
-                    </td>
-                    <td className="px-6 py-4">
-                      {isLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                      ) : importFileName ? (
-                        <div className="flex items-center gap-1.5">
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span className="text-xs text-slate-600 font-mono truncate block max-w-[100px]" title={importFileName}>
-                            {importFileName}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {isLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 mx-auto" />
-                      ) : hasOutput ? (
-                        <div className="relative group/tip">
-                          <button
-                            onClick={(e) => handleDownloadOutput(e, p.id)}
-                            disabled={isDownloading}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
-                          >
-                            {isDownloading ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Download className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-                            {getOutputTooltip(p.id)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
-                    </td>
-                   <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      {isSelected ? (
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {isLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 mx-auto" />
+                    ) : hasOutput ? (
+                      <div className="relative group/tip">
                         <button
-                          onClick={() => onDeselectProject?.(p.id)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          onClick={(e) => handleDownloadOutput(e, p.id)}
+                          disabled={isDownloading}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
                         >
-                          Selected
+                          {isDownloading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            onSelectProject?.(p.id);
-                            onOpenProject?.(p.id);
-                          }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
-                        >
-                          Select
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
-                    {search ? `No projects matching "${search}"` : "No projects found."}
+                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                          {getOutputTooltip(p.id)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    {isSelected ? (
+                      <button
+                        onClick={() => onDeselectProject?.(p.id)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      >
+                        Selected
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          onSelectProject?.(p.id);
+                          onOpenProject?.(p.id);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                      >
+                        Select
+                      </button>
+                    )}
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
+                  {search ? `No projects matching "${search}"` : "No projects found."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination - always visible at bottom */}
+      <div className="shrink-0 px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <span>
+          Page {page} of {totalPages}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onPageChange?.(page - 1)}
+            disabled={page <= 1}
+            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
+          >
+            <ChevronLeft className="w-3 h-3" /> Previous
+          </button>
+          <span className="flex items-center gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => onPageChange?.(p)}
+                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                  p === page
+                    ? "bg-blue-600 text-white"
+                    : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </span>
+          <button
+            onClick={() => onPageChange?.(page + 1)}
+            disabled={page >= totalPages}
+            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
+          >
+            Next <ChevronRight className="w-3 h-3" />
+          </button>
         </div>
       </div>
     </div>
