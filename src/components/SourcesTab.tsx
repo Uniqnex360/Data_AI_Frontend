@@ -154,6 +154,8 @@ export default function SourcesTab({
   const [overviewTotalPages, setOverviewTotalPages] = useState(1);
   const OVERVIEW_PAGE_SIZE = 20;
   const loadProjectsOverview = async (page = 1) => {
+    console.log("Loading overview with filter:", overviewFilter, "page:", page); // DEBUG
+
     setOverviewLoading(true);
     try {
       const data = await dashboardService.getProjectsOverview({ page, page_size: OVERVIEW_PAGE_SIZE,status:overviewFilter});
