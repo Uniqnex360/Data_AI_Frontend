@@ -19,6 +19,8 @@ interface Props {
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  onFilterChange?:(filter:string)=>void
+   currentFilter?: string;
 }
 
 function ProgressBar({
@@ -55,15 +57,16 @@ export default function ProjectsOverviewTab({
   page = 1,
   totalPages = 1,
   onPageChange,
+  onFilterChange,
+  currentFilter = "all", 
 }: Props) {
-  const [filter, setFilter] = useState<"all" | ProjectStatus>("all");
   const [search, setSearch] = useState("");
   const [projectSources, setProjectSources] = useState<Record<string, Source[]>>({});
   const [loadingSources, setLoadingSources] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
-    let list = filter === "all" ? projects : projects.filter((p) => p.status === filter);
+    let list = currentFilter === "all" ? projects : projects.filter((p) => p.status === currentFilter);
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -73,7 +76,7 @@ export default function ProjectsOverviewTab({
       );
     }
     return list;
-  }, [filter, projects, search]);
+  }, [currentFilter, projects, search]);
 
   const loadSources = useCallback(async (projectId: string) => {
     if (projectSources[projectId]) return;
@@ -217,9 +220,11 @@ const getSourceStatusInfo = (projectId: string) => {
             {(["all", "active", "completed", "stalled", "new"] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+               onClick={() => {
+                  onFilterChange?.(f);
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                  filter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  currentFilter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}

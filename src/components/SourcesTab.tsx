@@ -146,6 +146,8 @@ export default function SourcesTab({
   const [aggregationType, setAggregationType] = useState<"web" | "pdf" | "">(
     "web",
   );
+  const [overviewFilter, setOverviewFilter] = useState<string>("");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [projectName, setProjectName] = useState<string>("");
   const [overviewPage, setOverviewPage] = useState(1);
@@ -154,7 +156,7 @@ export default function SourcesTab({
   const loadProjectsOverview = async (page = 1) => {
     setOverviewLoading(true);
     try {
-      const data = await dashboardService.getProjectsOverview({ page, page_size: OVERVIEW_PAGE_SIZE });
+      const data = await dashboardService.getProjectsOverview({ page, page_size: OVERVIEW_PAGE_SIZE,status:overviewFilter});
       setProjectsOverview(Array.isArray(data) ? data : []);
       if (data.length < OVERVIEW_PAGE_SIZE) {
         setOverviewTotalPages(page);
@@ -173,7 +175,7 @@ export default function SourcesTab({
 
   useEffect(() => {
     loadProjectsOverview(overviewPage);
-  }, [overviewPage]);
+  }, [overviewPage,overviewFilter]);
   useEffect(() => {
     loadSources();
     loadProjects();
@@ -1074,7 +1076,6 @@ export default function SourcesTab({
   }, [activeProject]);
   return (
     <div className="space-y-4">
-      {/* ── Top bar ── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -1101,7 +1102,6 @@ export default function SourcesTab({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Clear selection — only when a project is active */}
           {projectId && (
             <button
               onClick={() => {
@@ -1127,7 +1127,6 @@ export default function SourcesTab({
         </div>
       </div>
 
-      {/* ── Active project pill (sources view) ── */}
       {viewMode === "sources" && projectId && (
         <div className="bg-white border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -1156,7 +1155,6 @@ export default function SourcesTab({
         </div>
       )}
 
-      {/* ── Create project form ── */}
       {showProjectModal && (
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
           <h4 className="text-base font-semibold text-slate-900 mb-4">
@@ -1278,7 +1276,6 @@ export default function SourcesTab({
         </div>
       )}
 
-      {/* ── Overview view (default) ── */}
       {viewMode === "overview" &&
         (overviewLoading ? (
           <div className="flex justify-center py-16">
@@ -1290,7 +1287,12 @@ export default function SourcesTab({
             selectedProjectId={projectId}
             page={overviewPage}
             totalPages={overviewTotalPages}
+             currentFilter={overviewFilter} 
             onPageChange={handleOverviewPageChange}
+            onFilterChange={(filter) => {
+    setOverviewFilter(filter);
+    setOverviewPage(1); 
+  }}
             onOpenProject={(id) => {
               const project = projects.find((p) => p.id === id);
               if (project) {
@@ -1320,10 +1322,8 @@ export default function SourcesTab({
           />
         ))}
 
-      {/* ── Sources view ── */}
       {viewMode === "sources" && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:items-start">
-          {/* Left: import panel */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 pt-5 border-b border-slate-200">
               <div className="flex items-center gap-6">
@@ -1398,7 +1398,6 @@ export default function SourcesTab({
                         </p>
                       </div>
 
-                      {/* PDF upload */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           PDF Files
@@ -1431,7 +1430,6 @@ export default function SourcesTab({
                         )}
                       </div>
 
-                      {/* Optional identifiers */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           Product Hints{" "}
@@ -1480,7 +1478,6 @@ export default function SourcesTab({
                         )}
                       </div>
 
-                      {/* Optional product details */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           Additional Details{" "}
@@ -1695,7 +1692,6 @@ export default function SourcesTab({
                         </p>
                       </div>
 
-                      {/* MPNs */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           MPNs{" "}
@@ -1753,7 +1749,6 @@ export default function SourcesTab({
                         )}
                       </div>
 
-                      {/* PDFs */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           PDF Files{" "}
@@ -1827,7 +1822,6 @@ export default function SourcesTab({
                         </p>
                       </div>
 
-                      {/* MPNs */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           MPN / UPC Codes
@@ -1873,7 +1867,6 @@ export default function SourcesTab({
                         )}
                       </div>
 
-                      {/* PDF */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           PDF Files
