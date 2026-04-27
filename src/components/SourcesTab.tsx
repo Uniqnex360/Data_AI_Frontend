@@ -146,12 +146,13 @@ export default function SourcesTab({
   const [aggregationType, setAggregationType] = useState<"web" | "pdf" | "">(
     "web",
   );
-  const [overviewFilter, setOverviewFilter] = useState<string>("");
+  const [overviewFilter, setOverviewFilter] = useState<string>("all");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [projectName, setProjectName] = useState<string>("");
   const [overviewPage, setOverviewPage] = useState(1);
   const [overviewTotalPages, setOverviewTotalPages] = useState(1);
+
   const OVERVIEW_PAGE_SIZE = 20;
   const loadProjectsOverview = async (page = 1) => {
     console.log("Loading overview with filter:", overviewFilter, "page:", page); // DEBUG
