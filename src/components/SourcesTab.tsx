@@ -1928,7 +1928,8 @@ export default function SourcesTab({
                   ) : (
                     <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
-                      Select a PDF extraction use case to begin.
+                      PDF import is only available for PDF extraction projects. 
+                      Switch to Bulk Import or Manual Input for this project type.
                     </div>
                   )}
                 </>
@@ -2021,8 +2022,8 @@ export default function SourcesTab({
                   ) : operationMode === "pdf_extraction" ? (
                     <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
-                      Select a PDF extraction use case from the options above to
-                      begin.
+                     Bulk import is only available for aggregation projects. 
+                      Switch to Import PDF tab for this project type.
                     </div>
                   ) : (
                     <div>
