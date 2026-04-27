@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Folder, Search, Download, FileSpreadsheet, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Folder, Search, Download, FileSpreadsheet, Loader2, ChevronLeft, ChevronRight, AlertCircle, XCircle, Clock } from 'lucide-react';
 import {
   ProjectOverview,
   ProjectStatus,
@@ -107,13 +107,52 @@ export default function ProjectsOverviewTab({
     if (excelSource) return excelSource.source_url;
     return sources[0].source_url;
   };
-
-  const isOutputReady = (projectId: string): boolean => {
-    const sources = projectSources[projectId];
-    if (!sources || sources.length === 0) return false;
-    return sources.some((s) => s.status === "completed");
+const getSourceStatusInfo = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    const sources = projectSources[projectId] || [];
+    const isCleaningProject = project?.operationMode === "cleaning";
+    const isEnrichmentProject = project?.operationMode === "enrichment";
+    const isPdfExtractionProject = project?.operationMode === "pdf_extraction";
+    
+    if (!sources.length) {
+      return { isCompleted: false, isProcessing: false, isFailed: false, pendingLabel: "", processingLabel: "" };
+    }
+    
+    const completedSource = sources.find((s) => 
+      s.metadata?.processing_status === "completed"
+    );
+    const processingSource = sources.find((s) => 
+      s.metadata?.processing_status === "processing"
+    );
+    const failedSource = sources.find((s) => 
+      s.metadata?.processing_status === "failed"
+    );
+    
+    const processStatus = completedSource?.metadata?.processing_status 
+      || processingSource?.metadata?.processing_status 
+      || failedSource?.metadata?.processing_status
+      || "pending";
+    
+    const isCompleted = processStatus === "completed";
+    const isProcessing = processStatus === "processing";
+    const isFailed = processStatus === "failed";
+    
+    const pendingLabel = isCleaningProject
+      ? "Needs Cleaning"
+      : isEnrichmentProject
+        ? "Needs Enrichment"
+        : isPdfExtractionProject
+          ? "Needs Extraction"
+          : "Needs Aggregation";
+    
+    const processingLabel = isCleaningProject
+      ? "Cleaning..."
+      : isEnrichmentProject
+        ? "Enriching..."
+        : "Aggregating...";
+    
+    return { isCompleted, isProcessing, isFailed, pendingLabel, processingLabel };
   };
-
   const handleDownloadOutput = async (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
     const project = projects.find((p) => p.id === projectId);
@@ -167,7 +206,6 @@ export default function ProjectsOverviewTab({
       className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
       style={{ maxHeight: "calc(100vh - 220px)" }}
     >
-      {/* Fixed header section */}
       <div className="shrink-0 bg-white">
         <div className="flex items-center justify-between px-6 pt-5 pb-3 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
@@ -204,7 +242,6 @@ export default function ProjectsOverviewTab({
         </div>
       </div>
 
-      {/* Scrollable table section */}
       <div className="flex-1 overflow-auto min-h-0 border-t border-slate-100">
         <table className="w-full text-sm table-fixed" style={{ minWidth: 1100 }}>
           <thead
@@ -228,7 +265,6 @@ export default function ProjectsOverviewTab({
             {filtered.map((p) => {
               const isSelected = p.id === selectedProjectId;
               const importFileName = getImportFileName(p.id);
-              const hasOutput = isOutputReady(p.id);
               const isLoading = loadingSources.has(p.id);
               const isDownloading = downloading.has(p.id);
 
@@ -304,28 +340,75 @@ export default function ProjectsOverviewTab({
                       <span className="text-slate-300 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                                   <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                     {isLoading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 mx-auto" />
-                    ) : hasOutput ? (
-                      <div className="relative group/tip">
-                        <button
-                          onClick={(e) => handleDownloadOutput(e, p.id)}
-                          disabled={isDownloading}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
-                        >
-                          {isDownloading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Download className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-                          {getOutputTooltip(p.id)}
-                        </span>
-                      </div>
                     ) : (
-                      <span className="text-slate-300 text-xs">—</span>
+                      (() => {
+                        const { isCompleted, isProcessing, isFailed, pendingLabel, processingLabel } = getSourceStatusInfo(p.id);
+                        
+                        if (isCompleted) {
+                          return (
+                            <div className="relative group/tip">
+                              <button
+                                onClick={(e) => handleDownloadOutput(e, p.id)}
+                                disabled={isDownloading}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
+                              >
+                                {isDownloading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Download className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                Download Output
+                              </span>
+                            </div>
+                          );
+                        }
+                        
+                        if (isProcessing) {
+                          return (
+                            <div className="relative group/tip">
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-600 bg-purple-50 border border-purple-100">
+                                <Clock className="w-3.5 h-3.5 animate-spin" />
+                              </div>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                {processingLabel}
+                              </span>
+                            </div>
+                          );
+                        }
+                        
+                        if (isFailed) {
+                          return (
+                            <div className="relative group/tip">
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg text-red-600 bg-red-50 border border-red-100">
+                                <XCircle className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                Failed
+                              </span>
+                            </div>
+                          );
+                        }
+                        
+                        if (pendingLabel) {
+                          return (
+                            <div className="relative group/tip">
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-600 bg-amber-50 border border-amber-100">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                {pendingLabel}
+                              </span>
+                            </div>
+                          );
+                        }
+                        
+                        return <span className="text-slate-300 text-xs">—</span>;
+                      })()
                     )}
                   </td>
                   <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
@@ -362,7 +445,6 @@ export default function ProjectsOverviewTab({
         </table>
       </div>
 
-      {/* Pagination - always visible at bottom */}
       <div className="shrink-0 px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <span>
           Page {page} of {totalPages}

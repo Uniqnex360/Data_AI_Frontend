@@ -143,7 +143,7 @@ export const extractionService = {
       if (!response.data || response.data.size === 0) {
         throw new Error("No data received from server");
       }
-      const contentDisposition = response.headers["content-disposition"];
+           const contentDisposition = response.headers["content-disposition"];
       let filename = "";
       if (contentDisposition) {
         const encodedMatch = contentDisposition.match(
@@ -156,10 +156,16 @@ export const extractionService = {
             /filename[^;=\n]*=["']?([^"';\n]+)["']?/,
           );
           if (fallbackMatch) {
-            filename = decodeURIComponent(fallbackMatch[1]);
+            let raw = fallbackMatch[1].trim();
+            if ((raw.startsWith('"') && raw.endsWith('"')) || 
+                (raw.startsWith("'") && raw.endsWith("'"))) {
+              raw = raw.slice(1, -1);
+            }
+            filename = decodeURIComponent(raw);
           }
         }
       }
+      console.log("📥 Download filename:", filename);
       if (!filename) {
         const contentType =
           response.headers["content-type"]?.toLowerCase() || "";

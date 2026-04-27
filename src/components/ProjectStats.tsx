@@ -23,9 +23,9 @@ export function ProjectStats({ projectId, project: projectProp, onClose }: Proje
   const [enrichmentProducts, setEnrichmentProducts] = useState<Product[]>([]);
   const [projectSource, setProjectSource] = useState<Source | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-
-  const [loading, setLoading] = useState(true);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [tab, setTab] = useState<TabKey>("listing");
   const [search, setSearch] = useState("");
@@ -64,7 +64,7 @@ export function ProjectStats({ projectId, project: projectProp, onClose }: Proje
       setLoading(false);
     }
   }, [projectId]);
-
+  
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -127,7 +127,47 @@ export function ProjectStats({ projectId, project: projectProp, onClose }: Proje
   const movedToEnrichment = enrichmentProducts.filter(p => p.workflow_stage === "enrichment").length;
 
   const projectName = projectProp?.name ?? projectStats?.name ?? "Project";
+    const handleDownloadSelected = async () => {
+    if (selectedProductIds.size === 0) {
+      notify.info("No products selected");
+      return;
+    }
+    setDownloading(true);
+    try {
+      const selectedProducts = Array.from(selectedProductIds);
+      const blob = await aggregationService.exportSelectedItems([], selectedProducts);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `selected_export.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      notify.success("Export started");
+    } catch (error) {
+      console.error("Export failed:", error);
+      notify.error("Export failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+    const toggleSelectAll = () => {
+    if (selectedProductIds.size === pageRows.length) {
+      setSelectedProductIds(new Set());
+    } else {
+      setSelectedProductIds(new Set(pageRows.map(p => p.id)));
+    }
+  };
 
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) newSet.delete(productId);
+      else newSet.add(productId);
+      return newSet;
+    });
+  };
   const handleDownload = async () => {
     try {
       setDownloading(true);
@@ -155,13 +195,27 @@ export function ProjectStats({ projectId, project: projectProp, onClose }: Proje
           <button onClick={onClose} className="text-xs text-indigo-400 hover:text-indigo-300 mb-1 flex items-center gap-1">
             <ChevronLeft className="w-3 h-3" /> Back to Aggregation
           </button>
+          
           <h1 className="text-xl font-bold tracking-tight">{projectName} – Statistics</h1>
         </div>
-        {onClose && (
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-800 text-slate-400 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        )}
+        
+                <div className="flex items-center gap-3">
+          {selectedProductIds.size > 0 && (
+            <button
+              onClick={handleDownloadSelected}
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Download Selected ({selectedProductIds.size})
+            </button>
+          )}
+          {onClose && (
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-800 text-slate-400 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Top 3 Cards */}
@@ -266,6 +320,14 @@ export function ProjectStats({ projectId, project: projectProp, onClose }: Proje
         <table className="w-full text-xs text-left border-separate border-spacing-0">
           <thead className="sticky top-0 bg-slate-950 text-slate-500 z-10 font-bold uppercase tracking-wider">
             <tr>
+                            <th className="py-4 border-b border-slate-800 text-center w-12">
+                <input
+                  type="checkbox"
+                  checked={pageRows.length > 0 && selectedProductIds.size === pageRows.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-slate-600"
+                />
+              </th>
               <th className="py-4 border-b border-slate-800">Product Name</th>
               <th className="py-4 border-b border-slate-800">Brand</th>
               <th className="py-4 border-b border-slate-800">Category</th>
@@ -286,14 +348,22 @@ export function ProjectStats({ projectId, project: projectProp, onClose }: Proje
               </tr>
             ) : pageRows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-slate-500">No products found</td>
+                <td colSpan={9} className="py-10 text-center text-slate-500">No products found</td>
               </tr>
             ) : (
               pageRows.map((p) => (
-                <tr 
+                                <tr 
                   key={p.id} 
                   className="group hover:bg-slate-900/30 transition-colors cursor-pointer"
                 >
+                  <td className="py-4 text-center" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.has(p.id)}
+                      onChange={() => toggleProductSelection(p.id)}
+                      className="rounded border-slate-600"
+                    />
+                  </td>
                   <td className="py-4">
                     <div className="flex items-center gap-3">
                       {p.image_url_1 ? (
