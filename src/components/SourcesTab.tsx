@@ -152,14 +152,19 @@ export default function SourcesTab({
   const [projectName, setProjectName] = useState<string>("");
   const [overviewPage, setOverviewPage] = useState(1);
   const [overviewTotalPages, setOverviewTotalPages] = useState(1);
-
+  const [overviewSearch, setOverviewSearch] = useState("");
   const OVERVIEW_PAGE_SIZE = 20;
   const loadProjectsOverview = async (page = 1) => {
     console.log("Loading overview with filter:", overviewFilter, "page:", page); // DEBUG
 
     setOverviewLoading(true);
     try {
-      const data = await dashboardService.getProjectsOverview({ page, page_size: OVERVIEW_PAGE_SIZE,status:overviewFilter});
+      const data = await dashboardService.getProjectsOverview({
+        page,
+        page_size: OVERVIEW_PAGE_SIZE,
+        status: overviewFilter,
+        search: overviewSearch || undefined,
+      });
       setProjectsOverview(Array.isArray(data) ? data : []);
       if (data.length < OVERVIEW_PAGE_SIZE) {
         setOverviewTotalPages(page);
@@ -172,13 +177,13 @@ export default function SourcesTab({
       setOverviewLoading(false);
     }
   };
- const handleOverviewPageChange = (page: number) => {
+  const handleOverviewPageChange = (page: number) => {
     setOverviewPage(page);
   };
 
   useEffect(() => {
     loadProjectsOverview(overviewPage);
-  }, [overviewPage,overviewFilter]);
+  }, [overviewPage, overviewFilter, overviewSearch]);
   useEffect(() => {
     loadSources();
     loadProjects();
@@ -1176,25 +1181,6 @@ export default function SourcesTab({
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-                Operation Mode
-              </label>
-              <select
-                value={operationMode}
-                onChange={(e) => {
-                  setOperationMode(e.target.value as OperationMode);
-                  setAggregationType("");
-                  setSelectedUseCase("");
-                  setShowUseCaseDropdown(false);
-                }}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="aggregation">Aggregation</option>
-                <option value="cleaning">Cleaning</option>
-                <option value="enrichment">Enrichment</option>
-              </select>
-            </div>
             {operationMode === "aggregation" && (
               <div className="flex-1 min-w-[140px]">
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
@@ -1215,6 +1201,26 @@ export default function SourcesTab({
                 </select>
               </div>
             )}
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                Operation Mode
+              </label>
+              <select
+                value={operationMode}
+                onChange={(e) => {
+                  setOperationMode(e.target.value as OperationMode);
+                  setAggregationType("");
+                  setSelectedUseCase("");
+                  setShowUseCaseDropdown(false);
+                }}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="aggregation">Aggregation</option>
+                <option value="cleaning">Cleaning</option>
+                <option value="enrichment">Enrichment</option>
+              </select>
+            </div>
+
             <div className="flex-1 min-w-[180px]">
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
                 Use Case
@@ -1285,17 +1291,22 @@ export default function SourcesTab({
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : (
-                    <ProjectsOverviewTab
+          <ProjectsOverviewTab
             projects={projectsOverview}
             selectedProjectId={projectId}
             page={overviewPage}
             totalPages={overviewTotalPages}
-             currentFilter={overviewFilter} 
+            currentFilter={overviewFilter}
             onPageChange={handleOverviewPageChange}
             onFilterChange={(filter) => {
-    setOverviewFilter(filter);
-    setOverviewPage(1); 
+              setOverviewFilter(filter);
+              setOverviewPage(1);
+            }}
+            onSearchChange={(search) => {
+    setOverviewSearch(search);
+    setOverviewPage(1);
   }}
+
             onOpenProject={(id) => {
               const project = projects.find((p) => p.id === id);
               if (project) {
@@ -1924,8 +1935,9 @@ export default function SourcesTab({
                   ) : (
                     <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
-                      PDF import is only available for PDF extraction projects. 
-                      Switch to Bulk Import or Manual Input for this project type.
+                      PDF import is only available for PDF extraction projects.
+                      Switch to Bulk Import or Manual Input for this project
+                      type.
                     </div>
                   )}
                 </>
@@ -2018,7 +2030,7 @@ export default function SourcesTab({
                   ) : operationMode === "pdf_extraction" ? (
                     <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
-                     Bulk import is only available for aggregation projects. 
+                      Bulk import is only available for aggregation projects.
                       Switch to Import PDF tab for this project type.
                     </div>
                   ) : (

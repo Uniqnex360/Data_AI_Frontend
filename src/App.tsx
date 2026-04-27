@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Database,
   FileText,
   GitMerge,
-  Sparkles,
-  Shield,
-  Target,
   LogOut,
+  Shield,
+  Sparkles,
+  Target,
 } from "lucide-react";
 import DashboardTab from "./components/DashboardTab";
 import SourcesTab from "./components/SourcesTab";
@@ -69,7 +69,7 @@ const tabs: Tab[] = [
   },
   {
     id: "datacleaning",
-    label: "Data Cleaning",
+    label: "Cleansing & Standardization", 
     icon: Sparkles,
     component: DataCleaningTab,
     roles: ["admin", "editor", "viewer"],
@@ -87,23 +87,25 @@ function AppShell() {
   const [selectedProject, setSelectedProject] = useState<string | undefined>(
     undefined,
   );
+  const [resetKey, setResetKey] = useState(0);
+
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
   const { user, logout } = useAuth();
   const allowedTabs = tabs.filter(
     (tab) => !tab.roles || (user && tab.roles.includes(user.role)),
   );
   const fallbackTab = allowedTabs[0]?.id || "dashboard";
-  const currentTab =
-    allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
+  const currentTab = allowedTabs.find((t) => t.id === activeTab) ??
+    allowedTabs[0];
   const ActiveComponent = currentTab?.component;
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
     setActiveTab("sources");
   };
   const handleNavigateToProject = (tab: TabId, projectId: string) => {
-  setActiveTab(tab);
-  setSelectedProject(projectId);
-};
+    setActiveTab(tab);
+    setSelectedProject(projectId);
+  };
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;
@@ -117,8 +119,7 @@ function AppShell() {
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <header className="bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center">
-           <div className="w-48 px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center">
-
+            <div className="w-48 px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center">
               <img src={logo} alt="Logo" className="w-full h-16 object-cover" />
             </div>
             <div className="flex-1 px-6 py-4 flex items-center justify-between">
@@ -161,60 +162,73 @@ function AppShell() {
           </div>
         </header>
         <div className="flex flex-1 overflow-hidden">
-         <nav className="w-48 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
-
+          <nav className="w-48 bg-white border-r border-slate-200 overflow-y-auto shrink-0 hidden md:flex flex-col">
             <div className="p-1.5">
               {allowedTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = currentTab?.id === tab.id;
                 return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      if (tab.id === "aggregation") setAggregationFilter("all");
-                      if (tab.id !== "sources") {
-      setSelectedProject(undefined);  
+                 <button
+  key={tab.id}
+  onClick={() => {
+    if (tab.id === activeTab) {
+      setResetKey((k) => k + 1);
     }
-                    }}
-                    className={`
-                     flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium rounded-lg transition-all mb-1
-                      ${
-                        isActive
-                          ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent"
-                      }
-                    `}
-                  >
-                    <Icon
-                      className={`w-4 h-4 ${
-                        isActive ? "text-blue-600" : "text-slate-400"
-                      }`}
-                    />
-                    {tab.label}
-                  </button>
+    setActiveTab(tab.id);
+    if (tab.id === "aggregation") {
+      setAggregationFilter("all");
+      setSelectedProject(undefined);
+    } else if (tab.id !== "sources") {
+      setSelectedProject(undefined);
+    }
+  }}
+  className={`
+    flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium rounded-lg transition-all mb-1
+    ${
+      isActive
+        ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
+        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent"
+    }
+  `}
+>
+  <Icon
+    className={`w-4 h-4 shrink-0 ${
+      isActive ? "text-blue-600" : "text-slate-400"
+    }`}
+  />
+  <span className="text-left leading-tight">
+    {tab.label.split(' ').length > 2 ? (
+      <>
+        {tab.label.split(' ').slice(0, Math.ceil(tab.label.split(' ').length / 2)).join(' ')}
+        <br />
+        {tab.label.split(' ').slice(Math.ceil(tab.label.split(' ').length / 2)).join(' ')}
+      </>
+    ) : (
+      tab.label
+    )}
+  </span>
+</button>
                 );
               })}
             </div>
           </nav>
           <main className="flex-1 overflow-y-auto bg-slate-50 p-2">
-  {ActiveComponent && (
-    <ActiveComponent
-      projectId={selectedProject}
-      onProjectSelect={
-        currentTab?.id === "sources" ? handleProjectSelect : undefined
-      }
-      onNavigate={handleDashboardNavigate} 
-       onNavigateToProject={handleNavigateToProject}  
-      initialFilter={
-        currentTab?.id === "aggregation"
-          ? aggregationFilter
-          : undefined
-      }
-    />
-  )}
-  {!ActiveComponent && <Navigate to={`/${fallbackTab}`} replace />}
-</main>
+            {ActiveComponent && (
+              <ActiveComponent
+                key={`${activeTab}-${selectedProject ?? "none"}-${resetKey}`}
+                projectId={selectedProject}
+                onProjectSelect={currentTab?.id === "sources"
+                  ? handleProjectSelect
+                  : undefined}
+                onNavigate={handleDashboardNavigate}
+                onNavigateToProject={handleNavigateToProject}
+                initialFilter={currentTab?.id === "aggregation"
+                  ? aggregationFilter
+                  : undefined}
+              />
+            )}
+            {!ActiveComponent && <Navigate to={`/${fallbackTab}`} replace />}
+          </main>
         </div>
       </div>
     </>

@@ -923,7 +923,7 @@ export default function DataCleaningTab() {
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
-            Data Cleaning &amp; Validation
+             Cleansing &amp; Standardization
           </h3>
           <p className="text-sm text-slate-500 mt-0.5">
             Select a project, then clean and standardise product attributes

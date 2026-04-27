@@ -8,13 +8,8 @@ import React, {
 import {
   AlertTriangle,
   Box,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
   Clock,
   FileText,
-  Globe,
   List,
   Loader2,
   Play,
@@ -26,19 +21,18 @@ import { projectService } from "../services/projectService";
 import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
-import { Download, GitMerge, CheckCircle } from "lucide-react";
+import {  Download, GitMerge } from "lucide-react";
 import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
 import { AggregationTabProps } from "../types/business-rules.types";
 import {
   getStatusBadge,
-  getProductStatusBadge,
 } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
-import { safeParseValue, formatValue } from "../utils/valueParser";
+import { formatValue } from "../utils/valueParser";
 import { useProductMovement } from "../hooks/useProductMovement";
 import { extractionService } from "../services/extractionService.ts";
 import { pollBatchStatus } from "../../utils/polling.ts";
-import { ProjectStats } from './ProjectStats';
+import { ProjectStats } from "./ProjectStats";
 const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
   projectId,
@@ -51,10 +45,10 @@ export default function AggregationTab({
   const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
+
   const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
     Record<string, number>
   >({});
-
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
     null,
@@ -62,11 +56,9 @@ export default function AggregationTab({
   const [expandedProjectProducts, setExpandedProjectProducts] = useState<
     Product[]
   >([]);
-  const [expandedLoading, setExpandedLoading] = useState(false);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
     new Set(),
   );
-
   const [downloading, setDownloading] = useState(false);
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
   const [llmOptions] = useState([
@@ -83,8 +75,8 @@ export default function AggregationTab({
   );
   const [statsProjectId, setStatsProjectId] = useState<string | null>(null);
   const [statsProject, setStatsProject] = useState<Project | null>(null);
-
-  const [aggregationTypeFilter, setAggregationTypeFilter] = useState<string>("");
+  const [aggregationTypeFilter, setAggregationTypeFilter] =
+    useState<string>("");
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     new Set(),
   );
@@ -106,7 +98,7 @@ export default function AggregationTab({
     if (selectedProjectId) {
       filtered = filtered.filter((p) => p.id === selectedProjectId);
     }
-     if (aggregationTypeFilter) {
+    if (aggregationTypeFilter) {
       filtered = filtered.filter(
         (p) => (p as any).aggregation_type === aggregationTypeFilter,
       );
@@ -118,7 +110,7 @@ export default function AggregationTab({
     }
     return filtered;
   }, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
-    const useCaseMap: Record<string, string[]> = {
+  const useCaseMap: Record<string, string[]> = {
     web: [
       "Products with Category Assignments",
       "Products without Category Assignments",
@@ -131,15 +123,16 @@ export default function AggregationTab({
       "Title & Description Based PDF Extraction",
     ],
   };
-  
   const getUseCasesForAggregationType = (type: string): string[] => {
     if (!type) {
       return [...(useCaseMap.web || []), ...(useCaseMap.pdf || [])];
     }
     return useCaseMap[type] || [];
   };
-    const availableUseCases = useMemo(() => {
-    const projectUseCases = [...new Set(projects.map((p) => p.use_case).filter(Boolean))] as string[];
+  const availableUseCases = useMemo(() => {
+    const projectUseCases = [
+      ...new Set(projects.map((p) => p.use_case).filter(Boolean)),
+    ] as string[];
     if (!aggregationTypeFilter) {
       return projectUseCases.sort((a, b) => {
         const aIsWeb = useCaseMap.web?.includes(a);
@@ -149,8 +142,12 @@ export default function AggregationTab({
         return a.localeCompare(b);
       });
     }
-    const allowedUseCases = getUseCasesForAggregationType(aggregationTypeFilter);
-    const filtered = projectUseCases.filter((uc) => allowedUseCases.includes(uc));
+    const allowedUseCases = getUseCasesForAggregationType(
+      aggregationTypeFilter,
+    );
+    const filtered = projectUseCases.filter((uc) =>
+      allowedUseCases.includes(uc),
+    );
     return filtered.sort((a, b) => {
       const aIsWeb = useCaseMap.web?.includes(a);
       const bIsWeb = useCaseMap.web?.includes(b);
@@ -173,18 +170,20 @@ export default function AggregationTab({
     }),
     [expandedProjectProducts],
   );
-  const openProjectStats = useCallback((pid: string) => {
-  setIsDrawerOpen(false);
-  setSelectedProduct(null);
-  setStatsProjectId(pid);
-  const proj = projects.find((p) => p.id === pid) || null;
-  setStatsProject(proj);
-}, [projects]);
-
-const closeProjectStats = useCallback(() => {
-  setStatsProjectId(null);
-  setStatsProject(null);
-}, []);
+  const openProjectStats = useCallback(
+    (pid: string) => {
+      setIsDrawerOpen(false);
+      setSelectedProduct(null);
+      setStatsProjectId(pid);
+      const proj = projects.find((p) => p.id === pid) || null;
+      setStatsProject(proj);
+    },
+    [projects],
+  );
+  const closeProjectStats = useCallback(() => {
+    setStatsProjectId(null);
+    setStatsProject(null);
+  }, []);
   const loadProjectEnrichmentCounts = useCallback(
     async (projectIds: string[]) => {
       try {
@@ -439,7 +438,6 @@ const closeProjectStats = useCallback(() => {
     availableBrands,
     availableCategories,
     loadProjectFilters,
-    resetProjectFilters,
   } = useProjectFilters();
   const loadDefaultFilters = useCallback(async () => {
     await loadProjectFilters();
@@ -447,44 +445,9 @@ const closeProjectStats = useCallback(() => {
   useEffect(() => {
     loadDefaultFilters();
   }, [loadDefaultFilters]);
-  const filteredExpandedProducts = useMemo(() => {
-    let filtered = [...expandedProjectProducts];
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (p) =>
-          p.product_name?.toLowerCase().includes(query) ||
-          p.product_code?.toLowerCase().includes(query) ||
-          p.sku?.toLowerCase().includes(query) ||
-          p.brand_name?.toLowerCase().includes(query) ||
-          p.mpn?.toLowerCase().includes(query),
-      );
-    }
-    if (statusFilter.size > 0) {
-      filtered = filtered.filter((p) => statusFilter.has(p.enrichment_status));
-    }
-    if (categoryFilter) {
-      filtered = filtered.filter((p) => p.category_1 === categoryFilter);
-    }
-    if (brandFilter) {
-      filtered = filtered.filter((p) => p.brand_name === brandFilter);
-    }
-    return filtered;
-  }, [
-    expandedProjectProducts,
-    searchQuery,
-    statusFilter,
-    categoryFilter,
-    brandFilter,
-  ]);
-  const totalPages = Math.ceil(
-    filteredExpandedProducts.length / ITEMS_PER_PAGE,
-  );
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedProducts = filteredExpandedProducts.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE,
-  );
+  
+ 
+ 
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -534,64 +497,7 @@ const closeProjectStats = useCallback(() => {
     setCurrentPage(1);
     loadDefaultFilters();
   }, [loadDefaultFilters]);
-  const resetLocalFilters = useCallback(() => {
-    setSearchQuery("");
-    setStatusFilter(new Set());
-    setCategoryFilter("");
-    setBrandFilter("");
-    setCurrentPage(1);
-  }, []);
-  const toggleExpandProject = useCallback(
-    async (projectId: string) => {
-      if (expandedProjectId === projectId) {
-        setExpandedProjectId(null);
-        setExpandedProjectProducts([]);
-        setCurrentPage(1);
-        resetLocalFilters();
-        return;
-      }
-      setExpandedProjectId(projectId);
-      setExpandedLoading(true);
-      try {
-         await loadProjectFilters(projectId, undefined, undefined, "aggregation"); 
-        const result = await productService.getProductsByProject(
-          projectId,
-          "aggregation",
-        );
-        let products = [];
-        if (Array.isArray(result)) {
-          products = result;
-        } else if (
-          result &&
-          typeof result === "object" &&
-          "products" in result
-        ) {
-          products = Array.isArray(result.products) ? result.products : [];
-        }
-        setExpandedProjectProducts(products);
-        setCurrentPage(1);
-        resetLocalFilters();
-        const processingProductIds = products
-          .filter((p) => p.enrichment_status === "processing")
-          .map((p) => p.id);
-        if (processingProductIds.length > 0) {
-          setPollingProductIds((prev) => {
-            const newSet = new Set(prev);
-            processingProductIds.forEach((id) => newSet.add(id));
-            return newSet;
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load products for project", projectId, error);
-        notify.error("Failed to load products");
-        setExpandedProjectProducts([]);
-      } finally {
-        setExpandedLoading(false);
-        setSelectedProductIds(new Set());
-      }
-    },
-    [expandedProjectId, resetLocalFilters, loadProjectFilters],
-  );
+  
   
   useEffect(() => {
     const hasActiveProjects = projects.some(
@@ -891,7 +797,10 @@ const closeProjectStats = useCallback(() => {
           completedOrFailed.push(productId);
           notify.info(
             "Moved to Enrichment",
-            `${productInEnrichment.product_name || productInEnrichment.product_code} has ${score}% completeness and requires further enrichment.`,
+            `${
+              productInEnrichment.product_name ||
+              productInEnrichment.product_code
+            } has ${score}% completeness and requires further enrichment.`,
           );
         } else if (
           productInAggregation &&
@@ -982,118 +891,20 @@ const closeProjectStats = useCallback(() => {
       setIsDrawerOpen(false);
     }
   }, [selectedProduct, loadAttributes]);
+useEffect(() => {
+  if (!projectId) {
+    setStatsProjectId(null);
+    setStatsProject(null);
+  } else {
+    setStatsProjectId(projectId);
+    const proj = projects.find((p) => p.id === projectId);
+    if (proj) setStatsProject(proj);
+  }
+}, [projectId, projects]); 
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
   };
-  const handleExtractAllInExpanded = useCallback(async () => {
-    if (!expandedProjectId) return;
-    const selectedPendingProducts = expandedProjectProducts.filter(
-      (p) =>
-        selectedProductIds.has(p.id) &&
-        p.completeness_score === 0 &&
-        p.enrichment_status !== "processing",
-    );
-    const pendingProducts =
-      selectedProductIds.size > 0
-        ? selectedPendingProducts
-        : expandedProjectProducts.filter(
-            (p) =>
-              p.completeness_score === 0 &&
-              p.enrichment_status !== "processing",
-          );
-    if (pendingProducts.length === 0) {
-      notify.info(
-        selectedProductIds.size > 0
-          ? "No pending selected products in this project"
-          : "No pending products in this project",
-      );
-      return;
-    }
-    setLoading(true);
-    try {
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          pendingProducts.some((pp) => pp.id === p.id)
-            ? { ...p, enrichment_status: "processing" }
-            : p,
-        ),
-      );
-      const newPollingIds: string[] = [];
-      for (const product of pendingProducts) {
-        const mpn = product.product_code;
-        const sourceUrl = product.source_url;
-        try {
-          setExtractingPdf((prev) => new Set(prev).add(product.id));
-          let response;
-          if (sourceUrl === "web_search_pending") {
-            const project = projects.find((p) => p.id === expandedProjectId);
-            response = await extractionService.freshAggregation({
-              mpns: [mpn],
-              project_id: expandedProjectId!,
-              use_case: project?.use_case || selectedUseCase,
-            });
-          } else {
-            response = await extractionService.extractPdfForProduct(
-              mpn,
-              expandedProjectId!,
-            );
-          }
-          newPollingIds.push(product.id);
-          pollBatchStatus(response.batch_id, async () => {
-            const freshResult = await productService.getProductsByProject(
-              expandedProjectId!,
-              "aggregation",
-            );
-            const freshData = Array.isArray(freshResult)
-              ? freshResult
-              : (freshResult?.products ?? []);
-            setExpandedProjectProducts(freshData);
-            await loadProjects();
-            setPollingProductIds((prev) => {
-              const updated = new Set(prev);
-              updated.delete(product.id);
-              return updated;
-            });
-          });
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`Failed to extract ${mpn}:`, error);
-          setExpandedProjectProducts((prev) =>
-            prev.map((p) =>
-              p.id === product.id ? { ...p, enrichment_status: "failed" } : p,
-            ),
-          );
-        } finally {
-          setExtractingPdf((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(product.id);
-            return newSet;
-          });
-        }
-      }
-      setPollingProductIds((prev) => {
-        const newSet = new Set(prev);
-        newPollingIds.forEach((id) => newSet.add(id));
-        return newSet;
-      });
-      notify.success(
-        `Extraction started for ${pendingProducts.length} product(s)`,
-      );
-      setSelectedProductIds(new Set());
-    } catch (error) {
-      console.error("Batch extraction failed", error);
-      notify.error("Batch extraction failed");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    expandedProjectId,
-    expandedProjectProducts,
-    selectedProductIds,
-    selectedUseCase,
-    projects,
-  ]);
   const handleExtractSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToExtract = Array.from(selectedProjectIds);
@@ -1179,7 +990,7 @@ const closeProjectStats = useCallback(() => {
           newSet.delete(projectId);
         } else {
           newSet.add(projectId);
-           loadProjectFilters(projectId, undefined, undefined, "aggregation");  
+          loadProjectFilters(projectId, undefined, undefined, "aggregation");
           if (expandedProjectId === projectId) {
             setSelectedProductIds(new Set());
           }
@@ -1187,7 +998,7 @@ const closeProjectStats = useCallback(() => {
         return newSet;
       });
     },
-    [expandedProjectId,loadProjectFilters]
+    [expandedProjectId, loadProjectFilters],
   );
   const selectedProductData = expandedProjectProducts.find(
     (p) => p.id === selectedProduct,
@@ -1200,14 +1011,14 @@ const closeProjectStats = useCallback(() => {
     return selectedProjectsList.some((p) => (p.product_count ?? 0) > 0);
   }, [selectedProjectIds, projects]);
   if (statsProjectId) {
-  return (
-    <ProjectStats
-      projectId={statsProjectId}
-      project={statsProject ?? undefined}
-      onClose={closeProjectStats}
-    />
-  );
-}
+    return (
+      <ProjectStats
+        projectId={statsProjectId}
+        project={statsProject ?? undefined}
+        onClose={closeProjectStats}
+      />
+    );
+  }
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -1260,8 +1071,12 @@ const closeProjectStats = useCallback(() => {
                 )}
                 {projects.find((p) => selectedProjectIds.has(p.id))
                   ?.operation_mode === "pdf_extraction"
-                  ? `Extract ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`
-                  : `Aggregate ${selectedProjectIds.size} Project${selectedProjectIds.size !== 1 ? "s" : ""}`}
+                  ? `Extract ${selectedProjectIds.size} Project${
+                      selectedProjectIds.size !== 1 ? "s" : ""
+                    }`
+                  : `Aggregate ${selectedProjectIds.size} Project${
+                      selectedProjectIds.size !== 1 ? "s" : ""
+                    }`}
               </button>
             )}
           </div>
@@ -1352,7 +1167,7 @@ const closeProjectStats = useCallback(() => {
       </div>
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
         <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 flex-1">
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 LLM Provider
@@ -1375,7 +1190,7 @@ const closeProjectStats = useCallback(() => {
                 ))}
               </select>
             </div>
-                        <div>
+            <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Use Case
               </label>
@@ -1482,8 +1297,10 @@ const closeProjectStats = useCallback(() => {
                 ))}
               </select>
             </div>
-                        <div>
-              <label className="block text-sm text-slate-700 mb-2">Aggregation Type</label>
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Aggregation Type
+              </label>
               <select
                 value={aggregationTypeFilter}
                 onChange={(e) => {
@@ -1517,7 +1334,7 @@ const closeProjectStats = useCallback(() => {
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -1539,26 +1356,45 @@ const closeProjectStats = useCallback(() => {
           </div>
         </div>
         <div
-        className="overflow-auto"
-        style={{ maxHeight: "calc(100vh - 350px)" }}
-      >
+          className="overflow-auto"
+          style={{ maxHeight: "calc(100vh - 350px)" }}
+        >
           <table className="w-full">
-           <thead className="sticky top-0 z-30 bg-slate-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12 bg-white border-b border-slate-200">Select</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Project Name</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Use Case</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Products</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Completeness</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Status</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Enrichment Queue</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200 w-12">Actions</th>
-          </tr>
-        </thead>
+            <thead className="sticky top-0 z-30 bg-slate-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12 bg-white border-b border-slate-200">
+                  Select
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Project Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Aggregation Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Use Case
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Products
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Aggregated
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Enrichment
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Completeness
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  Status
+                </th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-200">
               {projectsLoading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center">
+                  <td colSpan={10} className="p-8 text-center">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
                     <p className="text-slate-500 text-sm">
                       Loading projects...
@@ -1567,7 +1403,7 @@ const closeProjectStats = useCallback(() => {
                 </tr>
               ) : filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={9} className="p-8 text-center text-slate-500">
                     No projects found
                   </td>
                 </tr>
@@ -1578,11 +1414,20 @@ const closeProjectStats = useCallback(() => {
                       <tr
                         className={`
                           hover:bg-slate-50 transition-colors cursor-pointer
-                          ${expandedProjectId === project.id ? "bg-blue-50" : ""}
-                          ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""}
-                          ${aggregatingProjects.has(project.id) ? "bg-blue-50/30" : ""}
+                          ${
+                            expandedProjectId === project.id ? "bg-blue-50" : ""
+                          }
+                          ${
+                            selectedProjectIds.has(project.id)
+                              ? "bg-blue-50/50"
+                              : ""
+                          }
+                          ${
+                            aggregatingProjects.has(project.id)
+                              ? "bg-blue-50/30"
+                              : ""
+                          }
                         `}
-                        // onClick={() => toggleExpandProject(project.id)}
                       >
                         <td
                           className="px-4 py-3"
@@ -1598,27 +1443,36 @@ const closeProjectStats = useCallback(() => {
                             disabled={aggregatingProjects.has(project.id)}
                           />
                         </td>
-                       <td className="px-4 py-3">
-  <div className="flex items-center gap-2">
-    <button
-      type="button"
-      className="font-semibold text-slate-900 hover:underline text-left"
-      onClick={(e) => {
-        e.stopPropagation();         
-        openProjectStats(project.id); 
-      }}
-    >
-      {project.name}
-    </button>
-
-    {aggregatingProjects.has(project.id) && (
-      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        Processing
-      </span>
-    )}
-  </div>
-</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="font-semibold text-slate-900 hover:underline text-left"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openProjectStats(project.id);
+                              }}
+                            >
+                              {project.name}
+                            </button>
+                            {aggregatingProjects.has(project.id) && (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Processing
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
+                            {(project as any).aggregation_type ||
+                            project.operation_mode === "aggregation"
+                              ? "web"
+                              : project.operation_mode === "pdf_extraction"
+                                ? "pdf"
+                                : "—"}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           {project.use_case && (
                             <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">
@@ -1630,6 +1484,26 @@ const closeProjectStats = useCallback(() => {
                           <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
                             {project.product_count ?? 0}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                            {project.aggregated_count ?? 0}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          {projectEnrichmentCounts[project.id] > 0 ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigateToProject?.("enrichment", project.id);
+                              }}
+                              className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full w-fit hover:bg-purple-200 transition-colors cursor-pointer font-medium"
+                            >
+                              {projectEnrichmentCounts[project.id]}
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
@@ -1663,549 +1537,7 @@ const closeProjectStats = useCallback(() => {
                             )}
                           </span>
                         </td>
-                                              <td className="px-4 py-4 text-center">
-                          {projectEnrichmentCounts[project.id] > 0 ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigateToProject?.("enrichment", project.id);
-                              }}
-                              className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full w-fit hover:bg-purple-200 transition-colors cursor-pointer font-medium"
-                            >
-                              {projectEnrichmentCounts[project.id]}
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td
-                          className="px-4 py-3 text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleExpandProject(project.id);
-                            }}
-                            className="p-1 hover:bg-slate-200 rounded transition-colors"
-                          >
-                            {aggregatingProjects.has(project.id) ? (
-                              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                            ) : expandedProjectId === project.id ? (
-                              <ChevronUp className="w-5 h-5 text-slate-600" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5 text-slate-400" />
-                            )}
-                          </button>
-                        </td>
                       </tr>
-                      {expandedProjectId === project.id && (
-                        <tr>
-                          <td colSpan={8} className="p-0">
-                            <div className="bg-slate-50 border-t border-b border-slate-200">
-                              {project.operation_mode === "pdf_extraction" ? (
-                                <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3 bg-white">
-                                  <button
-                                    onClick={handleExtractAllInExpanded}
-                                    disabled={
-                                      loading ||
-                                      (selectedProductIds.size > 0
-                                        ? !expandedProjectProducts.some(
-                                            (p) =>
-                                              selectedProductIds.has(p.id) &&
-                                              p.completeness_score === 0 &&
-                                              p.enrichment_status !==
-                                                "processing",
-                                          )
-                                        : expandedStats.pending === 0)
-                                    }
-                                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-                                  >
-                                    {loading ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <FileText className="w-4 h-4" />
-                                    )}
-                                    {selectedProductIds.size > 0
-                                      ? `Extract Selected (${selectedProductIds.size})`
-                                      : "Extract All Pending"}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3 bg-white">
-                                  {!(
-                                    statusFilter.size === 1 &&
-                                    statusFilter.has("completed")
-                                  ) && (
-                                    <button
-                                      onClick={handleAggregateAllInExpanded}
-                                      disabled={
-                                        loading ||
-                                        aggregatingProjects.has(project.id) ||
-                                        (selectedProductIds.size > 0
-                                          ? !expandedProjectProducts.some((p) =>
-                                              selectedProductIds.has(p.id),
-                                            )
-                                          : expandedStats.pending === 0)
-                                      }
-                                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                                    >
-                                      {loading ||
-                                      aggregatingProjects.has(project.id) ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      ) : (
-                                        <Play className="w-4 h-4" />
-                                      )}
-                                      {aggregatingProjects.has(project.id)
-                                        ? "Aggregating..."
-                                        : selectedProductIds.size > 0
-                                          ? `Aggregate Selected (${selectedProductIds.size})`
-                                          : "Aggregate All"}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                              <div className="overflow-x-auto max-h-[600px]">
-                                <table className="w-full border-separate border-spacing-0">
-                                  <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                                    <tr>
-                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 first:rounded-tl-lg">
-                                        {!isExpandedProjectSelected && (
-                                          <input
-                                            type="checkbox"
-                                            checked={
-                                              paginatedProducts.length > 0 &&
-                                              paginatedProducts.every((p) =>
-                                                selectedProductIds.has(p.id),
-                                              )
-                                            }
-                                            onChange={(e) => {
-                                              if (e.target.checked) {
-                                                setSelectedProductIds(
-                                                  (prev) =>
-                                                    new Set([
-                                                      ...prev,
-                                                      ...paginatedProducts.map(
-                                                        (p) => p.id,
-                                                      ),
-                                                    ]),
-                                                );
-                                              } else {
-                                                setSelectedProductIds(
-                                                  (prev) => {
-                                                    const newSet = new Set(
-                                                      prev,
-                                                    );
-                                                    paginatedProducts.forEach(
-                                                      (p) =>
-                                                        newSet.delete(p.id),
-                                                    );
-                                                    return newSet;
-                                                  },
-                                                );
-                                              }
-                                            }}
-                                            className="rounded border-slate-300"
-                                          />
-                                        )}
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                                        Product Info
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                                        Import Source
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                                        Completeness
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                                        Status
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50 last:rounded-tr-lg">
-                                        Action
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-200">
-                                    {expandedLoading ? (
-                                      <tr>
-                                        <td
-                                          colSpan={6}
-                                          className="px-4 py-8 text-center"
-                                        >
-                                          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-                                        </td>
-                                      </tr>
-                                    ) : paginatedProducts.length === 0 ? (
-                                      <tr>
-                                        <td
-                                          colSpan={6}
-                                          className="px-4 py-8 text-center text-slate-500"
-                                        >
-                                          No products found
-                                        </td>
-                                      </tr>
-                                    ) : (
-                                      paginatedProducts.map((product) => (
-                                        <tr
-                                          key={product.id}
-                                          onClick={() =>
-                                            setSelectedProduct(product.id)
-                                          }
-                                          className={`hover:bg-slate-50 cursor-pointer ${
-                                            selectedProduct === product.id
-                                              ? "bg-blue-100"
-                                              : ""
-                                          }`}
-                                        >
-                                          <td
-                                            className="px-4 py-3"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            {!isExpandedProjectSelected && (
-                                              <input
-                                                type="checkbox"
-                                                checked={selectedProductIds.has(
-                                                  product.id,
-                                                )}
-                                                onChange={(e) => {
-                                                  if (e.target.checked) {
-                                                    setSelectedProductIds(
-                                                      (prev) =>
-                                                        new Set(prev).add(
-                                                          product.id,
-                                                        ),
-                                                    );
-                                                  } else {
-                                                    setSelectedProductIds(
-                                                      (prev) => {
-                                                        const newSet = new Set(
-                                                          prev,
-                                                        );
-                                                        newSet.delete(
-                                                          product.id,
-                                                        );
-                                                        return newSet;
-                                                      },
-                                                    );
-                                                  }
-                                                }}
-                                                className="rounded border-slate-300"
-                                              />
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div>
-                                              <div className="font-semibold text-slate-900 text-sm">
-                                                {product.product_name ||
-                                                  product.product_code ||
-                                                  "N/A"}
-                                              </div>
-                                              <div className="text-xs text-slate-500 font-mono">
-                                                {product.product_code ||
-                                                  product.sku ||
-                                                  "No SKU"}
-                                              </div>
-                                              {product.brand_name && (
-                                                <div className="text-xs text-slate-400">
-                                                  {product.brand_name}
-                                                </div>
-                                              )}
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2 text-sm text-slate-600">
-                                              <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                                              <span
-                                                className="text-xs truncate max-w-[150px]"
-                                                title={
-                                                  product.source_url ||
-                                                  "Unknown source"
-                                                }
-                                              >
-                                                {product.source_url
-                                                  ? product.source_url.startsWith(
-                                                      "multi_pdf_batch_",
-                                                    )
-                                                    ? `Multi-PDF Batch ${product.source_url.slice(-8)}`
-                                                    : product.source_url.startsWith(
-                                                          "multi_pdf_",
-                                                        )
-                                                      ? `Multi-PDF Import`
-                                                      : product.source_url.replace(
-                                                          /^Manual_\d+_/,
-                                                          "",
-                                                        )
-                                                  : "Manual Entry"}
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden max-w-[120px]">
-                                                <div
-                                                  className={`h-full rounded-full ${
-                                                    (product.completeness_score ||
-                                                      0) > 80
-                                                      ? "bg-green-500"
-                                                      : (product.completeness_score ||
-                                                            0) > 50
-                                                        ? "bg-amber-500"
-                                                        : "bg-red-400"
-                                                  }`}
-                                                  style={{
-                                                    width: `${
-                                                      product.completeness_score ||
-                                                      10
-                                                    }%`,
-                                                  }}
-                                                />
-                                              </div>
-                                              <span className="text-xs text-slate-600">
-                                                {product.completeness_score ||
-                                                  10}
-                                                %
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            {getProductStatusBadge(
-                                              product.enrichment_status ||
-                                                "pending",
-                                            )}
-                                          </td>
-                                          <td
-                                            className="px-4 py-3"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            {project.operation_mode ===
-                                            "pdf_extraction" ? (
-                                              <>
-                                                {product.source_url?.startsWith(
-                                                  "blind_pdf",
-                                                ) &&
-                                                  product.completeness_score ===
-                                                    0 && (
-                                                    <button
-                                                      onClick={() =>
-                                                        handleBlindExtract(
-                                                          product.id,
-                                                        )
-                                                      }
-                                                      disabled={extractingPdf.has(
-                                                        product.id,
-                                                      )}
-                                                      className="text-teal-600 hover:text-teal-700 text-sm font-medium"
-                                                    >
-                                                      {extractingPdf.has(
-                                                        product.id,
-                                                      ) ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                      ) : (
-                                                        <>
-                                                          <FileText className="w-4 h-4 inline mr-1" />
-                                                          Extract
-                                                        </>
-                                                      )}
-                                                    </button>
-                                                  )}
-                                                {(product.source_url?.endsWith(
-                                                  ".pdf",
-                                                ) ||
-                                                  product.source_url?.startsWith(
-                                                    "multi_pdf_batch_",
-                                                  ) ||
-                                                  product.source_url?.startsWith(
-                                                    "multi_pdf_",
-                                                  ) ||
-                                                  product.source_url?.includes(
-                                                    "multi_pdf",
-                                                  )) &&
-                                                  product.completeness_score ===
-                                                    0 && (
-                                                    <button
-                                                      onClick={() =>
-                                                        handleExtractFromPdf(
-                                                          product.id,
-                                                          product.product_code,
-                                                        )
-                                                      }
-                                                      disabled={
-                                                        extractingPdf.has(
-                                                          product.id,
-                                                        ) ||
-                                                        product.enrichment_status ===
-                                                          "processing"
-                                                      }
-                                                      className="text-purple-600 hover:text-purple-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                      {extractingPdf.has(
-                                                        product.id,
-                                                      ) ||
-                                                      product.enrichment_status ===
-                                                        "processing" ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                      ) : (
-                                                        <>
-                                                          <FileText className="w-4 h-4 inline mr-1" />
-                                                          Extract PDF
-                                                        </>
-                                                      )}
-                                                    </button>
-                                                  )}
-                                                {product.source_url ===
-                                                  "web_search_pending" &&
-                                                  product.completeness_score ===
-                                                    0 && (
-                                                    <button
-                                                      onClick={() =>
-                                                        handleExtractFreshMpn(
-                                                          product.id,
-                                                          product.product_code,
-                                                        )
-                                                      }
-                                                      disabled={
-                                                        extractingPdf.has(
-                                                          product.id,
-                                                        ) ||
-                                                        product.enrichment_status ===
-                                                          "processing"
-                                                      }
-                                                      className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-                                                    >
-                                                      {extractingPdf.has(
-                                                        product.id,
-                                                      ) ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                      ) : (
-                                                        <>
-                                                          <Globe className="w-4 h-4 inline mr-1" />
-                                                          Extract
-                                                        </>
-                                                      )}
-                                                    </button>
-                                                  )}
-                                                {product.enrichment_status ===
-                                                  "failed" &&
-                                                  product.completeness_score ===
-                                                    0 && (
-                                                    <button
-                                                      onClick={() =>
-                                                        product.source_url ===
-                                                        "web_search_pending"
-                                                          ? handleExtractFreshMpn(
-                                                              product.id,
-                                                              product.product_code,
-                                                            )
-                                                          : handleExtractFromPdf(
-                                                              product.id,
-                                                              product.product_code,
-                                                            )
-                                                      }
-                                                      className="text-amber-600 hover:text-amber-700 text-sm font-medium"
-                                                    >
-                                                      <RefreshCw className="w-4 h-4 inline mr-1" />
-                                                      Retry
-                                                    </button>
-                                                  )}
-                                                {product.completeness_score >
-                                                  0 &&
-                                                  product.enrichment_status ===
-                                                    "completed" && (
-                                                    <div className="flex items-center gap-1 text-green-600">
-                                                      <CheckCircle className="w-4 h-4" />
-                                                      <span className="text-xs">
-                                                        Extracted
-                                                      </span>
-                                                    </div>
-                                                  )}
-                                              </>
-                                            ) : (
-                                              <>
-                                                {product.enrichment_status !==
-                                                  "processing" && (
-                                                  <button
-                                                    onClick={() =>
-                                                      handleAggregate(
-                                                        product.id,
-                                                      )
-                                                    }
-                                                    disabled={
-                                                      loading ||
-                                                      product.enrichment_status ===
-                                                        "processing" ||
-                                                      aggregatingProjects.has(
-                                                        project.id,
-                                                      )
-                                                    }
-                                                    className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 hover:underline"
-                                                  >
-                                                    {product.enrichment_status ===
-                                                    "completed"
-                                                      ? "Re-run"
-                                                      : "Run"}
-                                                  </button>
-                                                )}
-                                                {product.enrichment_status ===
-                                                  "processing" && (
-                                                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                                                )}
-                                              </>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      ))
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                              {filteredExpandedProducts.length > 0 && (
-                                <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-                                  <span>
-                                    Showing {startIndex + 1} -{" "}
-                                    {Math.min(
-                                      startIndex + ITEMS_PER_PAGE,
-                                      filteredExpandedProducts.length,
-                                    )}{" "}
-                                    of {filteredExpandedProducts.length}{" "}
-                                    products
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() =>
-                                        setCurrentPage(
-                                          Math.max(1, currentPage - 1),
-                                        )
-                                      }
-                                      disabled={currentPage === 1}
-                                      className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
-                                    >
-                                      <ChevronLeft className="w-4 h-4" />
-                                    </button>
-                                    <span>
-                                      Page {currentPage} / {totalPages || 1}
-                                    </span>
-                                    <button
-                                      onClick={() =>
-                                        setCurrentPage(
-                                          Math.min(totalPages, currentPage + 1),
-                                        )
-                                      }
-                                      disabled={
-                                        currentPage === totalPages ||
-                                        totalPages === 0
-                                      }
-                                      className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"
-                                    >
-                                      <ChevronRight className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
                     </React.Fragment>
                   ))}
                 </>
@@ -2430,7 +1762,6 @@ const closeProjectStats = useCallback(() => {
           </div>
         </div>
       )}
-      
     </div>
   );
 }

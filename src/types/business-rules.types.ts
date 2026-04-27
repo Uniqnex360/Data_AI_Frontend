@@ -167,6 +167,7 @@ export interface Project {
     | "failed"
     | "completed"
     | "processing";
+  aggregated_count?:number
 }
 export  interface Product {
   id: string;
