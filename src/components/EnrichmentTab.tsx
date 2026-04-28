@@ -40,6 +40,8 @@ export default function EnrichmentTab({
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [useCases, setUseCases] = useState<string[]>([]);
 
+const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<string, number>>({});
+
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [expandedProjectProducts, setExpandedProjectProducts] = useState<Product[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
@@ -95,7 +97,10 @@ export default function EnrichmentTab({
       );
 
       setProjects(enrichmentProjects);
-
+      const projectIds = enrichmentProjects.map((p) => p.id);
+      if (projectIds.length > 0) {
+      await loadProjectEnrichmentCounts(projectIds);
+    }
       const uniqueUseCases = [
         ...new Set(
           enrichmentProjects.map((p: Project) => p.use_case).filter(Boolean) as string[],
@@ -121,7 +126,37 @@ export default function EnrichmentTab({
       setProjectsLoading(false);
     }
   }, []);
-
+const loadProjectEnrichmentCounts = useCallback(
+  async (projectIds: string[]) => {
+    try {
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        projectIds.map(async (projectId) => {
+          try {
+            const products = await productService.getProductsByProject(
+              projectId,
+              "enrichment",
+            );
+            const productArray = Array.isArray(products)
+              ? products
+              : (products?.products ?? []);
+            counts[projectId] = productArray.filter(
+              (p) =>
+                p.workflow_stage === "enrichment" &&
+                p.enrichment_status === "pending",
+            ).length;
+          } catch {
+            counts[projectId] = 0;
+          }
+        }),
+      );
+      setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
+    } catch (error) {
+      console.error("Failed to load enrichment counts:", error);
+    }
+  },
+  [],
+);
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -1019,28 +1054,31 @@ export default function EnrichmentTab({
 
          <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 350px)" }}>
   <table className="w-full">
-    <thead className="sticky  top-0 z-10 bg-slate-50 border-b border-slate-200">
-      <tr>
-        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12">Select</th>
-        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Project Name</th>
-        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Use Case</th>
-        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Products</th>
-        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Completeness</th>
-        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Status</th>
-        <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 w-12">Actions</th>
-      </tr>
-    </thead>
+   <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+  <tr>
+    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12">Select</th>
+    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Project Name</th>
+    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Aggregation Type</th>
+    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Use Case</th>
+    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Products</th>
+    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Aggregated</th>
+    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Enrichment</th>
+    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Completeness</th>
+    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Status</th>
+    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 w-12">Actions</th>
+  </tr>
+</thead>
     <tbody className="divide-y divide-slate-200">
       {projectsLoading ? (
         <tr>
-          <td colSpan={7} className="p-8 text-center">
+          <td colSpan={10} className="p-8 text-center">
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
             <p className="text-slate-500 text-sm">Loading projects...</p>
           </td>
         </tr>
       ) : filteredProjects.length === 0 ? (
         <tr>
-          <td colSpan={7} className="p-8 text-center text-slate-500">No projects found</td>
+          <td colSpan={10} className="p-8 text-center text-slate-500">No projects found</td>
         </tr>
       ) : (
         filteredProjects.map((project) => (
@@ -1054,246 +1092,254 @@ export default function EnrichmentTab({
               onClick={() => toggleExpandProject(project.id)}
             >
               <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+  <input
+    type="checkbox"
+    checked={selectedProjectIds.has(project.id)}
+    onChange={(e) => toggleProjectSelection(project.id, e as any)}
+    className="rounded border-slate-300"
+    disabled={enrichingProjects.has(project.id)}
+  />
+</td>
+<td className="px-4 py-3">
+  <div className="flex items-center gap-2">
+    <span className="font-semibold text-slate-900">{project.name}</span>
+    {enrichingProjects.has(project.id) && (
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        Processing
+      </span>
+    )}
+  </div>
+</td>
+<td className="px-4 py-3">
+  <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
+    {(project as any).aggregation_type ||
+    project.operation_mode === "aggregation"
+      ? "web"
+      : project.operation_mode === "pdf_extraction"
+        ? "pdf"
+        : project.operation_mode === "enrichment"
+          ? "enrichment"
+          : "—"}
+  </span>
+</td>
+<td className="px-4 py-3">
+  {project.use_case ? (
+    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span>
+  ) : (
+    <span className="text-slate-400 text-xs">—</span>
+  )}
+</td>
+<td className="px-4 py-3 text-center">
+  <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+    {project.product_count ?? 0}
+  </span>
+</td>
+<td className="px-4 py-3 text-center">
+  <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full">
+    {project.aggregated_count ?? 0}
+  </span>
+</td>
+<td className="px-4 py-3 text-center">
+  {projectEnrichmentCounts?.[project.id] > 0 ? (
+    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+      {projectEnrichmentCounts[project.id]}
+    </span>
+  ) : (
+    <span className="text-slate-400 text-xs">—</span>
+  )}
+</td>
+<td className="px-4 py-3">
+  <div className="flex items-center justify-center gap-2">
+    <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full transition-all duration-500 ${
+          (project.completeness_score || 0) > 80 ? "bg-green-500" :
+          (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"
+        }`}
+        style={{ width: `${project.completeness_score || 0}%` }}
+      />
+    </div>
+    <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+      {project.completeness_score || 0}%
+    </span>
+  </div>
+</td>
+<td className="px-4 py-3 text-center">
+  <span title={project.source_status || "NA"} className="cursor-default">
+    {getStatusBadge(project.source_status || "NA", true)}
+  </span>
+</td>
+<td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+  <button
+    onClick={(e) => { e.stopPropagation(); toggleExpandProject(project.id); }}
+    className="p-1 hover:bg-slate-200 rounded transition-colors"
+  >
+    {enrichingProjects.has(project.id) ? (
+      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+    ) : expandedProjectId === project.id ? (
+      <ChevronUp className="w-5 h-5 text-slate-600" />
+    ) : (
+      <ChevronDown className="w-5 h-5 text-slate-400" />
+    )}
+  </button>
+</td>
+</tr>
+
+{expandedProjectId === project.id && (
+  <tr>
+    <td colSpan={10} className="p-0 bg-slate-50">
+      {/* Search & Filters Bar */}
+      <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <input
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            placeholder="Search by product name, MPN..."
+            className="w-full pl-4 pr-8 py-2 border border-slate-300 rounded-lg text-sm"
+          />
+          {searchQuery && (
+            <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded">
+              <X className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          )}
+        </div>
+        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+          <option value="">All Categories</option>
+          {availableCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+        </select>
+        <select value={brandFilter} onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1); }}
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+          <option value="">All Brands</option>
+          {availableBrands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+        </select>
+
+        {/* Enrich All / Enrich Selected Button */}
+        {!isExpandedProjectSelected && (
+          <button
+            onClick={handleEnrichAllInExpanded}
+            disabled={loading || enrichingProjects.has(project.id) || (selectedProductIds.size === 0 && expandedStats.pending === 0)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {loading || enrichingProjects.has(project.id) ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            {selectedProductIds.size > 0 ? `Enrich Selected (${selectedProductIds.size})` : "Enrich All"}
+          </button>
+        )}
+      </div>
+
+      {/* Products Table */}
+      <div className="overflow-auto" style={{ maxHeight: "600px" }}>
+        <table className="w-full">
+          <thead className="sticky top-0 z-10 bg-slate-100">
+            <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-4 py-3 border-b border-slate-200 w-12 text-center">
                 <input
                   type="checkbox"
-                  checked={selectedProjectIds.has(project.id)}
-                  onChange={(e) => toggleProjectSelection(project.id, e as any)}
+                  checked={paginatedProducts.length > 0 && paginatedProducts.every((p) => selectedProductIds.has(p.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedProductIds((prev) => new Set([...prev, ...paginatedProducts.map((p) => p.id)]));
+                    } else {
+                      setSelectedProductIds((prev) => {
+                        const newSet = new Set(prev);
+                        paginatedProducts.forEach((p) => newSet.delete(p.id));
+                        return newSet;
+                      });
+                    }
+                  }}
                   className="rounded border-slate-300"
-                  disabled={enrichingProjects.has(project.id)}
                 />
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-900">{project.name}</span>
-                  {enrichingProjects.has(project.id) && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Processing
-                    </span>
-                  )}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                {project.use_case ? (
-                  <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span>
-                ) : (
-                  <span className="text-slate-400 text-xs">—</span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-center">
-                <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
-                  {project.product_count ?? 0}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        (project.completeness_score || 0) > 80 ? "bg-green-500" :
-                        (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"
-                      }`}
-                      style={{ width: `${project.completeness_score || 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-slate-600 font-medium min-w-[35px]">
-                    {project.completeness_score || 0}%
-                  </span>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <span title={project.source_status || "NA"} className="cursor-default">
-                  {getStatusBadge(project.source_status || "NA", true)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleExpandProject(project.id); }}
-                  className="p-1 hover:bg-slate-200 rounded transition-colors"
-                >
-                  {enrichingProjects.has(project.id) ? (
-                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                  ) : expandedProjectId === project.id ? (
-                    <ChevronUp className="w-5 h-5 text-slate-600" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-400" />
-                  )}
-                </button>
-              </td>
+              </th>
+              <th className="px-4 py-3 border-b border-slate-200">Product Name</th>
+              <th className="px-4 py-3 border-b border-slate-200">MPN</th>
+              <th className="px-4 py-3 border-b border-slate-200">Brand</th>
+              <th className="px-4 py-3 border-b border-slate-200">Category</th>
+              <th className="px-4 py-3 border-b border-slate-200 text-center">Completeness %</th>
+              <th className="px-4 py-3 border-b border-slate-200 text-center">Status</th>
+              <th className="px-4 py-3 border-b border-slate-200 text-center">Action</th>
             </tr>
-
-            {/* Expanded products section */}
-            {expandedProjectId === project.id && (
-              <tr>
-                <td colSpan={7} className="p-0">
-                  <div className="bg-slate-50 border-t border-b border-slate-200">
-                    <div className="p-4 border-b border-slate-200 flex items-center justify-end gap-3 bg-white">
-                      {!(statusFilter === "completed") && (
-                        <button
-                          onClick={handleEnrichAllInExpanded}
-                          disabled={
-                            loading ||
-                            enrichingProjects.has(project.id) ||
-                            (selectedProductIds.size > 0
-                              ? !expandedProjectProducts.some((p) => selectedProductIds.has(p.id))
-                              : expandedStats.pending === 0)
-                          }
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                        >
-                          {loading || enrichingProjects.has(project.id) ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-4 h-4" />
-                          )}
-                          {enrichingProjects.has(project.id)
-                            ? "Enriching..."
-                            : selectedProductIds.size > 0
-                              ? `Enrich Selected (${selectedProductIds.size})`
-                              : "Enrich All"}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="overflow-x-auto max-h-[600px]">
-                      <table className="w-full border-separate border-spacing-0">
-                        <thead className="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">
-                              {!isExpandedProjectSelected && (
-                                <input
-                                  type="checkbox"
-                                  checked={paginatedProducts.length > 0 && paginatedProducts.every((p) => selectedProductIds.has(p.id))}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedProductIds((prev) => new Set([...prev, ...paginatedProducts.map((p) => p.id)]));
-                                    } else {
-                                      setSelectedProductIds((prev) => {
-                                        const newSet = new Set(prev);
-                                        paginatedProducts.forEach((p) => newSet.delete(p.id));
-                                        return newSet;
-                                      });
-                                    }
-                                  }}
-                                  className="rounded border-slate-300"
-                                />
-                              )}
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Product</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Completeness</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Missing Attributes</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-slate-50">Status</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 bg-slate-50">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {expandedLoading ? (
-                            <tr>
-                              <td colSpan={6} className="px-4 py-8 text-center">
-                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-                              </td>
-                            </tr>
-                          ) : paginatedProducts.length === 0 ? (
-                            <tr>
-                              <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                                {searchQuery || categoryFilter || brandFilter ? "No products match your filters" : "No products found"}
-                              </td>
-                            </tr>
-                          ) : (
-                            paginatedProducts.map((product) => {
-                              const missing = getMissingAttributes(product);
-                              const score = product.completeness_score || 0;
-                              return (
-                                <tr key={product.id} onClick={() => setSelectedProduct(product.id)}
-                                    className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedProduct === product.id ? "bg-blue-50" : ""}`}>
-                                  <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                                    {!isExpandedProjectSelected && (
-                                      <input type="checkbox" checked={selectedProductIds.has(product.id)}
-                                        onChange={(e) => {
-                                          if (e.target.checked) setSelectedProductIds((prev) => new Set(prev).add(product.id));
-                                          else setSelectedProductIds((prev) => { const newSet = new Set(prev); newSet.delete(product.id); return newSet; });
-                                        }}
-                                        className="rounded border-slate-300" />
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-4">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <div className="font-semibold text-slate-900 text-sm truncate max-w-[520px]">
-                                            {product.product_name || product.product_code || "N/A"}
-                                          </div>
-                                          {product.category_1 ? (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">{product.category_1}</span>
-                                          ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><TagIcon />No Category</span>
-                                          )}
-                                        </div>
-                                        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                                          <span className="font-mono">{product.product_code || product.sku || "No SKU"}</span>
-                                          <span className="text-slate-300">•</span>
-                                          <span>{product.brand_name || "—"}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-4">
-                                    <div className="space-y-1">
-                                      <div className="text-xs text-slate-500">Completeness</div>
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-[120px] h-2 bg-slate-200 rounded-full overflow-hidden">
-                                          <div className={`h-full rounded-full transition-all duration-300 ${score >= 90 ? "bg-emerald-500" : score >= 60 ? "bg-amber-500" : "bg-rose-400"}`}
-                                            style={{ width: `${score}%` }} />
-                                        </div>
-                                        <div className={`text-sm font-semibold ${score >= 90 ? "text-emerald-600" : score >= 60 ? "text-amber-600" : "text-rose-600"}`}>{score}%</div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-4">
-                                    {missing.length === 0 ? (
-                                      <span className="text-sm text-slate-400">—</span>
-                                    ) : (
-                                      <div className="flex flex-wrap gap-2">
-                                        {missing.slice(0, 3).map((m) => (
-                                          <span key={m} className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">{m}</span>
-                                        ))}
-                                        {missing.length > 3 && <span className="text-xs text-slate-500 px-2 py-1">+{missing.length - 3} more</span>}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-4">{getProductStatusBadge(product.enrichment_status || "pending")}</td>
-                                  <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                    {product.enrichment_status !== "processing" && (
-                                      <button onClick={() => handleEnrich(product.id)}
-                                        disabled={loading || product.enrichment_status === "processing" || enrichingProjects.has(project.id)}
-                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                                        {product.enrichment_status === "completed" ? (<><RefreshCw className="w-4 h-4" />Backfill</>) : (<><Zap className="w-4 h-4" />Backfill</>)}
-                                      </button>
-                                    )}
-                                    {product.enrichment_status === "processing" && (
-                                      <span className="inline-flex items-center gap-2 text-sm text-blue-600"><Loader2 className="w-4 h-4 animate-spin" /></span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {filteredExpandedProducts.length > 0 && (
-                      <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-                        <span>Showing {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredExpandedProducts.length)} of {filteredExpandedProducts.length} products</span>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button>
-                          <span>Page {currentPage} / {totalPages || 1}</span>
-                          <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages || totalPages === 0} className="p-1 hover:bg-slate-100 rounded disabled:opacity-50"><ChevronRight className="w-4 h-4" /></button>
-                        </div>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {expandedLoading ? (
+              <tr><td colSpan={8} className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" /></td></tr>
+            ) : paginatedProducts.length === 0 ? (
+              <tr><td colSpan={8} className="p-8 text-center text-slate-500">No products found</td></tr>
+            ) : (
+              paginatedProducts.map((product) => (
+                <tr key={product.id} onClick={() => setSelectedProduct(product.id)}
+                  className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedProduct === product.id ? "bg-blue-50" : ""}`}>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedProductIds.has(product.id)}
+                      onChange={() => {
+                        setSelectedProductIds((prev) => {
+                          const newSet = new Set(prev);
+                          newSet.has(product.id) ? newSet.delete(product.id) : newSet.add(product.id);
+                          return newSet;
+                        });
+                      }}
+                      className="rounded border-slate-300" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-semibold text-slate-900 line-clamp-2" title={product.product_name}>
+                      {product.product_name || "Unnamed Product"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono text-slate-600">{product.product_code || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{product.brand_name || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{product.category_1 || "—"}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 justify-center">
+                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${(product.completeness_score || 0) > 80 ? "bg-emerald-500" : (product.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-500"}`}
+                          style={{ width: `${product.completeness_score || 0}%` }} />
                       </div>
-                    )}
-                  </div>
-                </td>
-              </tr>
+                      <span className="text-xs font-medium">{product.completeness_score || 0}%</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">{getProductStatusBadge(product.enrichment_status || "pending")}</td>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => handleEnrich(product.id)}
+                      disabled={loading || product.enrichment_status === "processing"}
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40">
+                      {product.enrichment_status === "processing" ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                       product.enrichment_status === "completed" ? <><RefreshCw className="w-3.5 h-3.5" /> Backfill</> :
+                       <><Zap className="w-3.5 h-3.5" /> Backfill</>}
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {filteredExpandedProducts.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-white">
+          <span className="text-sm text-slate-500">
+            Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredExpandedProducts.length)} of {filteredExpandedProducts.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
+              className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
+              <ChevronLeft className="w-3 h-3" /> Prev
+            </button>
+            <span className="text-sm text-slate-600">Page {currentPage} of {totalPages || 1}</span>
+            <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages}
+              className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
+              Next <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+    </td>
+  </tr>
+)}
           </React.Fragment>
         ))
       )}

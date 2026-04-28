@@ -24,7 +24,7 @@ import type {
   Source,
 } from "../types/database.types";
 import type { Project } from "../types/business-rules.types";
-import { ProductDetailView } from './ProductDetailView';
+import { ProductDetailView } from "./ProductDetailView";
 
 type TabKey = "listing" | "aggregated" | "enrichment";
 
@@ -32,6 +32,7 @@ interface ProjectStatsProps {
   projectId: string;
   project?: Project;
   onClose?: () => void;
+   onAggregateProducts?: (productId: string) => Promise<void>;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -40,6 +41,7 @@ export function ProjectStats({
   projectId,
   project: projectProp,
   onClose,
+  
 }: ProjectStatsProps) {
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
@@ -161,10 +163,8 @@ export function ProjectStats({
   );
   const totalProducts =
     projectProp?.product_count ?? projectStats?.totalProducts ?? 0;
-  const aggregatedCount =
-    projectStats?.aggregatedProducts ??
-    aggregationProducts.filter((p) => p.enrichment_status === "completed")
-      .length;
+ const aggregatedCount = projectStats?.aggregatedProducts ??
+  aggregationProducts.filter((p) => p.enrichment_status === "completed").length;
   const failedCount =
     projectStats?.failedProducts ??
     aggregationProducts.filter((p) => p.enrichment_status === "failed").length;
@@ -262,11 +262,39 @@ export function ProjectStats({
   {selectedProductIds.size > 0 && (
     <>
       <button
-        onClick={() => setShowDetailView(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
+        onClick={async () => {
+          const ids = Array.from(selectedProductIds);
+          setLoading(true);
+          let successCount = 0;
+          try {
+            for (const productId of ids) {
+              try {
+                await aggregationService.aggregateProduct(productId, "openai");
+                successCount++;
+              } catch (e) {
+                console.error(`Failed to aggregate ${productId}:`, e);
+              }
+            }
+            if (successCount > 0) {
+              notify.success(`Aggregation started for ${successCount} product(s)`);
+            }
+            setSelectedProductIds(new Set());
+            await loadData();
+          } catch (e: any) {
+            notify.error("Aggregation failed", e.message);
+          } finally {
+            setLoading(false);
+          }
+        }}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
       >
-        <Eye className="w-4 h-4" />
-        View Selected ({selectedProductIds.size})
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Play className="w-4 h-4" />
+        )}
+        Aggregate ({selectedProductIds.size})
       </button>
       <button
         onClick={handleDownloadSelected}
@@ -519,19 +547,31 @@ export function ProjectStats({
           </select>
         </div>
       </div>
-            <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+      <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
         <div className="flex items-center gap-2">
-          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
+          >
             <ChevronLeft className="w-3 h-3" /> Previous
           </button>
           <span className="flex items-center gap-1">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button key={p} onClick={() => setPage(p)} className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${p === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${p === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+              >
                 {p}
               </button>
             ))}
           </span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors">
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
+          >
             Next <ChevronRight className="w-3 h-3" />
           </button>
         </div>
@@ -605,7 +645,7 @@ export function ProjectStats({
                     />
                   </td>
                   <td className="py-3 text-slate-500 font-mono text-[11px]">
-                    {p.product_code || p.sku || '—'}
+                    {p.product_code || p.sku || "—"}
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-3">
@@ -621,15 +661,22 @@ export function ProjectStats({
                         </div>
                       )}
                       <div>
-                          <div  className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words" title={p.product_name}>{p.product_name || p.product_code || 'Unnamed Product'}</div>
+                        <div
+                          className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
+                          title={p.product_name}
+                        >
+                          {p.product_name ||
+                            p.product_code ||
+                            "Unnamed Product"}
+                        </div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                           {p.product_code}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 text-slate-500">{p.brand_name || '—'}</td>
-                  <td className="py-3 text-slate-500">{p.category_1 || '—'}</td>
+                  <td className="py-3 text-slate-500">{p.brand_name || "—"}</td>
+                  <td className="py-3 text-slate-500">{p.category_1 || "—"}</td>
                   <td className="py-3 text-center text-slate-600 font-medium">
                     {(p as any).attribute_count ??
                       p.dynamic_attributes?.length ??
@@ -686,9 +733,7 @@ export function ProjectStats({
         </table>
       </div>
 
-      
-
-      {/* {isDrawerOpen && selectedProduct && (
+      {isDrawerOpen && selectedProduct && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
             className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
@@ -859,17 +904,17 @@ export function ProjectStats({
             </div>
           </div>
         </div>
-      )} */}
+      )}
       {showDetailView && (
-  <div className="fixed inset-0 z-50 bg-slate-50">
-    <ProductDetailView
-      projectId={projectId}
-      projectName={projectName}
-      products={baseProducts.filter(p => selectedProductIds.has(p.id))}
-      onBack={() => setShowDetailView(false)}
-    />
-  </div>
-)}
+        <div className="fixed inset-0 z-50 bg-slate-50">
+          <ProductDetailView
+            projectId={projectId}
+            projectName={projectName}
+            products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
+            onBack={() => setShowDetailView(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
