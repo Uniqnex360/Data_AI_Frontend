@@ -35,28 +35,27 @@ const CATEGORY_BADGE: Record<RuleCategory, string> = {
   standardization: "standardization",
   extraction: "extraction",
 };
-function StatCard({
-  value,
-  label,
-}: {
-  value: number | string;
-  label: string;
-}) {
-  return (
-    <div className="px-6 py-3 bg-white border border-slate-200 rounded-2xl flex items-center gap-6 shadow-sm">
-      <div className="text-center">
-        <div className="text-lg font-bold text-blue-600 leading-none">
-          {value}
-        </div>
-        <div className="text-xs text-slate-500 mt-1">{label}</div>
-      </div>
-    </div>
-  );
-}
+// function StatCard({
+//   value,
+//   label,
+// }: {
+//   value: number | string;
+//   label: string;
+// }) {
+//   return (
+//     <div className="px-6 py-3 bg-white border border-slate-200 rounded-2xl flex items-center gap-6 shadow-sm">
+//       <div className="text-center">
+//         <div className="text-lg font-bold text-blue-600 leading-none">
+//           {value}
+//         </div>
+//         <div className="text-xs text-slate-500 mt-1">{label}</div>
+//       </div>
+//     </div>
+//   );
+// }
 export default function BusinessRulesTab() {
   const [rules, setRules] = useState<BusinessRule[]>([]);
   const [allRules, setAllRules] = useState<BusinessRule[]>([]);
-  const [enabled, setEnabled] = useState(true); 
   const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
 
   const [promptNameFilter, setPromptNameFilter] = useState<string>("");

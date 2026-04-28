@@ -1,10 +1,9 @@
-// src/components/BusinessModal/AddPromptModal.tsx
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { businessRulesService } from "../../services/businessRulesService";
 import { notify } from "../../lib/notifications";
-import { BusinessRule, RuleCategory } from "../../types/business-rules.types";
+import { BusinessRule, RuleCategory, RuleStatus } from "../../types/business-rules.types";
 import BaseModal from "./BaseModal";
 
 interface Props {
@@ -13,7 +12,6 @@ interface Props {
   onSuccess: () => void;
 }
 
-// Available stages based on category
 const STAGES_BY_CATEGORY: Record<RuleCategory, { value: string; label: string }[]> = {
   aggregation: [
      { value: "discovery_query", label: "Discovery Query - Build search query" }, 
@@ -43,7 +41,6 @@ const STAGES_BY_CATEGORY: Record<RuleCategory, { value: string; label: string }[
   ],  
 };
 const STAGES_BY_USE_CASE: Record<string, { value: string; label: string }[]> = {
-  // PDF Extraction Use Cases
   "Title & Description Based PDF Extraction": [
     { value: "pdf_identification", label: "PDF Identification - Find products in PDF" },
     { value: "pdf_blind_extraction", label: "PDF Blind Extraction - Extract without MPN" },
@@ -61,7 +58,7 @@ const STAGES_BY_USE_CASE: Record<string, { value: string; label: string }[]> = {
     { value: "pdf_extraction", label: "PDF Extraction - Extract with MPN" },
   ],
   
-  // Aggregation Use Cases
+  
   "Products with Category Assignments": [
     { value: "discovery_query", label: "Discovery Query - Build search query" },
     { value: "discovery_filter", label: "Discovery Filter - Select best URLs" },
@@ -77,7 +74,7 @@ const STAGES_BY_USE_CASE: Record<string, { value: string; label: string }[]> = {
     { value: "enrichment", label: "Enrichment - Marketing content" },
   ],
   
-  // Enrichment Use Cases
+  
   "With Categories with attribute (back filling)": [
     { value: "validation", label: "Validation - Compare with Excel" },
     { value: "enrichment", label: "Enrichment - Marketing content" },
@@ -128,10 +125,10 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
         prompt_name: promptName.trim(),
         prompt_text: promptText.trim(),
         description: description.trim() || undefined,
-        stage: stage,  // ✅ User selects the stage
+        stage: stage, 
         priority: 100,
         variables: [],
-        status: "active",
+        status:RuleStatus.ACTIVE,
       });
       
       notify.success("Prompt added successfully");
@@ -147,7 +144,6 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
   return (
     <BaseModal isOpen={true} onClose={onClose} title={`Add Prompt to "${rule.title}"`}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Context Info */}
         <div className="bg-slate-50 p-3 rounded-md border border-slate-200">
           <p className="text-sm text-slate-600">
             <span className="font-medium">Category:</span> {rule.category}
@@ -160,7 +156,6 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
           </p>
         </div>
 
-        {/* Stage Selection - NEW */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Pipeline Stage <span className="text-red-500">*</span>
@@ -183,7 +178,6 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
           </p>
         </div>
 
-        {/* Prompt Name */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Prompt Name <span className="text-red-500">*</span>
@@ -198,7 +192,6 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
           />
         </div>
 
-        {/* Prompt Text */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Prompt Text <span className="text-red-500">*</span>
@@ -213,7 +206,6 @@ export default function AddPromptModal({ rule, onClose, onSuccess }: Props) {
           />
         </div>
 
-        {/* Description */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Description (Optional)

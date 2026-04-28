@@ -23,6 +23,7 @@ import { Product, Project } from "../types/business-rules.types.ts";
 import { cleansingService } from "../services/cleansingService";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
+import { CleaningProductsOverview } from "./CleaningProductsOverview.tsx";
 type SortDir = "asc" | "desc" | null;
 interface ColSort {
   attr: string;
@@ -55,8 +56,7 @@ function StatusPill({ status }: { status?: string }) {
   const s = status || "pending";
   return (
     <span
-    title=      {PRODUCT_STATUS_LABEL[s] ?? s}
-
+      title={PRODUCT_STATUS_LABEL[s] ?? s}
       className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${
         s === "completed"
           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -111,7 +111,6 @@ function ProductThumbnail({ src, alt }: { src?: string | null; alt?: string }) {
 }
 function AttributeValueTags({
   values,
-  onRemove,
 }: {
   values: string[];
   onRemove: (value: string) => void;
@@ -251,6 +250,10 @@ function AttrHeader({
 export default function DataCleaningTab() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+    const [viewMode, setViewMode] = useState<"projects" | "progress" | "advanced">("projects");
+
+  const [selectedDetailProduct, setSelectedDetailProduct] =
+    useState<Product | null>(null);
   const [total, setTotal] = useState(0);
   const [allProductsSelected, setAllProductsSelected] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
@@ -490,6 +493,14 @@ export default function DataCleaningTab() {
     () => projects.find((p) => p.id === selectedProjectId),
     [projects, selectedProjectId],
   );
+  
+  const handleProjectClick = (id: string) => {
+    setSelectedProjectId(id);
+    setViewMode("progress");
+  };
+   const enterAdvancedMode = () => {
+    setViewMode("advanced");
+  };
   const loadProjectStats = useCallback(
     async (projectId: string, useFilters = false) => {
       if (!projectId) return;
@@ -699,15 +710,14 @@ export default function DataCleaningTab() {
     if (!changes || Object.keys(changes).length === 0) return;
     setSavingAttributes((prev) => ({ ...prev, [productId]: true }));
     try {
-      await cleansingService.updateProductAttributes(
-        productId,
-        Object.fromEntries(
-          Object.entries(changes).map(([k, v]) => [
-            k,
-            { value: v.values ? v.values.join(" | ") : v.value, uom: v.uom },
-          ]),
-        ),
-      );
+      const attributes: Record<string, string> = {};
+      for (const [key, val] of Object.entries(changes)) {
+        attributes[key] = val.values ? val.values.join(" | ") : val.value;
+        if (val.uom) {
+          attributes[key] = `${attributes[key]} ${val.uom}`;
+        }
+      }
+      await cleansingService.updateProductAttributes(productId, attributes);
       notify.success("Attributes updated");
       await loadProducts();
       setEditingAttributes((prev) => {
@@ -792,7 +802,6 @@ export default function DataCleaningTab() {
           selectedProjectId,
           selectedLLM,
           [],
-          true,
         );
         notify.success("Cleaning started", `Cleaning all ${total} products`);
       } else {
@@ -821,7 +830,7 @@ export default function DataCleaningTab() {
     setDownloading(true);
     try {
       const blob = await cleansingService.downloadSelected({
-        project_ids: allProductsSelected ? [selectedProjectId] : [],
+        project_id: allProductsSelected ? selectedProjectId : undefined,
         product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
       });
       const url = window.URL.createObjectURL(blob);
@@ -855,6 +864,15 @@ export default function DataCleaningTab() {
     }
     setBulkUpdating(true);
     try {
+      const promises = Object.entries(attrs).map(([attrName, attrValue]) =>
+        cleansingService.bulkUpdateProductAttributes({
+          product_ids: allProductsSelected
+            ? []
+            : Array.from(selectedProductIds),
+          attribute_name: attrName,
+          attribute_value: attrValue,
+        }),
+      );
       await cleansingService.bulkUpdateProductAttributes({
         product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
         project_id: allProductsSelected ? selectedProjectId : undefined,
@@ -923,7 +941,7 @@ export default function DataCleaningTab() {
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
-             Cleansing &amp; Standardization
+            Cleansing &amp; Standardization
           </h3>
           <p className="text-sm text-slate-500 mt-0.5">
             Select a project, then clean and standardise product attributes
@@ -957,8 +975,16 @@ export default function DataCleaningTab() {
               )}
               Download
             </button>
-          </div>
-        )}
+         {viewMode === "progress" && (
+      <button
+        onClick={() => setViewMode("advanced")}
+        className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50"
+      >
+        Advanced Edit
+      </button>
+    )}
+  </div>
+)}
       </div>
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-3">
         <div className="p-4">
@@ -983,30 +1009,31 @@ export default function DataCleaningTab() {
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Project
               </label>
-             <select
-  value={selectedProjectId}
-  onChange={async (e) => {
-    const id = e.target.value;
-    setProjectSwitching(true); 
-    setSelectedProjectId(id);
-    setPage(1);
-    setAllProductsSelected(false);
-    setSelectedProductIds(new Set());
-    setColSorts([]);
-    setColFilters([]);
-    try {
-      await loadProjectFilters(
-        id || undefined,
-        brandFilter || undefined,
-        categoryFilter || undefined,
-      );
-      await loadProjectAttributes(id);
-    } finally {
-      setProjectSwitching(false);
-    }
-  }}
-  className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
->
+              <select
+                value={selectedProjectId}
+                onChange={async (e) => {
+                  const id = e.target.value;
+                  setProjectSwitching(true);
+                  setSelectedProjectId(id);
+                  setViewMode(id ? "progress" : "projects");
+                  setPage(1);
+                  setAllProductsSelected(false);
+                  setSelectedProductIds(new Set());
+                  setColSorts([]);
+                  setColFilters([]);
+                  try {
+                    await loadProjectFilters(
+                      id || undefined,
+                      brandFilter || undefined,
+                      categoryFilter || undefined,
+                    );
+                    await loadProjectAttributes(id);
+                  } finally {
+                    setProjectSwitching(false);
+                  }
+                }}
+                className="h-10 w-full px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
                 <option value="">All Projects</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1167,7 +1194,17 @@ export default function DataCleaningTab() {
           </div>
         )}
       </div>
-      {selectedProjectId && availableAttributes.length > 0 && (
+      {viewMode === "advanced" && (
+  <div className="mb-3">
+    <button
+      onClick={() => setViewMode("progress")}
+      className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+    >
+      ← Back to Products
+    </button>
+  </div>
+)}
+     {viewMode === "advanced" && selectedProjectId && availableAttributes.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
           <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
             <div>
@@ -1311,104 +1348,106 @@ export default function DataCleaningTab() {
           </div>
         </div>
       )}
-      {!selectedProjectId ? (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className='flex items-center justify-between p-4 border border-slate-200 bg-slate-20'>
-            <div className="flex items-center gap-2">
-
-          <h4 className="text-base font-semibold text-slate-900">
-            Cleaning Projects
-          </h4>
-          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-            {projects.length}
-          </span>
-         </div>
-         </div>
-         <div className="overflow-auto" style={{maxHeight:'calc(100vh-250px)'}}>
-         <table className="w-full table-fixed">
-  <colgroup>
-    <col style={{ width: "35%" }} />
-    <col style={{ width: "15%" }} />
-    <col style={{ width: "20%" }} />
-    <col style={{ width: "15%" }} />
-    <col style={{ width: "15%" }} />
-  </colgroup>
-  <thead className="sticky top-0 z-10 bg-slate-50">
-    <tr>
-      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Project Name</th>
-      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Products</th>
-      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Use Case</th>
-      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th>
-      <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Actions</th>
-    </tr>
-  </thead>
-            <tbody className="divide-y divide-slate-200">
-              
-            
-          {projectsLoading ? (
-            <tr>
-            <td colSpan={5} className="p-8 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" />
-               <p className="text-slate-500 text-sm">Loading projects...</p>
-            </td>
-            </tr>
-          ) : projects.length === 0 ? (
-           <tr>
-            <td colSpan={5} className="p-8 text-center text-slate-500">No cleaning projects found</td>
-           </tr>
-          ) : (
-             projects.map((project) => (
-                <tr
-                  key={project.id}
-                  className="hover:bg-slate-50 cursor-pointer transition-colors"
-                 onClick={async () => {
-  setProjectSwitching(true); 
-  setSelectedProjectId(project.id);
-  setPage(1);
-  setAllProductsSelected(false);
-  setSelectedProductIds(new Set());
-  try {
-    await loadProjectFilters(project.id);
-    await loadProjectAttributes(project.id);
-  } finally {
-    setProjectSwitching(false); 
-  }
-}}
-                 
-                >
-                 <td className="px-4 py-4">
-                    <span className="text-sm font-semibold text-slate-900">
-                      {project.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-
-
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
-                      {project.product_count ?? 0} products
-                    </span>
-                    </td>
-                    <td className="px-4 py-4">
-                  {project.use_case ? (
-                    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span>
-                  ) : (
-                    <span className="text-slate-400 text-xs">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-4">
-                    {getStatusBadge(project.source_status || "NA", true)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className="text-xs text-blue-600 font-medium">View Products</span>
-                   </td>
-            </tr>
-        ))
-      )}
-         </tbody>
-        </table>
+     {viewMode === "projects" && !selectedProjectId ? (
+  // PROJECTS TABLE
+  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-semibold text-slate-900">
+          {projects.length} Cleaning Projects
+        </span>
       </div>
     </div>
-     ) : loading || projectSwitching ? (
+    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 250px)" }}>
+      <table className="w-full">
+        <thead className="sticky top-0 z-30 bg-slate-50">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Project Name</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Use Case</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Total Products</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">CNS Products</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Failed Products</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Completeness %</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Status</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {projectsLoading ? (
+            <tr><td colSpan={8} className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" /><p className="text-slate-500 text-sm">Loading projects...</p></td></tr>
+          ) : projects.length === 0 ? (
+            <tr><td colSpan={8} className="p-8 text-center text-slate-500">No cleaning projects found</td></tr>
+          ) : (
+            projects.map((project) => {
+              const totalProducts = project.product_count ?? 0;
+              const cnsProducts = project.cleaned_count ?? 0;
+              const failedProducts = project.failed_count ?? 0;
+              return (
+                <tr key={project.id} className="hover:bg-slate-50 cursor-pointer transition-colors"
+                  onClick={async () => {
+                    setProjectSwitching(true);
+                    setSelectedProjectId(project.id);
+                    setViewMode("progress");
+                    setPage(1);
+                    setAllProductsSelected(false);
+                    setSelectedProductIds(new Set());
+                    try {
+                      await loadProjectFilters(project.id);
+                      await loadProjectAttributes(project.id);
+                    } finally {
+                      setProjectSwitching(false);
+                    }
+                  }}>
+                  <td className="px-4 py-3"><span className="font-semibold text-slate-900 text-sm">{project.name}</span></td>
+                  <td className="px-4 py-3">{project.use_case ? <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span> : <span className="text-slate-400 text-xs">—</span>}</td>
+                  <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">{totalProducts}</span></td>
+                  <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full">{cnsProducts}</span></td>
+                  <td className="px-4 py-3 text-center"><span className={`px-2 py-1 text-sm font-medium rounded-full ${failedProducts > 0 ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>{failedProducts}</span></td>
+                  <td className="px-4 py-3"><div className="flex items-center justify-center gap-2"><div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(project.completeness_score || 0) > 80 ? "bg-green-500" : (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"}`} style={{ width: `${project.completeness_score || 0}%` }} /></div><span className="text-xs text-slate-600 font-medium min-w-[35px]">{project.completeness_score || 0}%</span></div></td>
+                  <td className="px-4 py-3 text-center">{getStatusBadge(project.source_status || "NA", true)}</td>
+                  <td className="px-4 py-3 text-center"><span className="text-xs text-blue-600 font-medium hover:underline">View Products</span></td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+) : viewMode === "progress" ? (
+  <CleaningProductsOverview
+    project={selectedProject!}
+    products={filteredSortedProducts}
+    loading={loading}
+    total={total}
+    page={page}
+    pageSize={pageSize}
+    totalPages={totalPages}
+    onBack={() => { setViewMode("projects"); handleReset(); }}
+    onPageChange={(p) => { setPage(p); setAllProductsSelected(false); setSelectedProductIds(new Set()); }}
+    onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+    onProductClick={(product) => {
+    setSelectedProductIds(new Set([product.id]));
+    setAllProductsSelected(false);
+    setViewMode("advanced");
+  }}
+     onAdvancedEdit={() => {
+    if (selectedProductIds.size === 0 && !allProductsSelected) {
+      notify.info("Select products first or click a product to edit");
+      return;
+    }
+    setViewMode("advanced");
+  }}
+    searchTerm={searchTerm}
+    onSearchChange={setSearchTerm}
+    selectedProductIds={selectedProductIds}
+  allProductsSelected={allProductsSelected}
+  onToggleProduct={toggleProduct}
+  onToggleAll={toggleAll}
+  onSelectAllAcrossPages={() => setAllProductsSelected(true)}
+  />
+
+      ) : loading || projectSwitching ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         </div>
@@ -1418,516 +1457,97 @@ export default function DataCleaningTab() {
           <p className="text-slate-500">No products found</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={allProductsSelected || isCurrentPageFullySelected}
-                onChange={toggleAll}
-                className="rounded border-slate-300 text-blue-600"
-              />
-              <span className="text-slate-700 font-medium">
-                {filteredSortedProducts.length} products on this page
-              </span>
-              {(selectedProductIds.size > 0 || allProductsSelected) && (
-                <span className="text-blue-600 font-medium">
-                  •{" "}
-                  {allProductsSelected
-                    ? `All ${total} selected`
-                    : `${selectedProductIds.size} selected`}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {hasActiveFilters ? (
-                <>
-                  <span className="text-slate-500">
-                    <span className="font-medium text-slate-700">{total}</span>{" "}
-                    matching products
-                  </span>
-                  <span className="text-slate-400 text-xs">*</span>
-                  <span className="text-slate-400 text-xs">
-                    out of {selectedProject?.product_count ?? 0} total
-                  </span>
-                </>
-              ) : (
-                <span className="text-slate-500">
-                  <span className="text-slate-500">Total {total} products</span>
-                </span>
-              )}
-            </div>
-          </div>
-          {isCurrentPageFullySelected &&
-            !allProductsSelected &&
-            total > pageSize && (
-              <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-center gap-2 text-sm text-blue-700">
-                <span>
-                  All <strong>{filteredSortedProducts.length}</strong> products
-                  on this page are selected.
-                </span>
-                <button
-                  onClick={() => setAllProductsSelected(true)}
-                  className="font-semibold underline hover:text-blue-900 transition-colors"
-                >
-                  Select all {total} products in this project
-                </button>
+  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
+      <div className="flex items-center gap-3">
+        <span className="text-slate-700 font-medium">
+          {allProductsSelected 
+            ? `All ${total} products` 
+            : `${selectedProductIds.size} product(s) selected`}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-slate-500">MPN: {selectedDetailProduct?.product_code}</span>
+      </div>
+    </div>
+    <div className="overflow-auto relative" style={{ maxHeight: "calc(100vh - 280px)" }}>
+      <table className="border-separate border-spacing-0"
+        style={{
+          tableLayout: "fixed",
+          width: COL_STATUS + COL_NAME + COL_MPN + COL_THUMB + COL_BRAND + COL_CATEGORY + COL_ACTION + availableAttributes.length * COL_ATTR,
+        }}>
+        <thead className="sticky top-0 z-40">
+          <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
+            <th style={{ width: COL_STATUS, minWidth: COL_STATUS }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center">Status</th>
+            <th style={{ width: COL_NAME, minWidth: COL_NAME }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Product Name</th>
+            <th style={{ width: COL_MPN, minWidth: COL_MPN }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">MPN</th>
+            <th style={{ width: COL_THUMB, minWidth: COL_THUMB }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center">Image</th>
+            <th style={{ width: COL_BRAND, minWidth: COL_BRAND }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Brand</th>
+            <th style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Category</th>
+            {availableAttributes.map((attr) => (
+              <AttrHeader key={attr} attr={attr} sort={getSort(attr)} filter={getFilter(attr)} onSort={() => toggleSort(attr)} onFilter={(v) => setColFilter(attr, v)} />
+            ))}
+            <th style={{ width: COL_ACTION, minWidth: COL_ACTION, right: 0, position: "sticky", zIndex: 50 }} className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+  {filteredSortedProducts
+    .filter(p => allProductsSelected || selectedProductIds.has(p.id))
+    .map((product) => (
+      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50/70 align-top">
+        <td className="px-3 py-4 border-r border-slate-100">
+          <div className="flex justify-center"><StatusPill status={product.enrichment_status} /></div>
+        </td>
+        <td className="px-3 py-4 border-r border-slate-100">
+          <span className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2" title={product.product_name}>{product.product_name}</span>
+        </td>
+        <td className="px-3 py-4 border-r border-slate-100">
+          <span className="text-sm font-mono text-slate-700 truncate block" title={product.product_code}>{product.product_code}</span>
+        </td>
+        <td className="px-3 py-4 border-r border-slate-100">
+          <div className="flex justify-center"><ProductThumbnail src={(product as any).image_url_1} alt={product.product_name} /></div>
+        </td>
+        <td className="px-3 py-4 border-r border-slate-100"><span className="text-sm text-slate-600">{product.brand_name}</span></td>
+        <td className="px-3 py-4 border-r border-slate-200"><span className="text-sm text-slate-600">{product.category_1}</span></td>
+        {availableAttributes.map((attr) => {
+          const dynAttr = (product.dynamic_attributes || []).find((a) => a.name === attr);
+          const edited = editingAttributes[product.id]?.[attr];
+          const currentValues = getAttrValues(product, attr);
+          const curVal = edited?.value ?? (dynAttr?.value as any) ?? "";
+          const curUom = edited?.uom ?? (dynAttr as any)?.unit ?? (dynAttr as any)?.uom ?? "";
+          const conflict = product.validation_conflicts?.[attr];
+          return (
+            <td key={attr} style={{ width: COL_ATTR, minWidth: COL_ATTR }} className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}>
+              <div className="px-2 py-3">
+                <div className="flex items-start gap-2">
+                  <input type="text" value={curVal} onChange={(e) => handleAttributeChange(product.id, attr, "value", e.target.value)} disabled={savingAttributes[product.id]} placeholder="—" className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-slate-900 outline-none focus:ring-0 placeholder:text-slate-300 disabled:opacity-40" />
+                  {conflict && <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" title="AI suggested correction" />}
+                </div>
+                <AttributeValueTags values={currentValues} onRemove={(value) => handleRemoveAttributeValue(product, attr, value)} />
+                <input type="text" value={curUom} onChange={(e) => handleAttributeChange(product.id, attr, "uom", e.target.value)} placeholder="unit (e.g. kg, V)" className="mt-3 h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:bg-white focus:border-blue-300 transition-colors" />
               </div>
+            </td>
+          );
+        })}
+        <td style={{ width: COL_ACTION, position: "sticky", right: 0, zIndex: 20 }} className="px-3 py-4 border-l border-slate-200 bg-white">
+          <div className="flex flex-col gap-2 items-center">
+            <button onClick={() => handleCleanProduct(product.id)} disabled={cleaning || product.enrichment_status === "processing"} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40 hover:underline">
+              {product.enrichment_status === "processing" ? <><Loader2 className="w-4 h-4 animate-spin" /> Cleaning</> : product.enrichment_status === "completed" ? "Re-clean" : "Clean"}
+            </button>
+            {Object.keys(editingAttributes[product.id] || {}).length > 0 && (
+              <button onClick={() => handleSaveAttributes(product.id)} disabled={savingAttributes[product.id]} className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium disabled:opacity-40 hover:underline">
+                {savingAttributes[product.id] ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving</> : <><Check className="w-4 h-4" /> Save</>}
+              </button>
             )}
-          {allProductsSelected && (
-            <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-center gap-2 text-sm text-blue-700">
-              <span>
-                All <strong>{total}</strong> products in this project are
-                selected.
-              </span>
-              <button
-                onClick={() => {
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                className="font-semibold underline hover:text-blue-900 transition-colors"
-              >
-                Clear selection
-              </button>
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500">
-                Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}–
-                {Math.min(page * pageSize, total)} of {total}
-              </span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
-              >
-                {pageSizeOptions.map((size) => (
-                  <option key={size} value={size}>
-                    {size === total ? `All (${size})` : `${size} / page`}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setPage((p) => Math.max(1, p - 1));
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                disabled={page === 1 || loading}
-                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <span className="text-slate-600">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => {
-                  setPage((p) => Math.min(totalPages, p + 1));
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                disabled={page >= totalPages || loading}
-                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
           </div>
-          <div
-            className="overflow-auto relative"
-            style={{ maxHeight: "calc(100vh - 280px)" }}
-          >
-            <table
-             className="border-separate border-spacing-0"
-
-
-              style={{
-                tableLayout: "fixed",
-                width:
-                  COL_CHECKBOX +
-                  COL_STATUS +
-                  COL_NAME +
-                  COL_MPN +
-                  COL_THUMB +
-                  COL_BRAND +
-                  COL_CATEGORY +
-                  COL_ACTION +
-                  availableAttributes.length * COL_ATTR,
-              }}
-            >
-              <thead className="sticky top-0 z-40">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
-                  <th
-                    style={{
-                      width: COL_CHECKBOX,
-                      minWidth: COL_CHECKBOX,
-                      left: LEFT_CHECKBOX,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        allProductsSelected || isCurrentPageFullySelected
-                      }
-                      onChange={toggleAll}
-                      className="rounded border-slate-300 text-blue-600"
-                    />
-                  </th>
-
-                  <th
-                    style={{
-                      width: COL_STATUS,
-                      minWidth: COL_STATUS,
-                      left: LEFT_STATUS,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
-                  >
-                    Status
-                  </th>
-
-                  <th
-                    style={{
-                      width: COL_NAME,
-                      minWidth: COL_NAME,
-                      left: LEFT_NAME,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Product Name
-                  </th>
-
-                  <th
-                    style={{
-                      width: COL_MPN,
-                      minWidth: COL_MPN,
-                      left: LEFT_MPN,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    MPN
-                  </th>
-
-                  <th
-                    style={{ width: COL_THUMB, minWidth: COL_THUMB }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
-                  >
-                    Image
-                  </th>
-
-                  <th
-                    style={{ width: COL_BRAND, minWidth: COL_BRAND }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Brand
-                  </th>
-
-                  <th
-                    style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Category
-                  </th>
-
-                  {availableAttributes.map((attr) => (
-                    <AttrHeader
-                      key={attr}
-                      attr={attr}
-                      sort={getSort(attr)}
-                      filter={getFilter(attr)}
-                      onSort={() => toggleSort(attr)}
-                      onFilter={(v) => setColFilter(attr, v)}
-                    />
-                  ))}
-
-                  <th
-                    style={{
-                      width: COL_ACTION,
-                      minWidth: COL_ACTION,
-                      right: 0,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center"
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSortedProducts.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="border-b border-slate-100 hover:bg-slate-50/70 align-top group"
-                  >
-                    <td
-                      style={{
-                        width: COL_CHECKBOX,
-                        position: "sticky",
-                        left: LEFT_CHECKBOX,
-                        zIndex: 20,
-                      }}
-                      className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={
-                          allProductsSelected ||
-                          selectedProductIds.has(product.id)
-                        }
-                        onChange={() => toggleProduct(product.id)}
-                        className="rounded border-slate-300 text-blue-600"
-                      />
-                    </td>
-
-                    <td
-                      style={{
-                        width: COL_STATUS,
-                        position: "sticky",
-                        left: LEFT_STATUS,
-                        zIndex: 20,
-                      }}
-                      className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <div className="flex justify-center">
-                        
-                        <StatusPill status={product.enrichment_status} />
-                      </div>
-                    </td>
-
-                    <td
-                      style={{
-                        width: COL_NAME,
-                        position: "sticky",
-                        left: LEFT_NAME,
-                        zIndex: 20,
-                      }}
-                      className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <span
-                        className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
-                        title={product.product_name}
-                      >
-                        {product.product_name}
-                      </span>
-                    </td>
-
-                    <td
-                      style={{
-                        width: COL_MPN,
-                        position: "sticky",
-                        left: LEFT_MPN,
-                        zIndex: 20,
-                      }}
-                      className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <span
-                        className="text-sm font-mono text-slate-700 truncate block"
-                        title={product.product_code}
-                      >
-                        {product.product_code}
-                      </span>
-                    </td>
-
-                    <td
-                      style={{ width: COL_THUMB }}
-                      className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <div className="flex justify-center">
-                        <ProductThumbnail
-                          src={(product as any).image_url_1}
-                          alt={product.product_name}
-                        />
-                      </div>
-                    </td>
-
-                    <td
-                      style={{ width: COL_BRAND }}
-                      className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <span className="text-sm text-slate-600">
-                        {product.brand_name}
-                      </span>
-                    </td>
-
-                    <td
-                      style={{ width: COL_CATEGORY }}
-                      className="px-3 py-4 border-r border-slate-200 bg-white group-hover:bg-slate-50/70"
-                    >
-                      <span className="text-sm text-slate-600">
-                        {product.category_1}
-                      </span>
-                    </td>
-
-                    {availableAttributes.map((attr) => {
-                      const dynAttr = (product.dynamic_attributes || []).find(
-                        (a) => a.name === attr,
-                      );
-                      const edited = editingAttributes[product.id]?.[attr];
-                      const currentValues = getAttrValues(product, attr);
-                      const curVal =
-                        edited?.value ?? (dynAttr?.value as any) ?? "";
-                      const curUom =
-                        edited?.uom ??
-                        (dynAttr as any)?.unit ??
-                        (dynAttr as any)?.uom ??
-                        "";
-                      const conflict = product.validation_conflicts?.[attr];
-                      return (
-                        <td
-                          key={attr}
-                          style={{ width: COL_ATTR, minWidth: COL_ATTR }}
-                          className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}
-                        >
-                          <div className="px-2 py-3">
-                            <div className="flex items-start gap-2">
-                              <input
-                                type="text"
-                                value={curVal}
-                                onChange={(e) =>
-                                  handleAttributeChange(
-                                    product.id,
-                                    attr,
-                                    "value",
-                                    e.target.value,
-                                  )
-                                }
-                                disabled={savingAttributes[product.id]}
-                                placeholder="—"
-                                className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-slate-900 outline-none focus:ring-0 placeholder:text-slate-300 disabled:opacity-40"
-                              />
-                              {conflict && (
-                                <AlertCircle
-                                  className="w-4 h-4 text-amber-500 shrink-0 mt-0.5"
-                                  title="AI suggested correction"
-                                />
-                              )}
-                            </div>
-                            <AttributeValueTags
-                              values={currentValues}
-                              onRemove={(value) =>
-                                handleRemoveAttributeValue(product, attr, value)
-                              }
-                            />
-                            <input
-                              type="text"
-                              value={curUom}
-                              onChange={(e) =>
-                                handleAttributeChange(
-                                  product.id,
-                                  attr,
-                                  "uom",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="unit (e.g. kg, V)"
-                              className="mt-3 h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:bg-white focus:border-blue-300 transition-colors"
-                            />
-                          </div>
-                        </td>
-                      );
-                    })}
-
-                    <td
-                      style={{
-                        width: COL_ACTION,
-                        position: "sticky",
-                        right: 0,
-                        zIndex: 20,
-                      }}
-                      className="px-3 py-4 border-l border-slate-200 bg-white group-hover:bg-slate-50/70 text-center"
-                    >
-                      <div className="flex flex-col gap-2 items-center">
-                        <button
-                          onClick={() => handleCleanProduct(product.id)}
-                          disabled={
-                            cleaning ||
-                            product.enrichment_status === "processing"
-                          }
-                          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40 hover:underline"
-                        >
-                          {product.enrichment_status === "processing" ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Cleaning
-                            </>
-                          ) : product.enrichment_status === "completed" ? (
-                            "Re-clean"
-                          ) : (
-                            "Clean"
-                          )}
-                        </button>
-                        {Object.keys(editingAttributes[product.id] || {})
-                          .length > 0 && (
-                          <button
-                            onClick={() => handleSaveAttributes(product.id)}
-                            disabled={savingAttributes[product.id]}
-                            className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium disabled:opacity-40 hover:underline"
-                          >
-                            {savingAttributes[product.id] ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Saving
-                              </>
-                            ) : (
-                              <>
-                                <Check className="w-4 h-4" />
-                                Save
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-white text-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500">
-                Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}–
-                {Math.min(page * pageSize, total)} of {total}
-              </span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                  setAllProductsSelected(false);
-                  setSelectedProductIds(new Set());
-                }}
-                className="h-9 px-2 border border-slate-200 rounded-lg bg-white text-sm"
-              >
-                {pageSizeOptions.map((size) => (
-                  <option key={size} value={size}>
-                    {size === total ? `All (${size})` : `${size} / page`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
+        </td>
+      </tr>
+    ))}
+</tbody>
+      </table>
+    </div>
+  </div>
+)}
     </div>
   );
 }

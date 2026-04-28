@@ -19,10 +19,9 @@ import {
 } from "lucide-react";
 import { dashboardService, type DateField } from "../services/dashboardService";
 import { aggregationService } from "../services/aggregationService";
-import type { Product } from "../types/database.types";
-import type { DashboardStats } from "../types/database.types";
 import ProjectsOverviewTab from "./ProjectsOverviewTab.tsx";
-import { ProjectOverview } from "../types/business-rules.types.ts";
+import { DashboardStats, Product, ProjectOverview } from "../types/business-rules.types.ts";
+import { productService } from '../services/productService';
 
 interface Props {
   projectId?: string;
@@ -354,7 +353,7 @@ useEffect(() => {
 
       
       if (projectId) {
-        const failedRes = await aggregationService.getProductsByProject(
+        const failedRes = await productService.getProductsByProject(
           projectId,
           0,
           5,
@@ -364,7 +363,7 @@ useEffect(() => {
 
         if (combinedList.length < 5) {
           const remainingSlots = 5 - combinedList.length;
-          const pendingRes = await aggregationService.getProductsByProject(
+          const pendingRes = await productService.getProductsByProject(
             projectId,
             0,
             remainingSlots,

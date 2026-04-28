@@ -70,8 +70,8 @@ export interface RulePrompt {
 }
 export interface RulePromptCreate {
   prompt_name: string;
-  prompt_type: PromptType;        
-  response_schema: ResponseSchema; 
+  prompt_type?: PromptType;        
+  response_schema?: ResponseSchema; 
   prompt_text: string;
   stage: string;
   description?: string;
@@ -168,6 +168,9 @@ export interface Project {
     | "completed"
     | "processing";
   aggregated_count?:number
+  cleaned_count?:number
+  failed_count?:number
+  pending_count?:number
 }
 export  interface Product {
   id: string;
@@ -176,6 +179,9 @@ export  interface Product {
   brand_name: string;
   category_1: string;
   description?: string;
+  image_url_1?:string;
+  completeness_score?:number;
+  source_url?:string;
   enrichment_status: string;
   dynamic_attributes: Array<{
     name: string;

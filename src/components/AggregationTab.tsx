@@ -18,11 +18,10 @@ import {
 } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
-import type { Product } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
 import {  Download, GitMerge } from "lucide-react";
-import { AggregatedAttribute, Project } from "../types/business-rules.types.ts";
+import { AggregatedAttribute, Product, Project } from "../types/business-rules.types.ts";
 import { AggregationTabProps } from "../types/business-rules.types";
 import {
   getStatusBadge,
@@ -31,18 +30,14 @@ import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { formatValue } from "../utils/valueParser";
 import { useProductMovement } from "../hooks/useProductMovement";
 import { extractionService } from "../services/extractionService.ts";
-import { pollBatchStatus } from "../../utils/polling.ts";
 import { ProjectStats } from "./ProjectStats";
-const ITEMS_PER_PAGE = 10;
 export default function AggregationTab({
   projectId,
-  initialFilter = "all",
   onNavigateToProject,
 }: AggregationTabProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
-  const [useCases, setUseCases] = useState<string[]>([]);
-  const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
+  // const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
 
@@ -80,7 +75,6 @@ export default function AggregationTab({
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     new Set(),
   );
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
     new Set(),
@@ -215,178 +209,178 @@ export default function AggregationTab({
     },
     [],
   );
-  const handleExtractFreshMpn = async (productId: string, mpn: string) => {
-    if (!expandedProjectId) {
-      notify.error("No project selected");
-      return;
-    }
-    setExtractingPdf((prev) => new Set(prev).add(productId));
-    setExpandedProjectProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-      ),
-    );
-    try {
-      const project = projects.find((p) => p.id === expandedProjectId);
-      const response = await extractionService.freshAggregation({
-        mpns: [mpn],
-        project_id: expandedProjectId!,
-        use_case: project?.use_case || selectedUseCase,
-      });
-      setPollingProductIds((prev) => new Set(prev).add(productId));
-      notify.success("Extraction Started", `Extracting data for ${mpn}`);
-      pollBatchStatus(response.batch_id, async () => {
-        const freshResult = await productService.getProductsByProject(
-          expandedProjectId!,
-          "aggregation",
-        );
-        const freshData = Array.isArray(freshResult)
-          ? freshResult
-          : (freshResult?.products ?? []);
-        setExpandedProjectProducts(freshData);
-        await loadProjects();
-        setPollingProductIds((prev) => {
-          const updated = new Set(prev);
-          updated.delete(productId);
-          return updated;
-        });
-      });
-    } catch (error: any) {
-      notify.error("Extraction failed", error.message);
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-        ),
-      );
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        updated.delete(productId);
-        return updated;
-      });
-    } finally {
-      setExtractingPdf((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
-    }
-  };
-  const handleExtractFromPdf = async (productId: string, mpn: string) => {
-    setExtractingPdf((prev) => new Set(prev).add(productId));
-    setExpandedProjectProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-      ),
-    );
-    try {
-      const response = await extractionService.extractPdfForProduct(
-        mpn,
-        expandedProjectId!,
-      );
-      setPollingProductIds((prev) => new Set(prev).add(productId));
-      notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
-      pollBatchStatus(response.batch_id, async () => {
-        const freshResult = await productService.getProductsByProject(
-          expandedProjectId!,
-          "aggregation",
-        );
-        const freshData = Array.isArray(freshResult)
-          ? freshResult
-          : (freshResult?.products ?? []);
-        setExpandedProjectProducts(freshData);
-        await loadProjects();
-        setPollingProductIds((prev) => {
-          const updated = new Set(prev);
-          updated.delete(productId);
-          return updated;
-        });
-      });
-    } catch (error: any) {
-      notify.error("Extraction failed", error.message);
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-        ),
-      );
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        updated.delete(productId);
-        return updated;
-      });
-    } finally {
-      setExtractingPdf((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
-    }
-  };
-  const handleBlindExtract = async (productId: string) => {
-    if (!expandedProjectId) {
-      notify.error("No project selected");
-      return;
-    }
-    if (extractingPdf.size >= 5) {
-      notify.warning(
-        "Extraction Limit",
-        "Maximum 5 concurrent extractions allowed. Please wait for some to complete.",
-      );
-      return;
-    }
-    const product = expandedProjectProducts.find((p) => p.id === productId);
-    if (!product) {
-      notify.error("Product not found");
-      return;
-    }
-    setExtractingPdf((prev) => new Set(prev).add(productId));
-    setExpandedProjectProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-      ),
-    );
-    try {
-      const response = await extractionService.extractPdfForProduct(
-        product.product_code,
-        expandedProjectId,
-      );
-      setPollingProductIds((prev) => new Set(prev).add(productId));
-      notify.success("Extraction Started", "Extracting product data from PDF");
-      pollBatchStatus(response.batch_id, async () => {
-        const freshResult = await productService.getProductsByProject(
-          expandedProjectId!,
-          "aggregation",
-        );
-        const freshData = Array.isArray(freshResult)
-          ? freshResult
-          : (freshResult?.products ?? []);
-        setExpandedProjectProducts(freshData);
-        await loadProjects();
-        setPollingProductIds((prev) => {
-          const updated = new Set(prev);
-          updated.delete(productId);
-          return updated;
-        });
-      });
-    } catch (error: any) {
-      notify.error("Extraction failed", error.message);
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
-        ),
-      );
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        updated.delete(productId);
-        return updated;
-      });
-    } finally {
-      setExtractingPdf((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
-    }
-  };
+  // const handleExtractFreshMpn = async (productId: string, mpn: string) => {
+  //   if (!expandedProjectId) {
+  //     notify.error("No project selected");
+  //     return;
+  //   }
+  //   setExtractingPdf((prev) => new Set(prev).add(productId));
+  //   setExpandedProjectProducts((prev) =>
+  //     prev.map((p) =>
+  //       p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+  //     ),
+  //   );
+  //   try {
+  //     const project = projects.find((p) => p.id === expandedProjectId);
+  //     const response = await extractionService.freshAggregation({
+  //       mpns: [mpn],
+  //       project_id: expandedProjectId!,
+  //       use_case: project?.use_case || selectedUseCase,
+  //     });
+  //     setPollingProductIds((prev) => new Set(prev).add(productId));
+  //     notify.success("Extraction Started", `Extracting data for ${mpn}`);
+  //     pollBatchStatus(response.batch_id, async () => {
+  //       const freshResult = await productService.getProductsByProject(
+  //         expandedProjectId!,
+  //         "aggregation",
+  //       );
+  //       const freshData = Array.isArray(freshResult)
+  //         ? freshResult
+  //         : (freshResult?.products ?? []);
+  //       setExpandedProjectProducts(freshData);
+  //       await loadProjects();
+  //       setPollingProductIds((prev) => {
+  //         const updated = new Set(prev);
+  //         updated.delete(productId);
+  //         return updated;
+  //       });
+  //     });
+  //   } catch (error: any) {
+  //     notify.error("Extraction failed", error.message);
+  //     setExpandedProjectProducts((prev) =>
+  //       prev.map((p) =>
+  //         p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+  //       ),
+  //     );
+  //     setPollingProductIds((prev) => {
+  //       const updated = new Set(prev);
+  //       updated.delete(productId);
+  //       return updated;
+  //     });
+  //   } finally {
+  //     setExtractingPdf((prev) => {
+  //       const newSet = new Set(prev);
+  //       newSet.delete(productId);
+  //       return newSet;
+  //     });
+  //   }
+  // };
+  // const handleExtractFromPdf = async (productId: string, mpn: string) => {
+  //   setExtractingPdf((prev) => new Set(prev).add(productId));
+  //   setExpandedProjectProducts((prev) =>
+  //     prev.map((p) =>
+  //       p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+  //     ),
+  //   );
+  //   try {
+  //     const response = await extractionService.extractPdfForProduct(
+  //       mpn,
+  //       expandedProjectId!,
+  //     );
+  //     setPollingProductIds((prev) => new Set(prev).add(productId));
+  //     notify.success("PDF Extraction Started", `Extracting data for ${mpn}`);
+  //     pollBatchStatus(response.batch_id, async () => {
+  //       const freshResult = await productService.getProductsByProject(
+  //         expandedProjectId!,
+  //         "aggregation",
+  //       );
+  //       const freshData = Array.isArray(freshResult)
+  //         ? freshResult
+  //         : (freshResult?.products ?? []);
+  //       setExpandedProjectProducts(freshData);
+  //       await loadProjects();
+  //       setPollingProductIds((prev) => {
+  //         const updated = new Set(prev);
+  //         updated.delete(productId);
+  //         return updated;
+  //       });
+  //     });
+  //   } catch (error: any) {
+  //     notify.error("Extraction failed", error.message);
+  //     setExpandedProjectProducts((prev) =>
+  //       prev.map((p) =>
+  //         p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+  //       ),
+  //     );
+  //     setPollingProductIds((prev) => {
+  //       const updated = new Set(prev);
+  //       updated.delete(productId);
+  //       return updated;
+  //     });
+  //   } finally {
+  //     setExtractingPdf((prev) => {
+  //       const newSet = new Set(prev);
+  //       newSet.delete(productId);
+  //       return newSet;
+  //     });
+  //   }
+  // };
+  // const handleBlindExtract = async (productId: string) => {
+  //   if (!expandedProjectId) {
+  //     notify.error("No project selected");
+  //     return;
+  //   }
+  //   if (extractingPdf.size >= 5) {
+  //     notify.warning(
+  //       "Extraction Limit",
+  //       "Maximum 5 concurrent extractions allowed. Please wait for some to complete.",
+  //     );
+  //     return;
+  //   }
+  //   const product = expandedProjectProducts.find((p) => p.id === productId);
+  //   if (!product) {
+  //     notify.error("Product not found");
+  //     return;
+  //   }
+  //   setExtractingPdf((prev) => new Set(prev).add(productId));
+  //   setExpandedProjectProducts((prev) =>
+  //     prev.map((p) =>
+  //       p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+  //     ),
+  //   );
+  //   try {
+  //     const response = await extractionService.extractPdfForProduct(
+  //       product.product_code,
+  //       expandedProjectId,
+  //     );
+  //     setPollingProductIds((prev) => new Set(prev).add(productId));
+  //     notify.success("Extraction Started", "Extracting product data from PDF");
+  //     pollBatchStatus(response.batch_id, async () => {
+  //       const freshResult = await productService.getProductsByProject(
+  //         expandedProjectId!,
+  //         "aggregation",
+  //       );
+  //       const freshData = Array.isArray(freshResult)
+  //         ? freshResult
+  //         : (freshResult?.products ?? []);
+  //       setExpandedProjectProducts(freshData);
+  //       await loadProjects();
+  //       setPollingProductIds((prev) => {
+  //         const updated = new Set(prev);
+  //         updated.delete(productId);
+  //         return updated;
+  //       });
+  //     });
+  //   } catch (error: any) {
+  //     notify.error("Extraction failed", error.message);
+  //     setExpandedProjectProducts((prev) =>
+  //       prev.map((p) =>
+  //         p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+  //       ),
+  //     );
+  //     setPollingProductIds((prev) => {
+  //       const updated = new Set(prev);
+  //       updated.delete(productId);
+  //       return updated;
+  //     });
+  //   } finally {
+  //     setExtractingPdf((prev) => {
+  //       const newSet = new Set(prev);
+  //       newSet.delete(productId);
+  //       return newSet;
+  //     });
+  //   }
+  // };
   const pollProjectStatuses = useCallback(async () => {
     if (aggregatingProjects.size === 0) return;
     const newAggregatingProjects = new Set(aggregatingProjects);
@@ -465,14 +459,7 @@ export default function AggregationTab({
       if (projectIds.length > 0) {
         await loadProjectEnrichmentCounts(projectIds);
       }
-      const uniqueUseCases = [
-        ...new Set(
-          aggregationData
-            .map((p: Project) => p.use_case)
-            .filter(Boolean) as string[],
-        ),
-      ];
-      setUseCases(uniqueUseCases);
+     
     } catch (error) {
       console.error("Failed to load projects:", error);
       notify.error("Failed to load projects");
@@ -494,7 +481,6 @@ export default function AggregationTab({
     setProjectStatusFilter("");
     setExpandedProjectId(null);
     setExpandedProjectProducts([]);
-    setCurrentPage(1);
     loadDefaultFilters();
   }, [loadDefaultFilters]);
   
@@ -535,7 +521,6 @@ export default function AggregationTab({
       else newSet.add(status);
       return newSet;
     });
-    setCurrentPage(1);
   };
   const canDownloadSelected = useMemo(() => {
     const downloadableStatuses = new Set(["completed", "failed"]);
@@ -560,9 +545,7 @@ export default function AggregationTab({
     selectedProjectIds,
     projects,
   ]);
-  const isExpandedProjectSelected = expandedProjectId
-    ? selectedProjectIds.has(expandedProjectId)
-    : false;
+ 
   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
     projectId: expandedProjectId,
     currentTab: "aggregation",
@@ -613,66 +596,7 @@ export default function AggregationTab({
     },
     [selectedLLM],
   );
-  const handleAggregateAllInExpanded = useCallback(async () => {
-    if (!expandedProjectId) return;
-    const selectedPendingProducts = expandedProjectProducts.filter(
-      (p) =>
-        selectedProductIds.has(p.id) &&
-        (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
-    );
-    const pendingProducts =
-      selectedProductIds.size > 0
-        ? selectedPendingProducts
-        : expandedProjectProducts.filter(
-            (p) =>
-              p.enrichment_status === "pending" ||
-              p.enrichment_status === "failed",
-          );
-    if (pendingProducts.length === 0) {
-      notify.info(
-        selectedProductIds.size > 0
-          ? "No pending selected products in this project"
-          : "No pending products in this project",
-      );
-      return;
-    }
-    setLoading(true);
-    try {
-      pendingProducts.forEach((p) => trackProcessingProduct(p.id));
-      await Promise.allSettled(
-        pendingProducts.map((p) =>
-          aggregationService.aggregateProduct(p.id, selectedLLM),
-        ),
-      );
-      const newPollingIds = pendingProducts.map((p) => p.id);
-      setPollingProductIds((prev) => {
-        const updated = new Set(prev);
-        newPollingIds.forEach((id) => updated.add(id));
-        return updated;
-      });
-      setExpandedProjectProducts((prev) =>
-        prev.map((p) =>
-          pendingProducts.some((pp) => pp.id === p.id)
-            ? { ...p, enrichment_status: "processing" }
-            : p,
-        ),
-      );
-      notify.success(
-        `Aggregation started for ${pendingProducts.length} product(s)`,
-      );
-    } catch (error) {
-      console.error("Batch aggregation failed", error);
-      notify.error("Batch aggregation failed");
-      pendingProducts.forEach((p) => removeTrackingProduct(p.id));
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    expandedProjectId,
-    expandedProjectProducts,
-    selectedProductIds,
-    selectedLLM,
-  ]);
+ 
   const handleAggregateSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToAggregate = Array.from(selectedProjectIds);
@@ -1246,7 +1170,6 @@ useEffect(() => {
                 value={projectStatusFilter}
                 onChange={(e) => {
                   setProjectStatusFilter(e.target.value);
-                  setCurrentPage(1);
                 }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
@@ -1265,7 +1188,6 @@ useEffect(() => {
                 value={categoryFilter}
                 onChange={(e) => {
                   setCategoryFilter(e.target.value);
-                  setCurrentPage(1);
                 }}
                 disabled={availableCategories.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
@@ -1284,7 +1206,6 @@ useEffect(() => {
                 value={brandFilter}
                 onChange={(e) => {
                   setBrandFilter(e.target.value);
-                  setCurrentPage(1);
                 }}
                 disabled={availableBrands.length === 0}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
@@ -1306,7 +1227,6 @@ useEffect(() => {
                 onChange={(e) => {
                   setAggregationTypeFilter(e.target.value);
                   setSelectedUseCase("");
-                  setCurrentPage(1);
                 }}
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
@@ -1660,7 +1580,7 @@ useEffect(() => {
                             {attr.has_conflict && (
                               <AlertTriangle
                                 className="w-3 h-3 text-amber-500"
-                                title="Source Conflict"
+                                aria-label="Source Conflict"
                               />
                             )}
                           </div>

@@ -29,7 +29,7 @@ export default function EditRuleModal({ rule, onClose, onSuccess }: Props) {
     setError("");
     setLoading(true);
     try {
-      await businessRulesService.updateRule(rule.id, { title, description, status,category});
+      await businessRulesService.updateRule(rule.id, { title, description, status});
       notify.success("Rule updated successfully!");
       onSuccess();
     } catch (error: any) {

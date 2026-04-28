@@ -2,7 +2,7 @@ import api from "../lib/api.ts";
 
 
 export const validationService = {
-  async getQueueItems(projectId: string, status?: string): Promise<ValidationQueue[]> {
+  async getQueueItems(projectId: string, status?: string): Promise<[]> {
     try {
       const { data } = await api.get('/hitl/pending', {
         params: { project_id: projectId, status }

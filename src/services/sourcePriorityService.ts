@@ -1,7 +1,6 @@
-import { SourcePriority } from '../types/database.types';
 import api from '../lib/api';
 export const sourcePriorityService = {
-  async getProjectPriorities(projectId: string): Promise<SourcePriority[]> {
+  async getProjectPriorities(projectId: string): Promise<[]> {
     try {
       const { data } = await api.get(`/sources/priorities/${projectId}`);
       return data || [];
@@ -19,7 +18,7 @@ export const sourcePriorityService = {
       return { avgConfidence: 0, completeness: 0, totalAttributes: 0 };
     }
   },
-  async updatePriority(priorityId: string, updates: Partial<SourcePriority>) {
+  async updatePriority(priorityId: string, updates: Partial<any>) {
     await api.patch(`/sources/priorities/${priorityId}/`, updates);
   },
   async updatePriorityRanks(projectId: string, rankings: any[]) {

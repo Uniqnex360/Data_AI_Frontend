@@ -23,7 +23,6 @@ export default function EditPromptModal({ prompt, onClose, onSuccess }: Props) {
   const [promptName, setPromptName] = useState(prompt.prompt_name);
   const [promptText, setPromptText] = useState(prompt.prompt_text);
   const [description, setDescription] = useState(prompt.description || "");
-  const [priority, setPriority] = useState(prompt.priority);
   const [status, setStatus] = useState<RuleStatus>(prompt.status);
   const [variables, setVariables] = useState<string[]>(prompt.variables || []);
   
@@ -61,7 +60,6 @@ export default function EditPromptModal({ prompt, onClose, onSuccess }: Props) {
         prompt_name: promptName,
         prompt_text: promptText,
         description,
-        priority,
         status,
         variables,
       });

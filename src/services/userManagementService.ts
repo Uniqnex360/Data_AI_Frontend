@@ -1,6 +1,6 @@
 import api from '../lib/api';
 export const userManagementService={
-    async loadUsers():Promise<UserRoleRecord[]>
+    async loadUsers():Promise<[]>
     {
         try {
             const response=await api.get('/users/')

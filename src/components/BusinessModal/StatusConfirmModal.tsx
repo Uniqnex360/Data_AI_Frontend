@@ -1,7 +1,6 @@
-// src/components/BusinessModal/StatusConfirmModal.tsx
 
 import { useState } from "react";
-import { Loader2, AlertTriangle, Power, PowerOff } from "lucide-react";
+import { Loader2, Power, PowerOff } from "lucide-react";
 import type { BusinessRule, RulePrompt, RuleStatus } from "../../types/business-rules.types";
 import BaseModal from "./BaseModal";
 
@@ -25,7 +24,6 @@ export default function StatusConfirmModal({ target, newStatus, onClose, onConfi
   const handleConfirm = async () => {
     setLoading(true);
     await onConfirm();
-    // setLoading(false); // No need, as the modal closes on success
   };
 
   return (

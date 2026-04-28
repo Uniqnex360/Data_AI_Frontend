@@ -1,9 +1,8 @@
-import type { StandardizedAttribute } from '../types/database.types';
 import api from '../lib/api';
 
 export const standardizationService = {
  
-  async getStandardizedAttributes(productId: string): Promise<StandardizedAttribute[]> {
+  async getStandardizedAttributes(productId: string): Promise<[]> {
     try {
       const { data } = await api.get(`/standardization/${productId}`);
       

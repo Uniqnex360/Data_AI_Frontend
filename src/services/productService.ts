@@ -1,6 +1,5 @@
 import api from "../lib/api";
-import type { Product, ProductAttributes } from "../types/database.types";
-import { Project } from "../types/business-rules.types";
+import { Product, ProductAttributesViewProps, Project } from "../types/business-rules.types";
 
 export const productService = {
   async getAllProducts(skip = 0, limit = 100): Promise<Product[]> {
@@ -141,7 +140,7 @@ async getProjectProductStats(
     });
   },
 
-  async standardize(productCode: string, attributes: ProductAttributes) {
+  async standardize(productCode: string, attributes: ProductAttributesViewProps) {
     return api.post("/standardize/", {
       product_key: productCode,
       data: attributes,
@@ -152,7 +151,7 @@ async getProjectProductStats(
     productCode: string,
     brand: string,
     category: string,
-    attributes: ProductAttributes,
+    attributes: ProductAttributesViewProps,
   ) {
     return api.post("/enrich/", {
       product_key: productCode,

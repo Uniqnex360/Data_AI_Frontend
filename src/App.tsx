@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import {
   BarChart3,
-  Database,
   FileText,
   GitMerge,
   LogOut,
