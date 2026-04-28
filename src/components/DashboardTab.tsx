@@ -581,7 +581,7 @@ useEffect(() => {
         />
 
         <StatCard
-          title="Processed"
+          title="Aggregated"
           value={processed}
           icon={<Activity className="w-5 h-5" />}
           iconBg="bg-emerald-50 border border-emerald-100"
@@ -611,7 +611,7 @@ useEffect(() => {
         />
 
         <StatCard
-          title="Cleaned"
+          title="Cleansed"
           value={cleaned}
           icon={<Filter className="w-5 h-5" />}
           iconBg="bg-teal-50 border border-teal-100"
