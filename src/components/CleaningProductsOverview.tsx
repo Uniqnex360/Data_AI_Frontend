@@ -139,7 +139,7 @@ export function CleaningProductsOverview({
       >
         <table className="w-full">
           <thead className="sticky top-0 z-10 bg-slate-50">
-            <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <tr className="text-left text-[13px] font-bold text-slate-500">
               <th className="px-4 py-3 border-b border-slate-200 w-12 text-center">
                 <input
                   type="checkbox"
@@ -157,18 +157,17 @@ export function CleaningProductsOverview({
                 Image
               </th>
               <th className="px-4 py-3 border-b border-slate-200">
-                Product Name
+                Product Name & MPN
               </th>
               <th className="px-4 py-3 border-b border-slate-200">Brand</th>
-              <th className="px-4 py-3 border-b border-slate-200">MPN</th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
-                # Attributes
+                No. of Attributes
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
-                # Processed
+                 Cleaned
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
-                Completeness %
+                Completeness
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
                 Status
@@ -222,20 +221,20 @@ export function CleaningProductsOverview({
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className="text-sm font-medium text-slate-900 line-clamp-2"
-                      title={product.product_name}
-                    >
-                      {product.product_name || "Unnamed Product"}
-                    </span>
-                  </td>
+                 <td className="px-4 py-3">
+  <div className="flex flex-col gap-0.5">
+    <span className="text-sm font-medium text-slate-900 line-clamp-2" title={product.product_name}>
+      {product.product_name || "Unnamed Product"}
+    </span>
+    <span className="text-[10px] text-blue-600 font-mono font-medium truncate" title={product.product_code}>
+      MPN: {product.product_code}
+    </span>
+  </div>
+</td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {product.brand_name || "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm font-mono text-slate-600">
-                    {product.product_code}
-                  </td>
+                  
                   <td className="px-4 py-3 text-center text-sm">
                     {getTotalAttributes(product)}
                   </td>

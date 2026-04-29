@@ -1319,37 +1319,37 @@ useEffect(() => {
           style={{ maxHeight: "calc(100vh - 350px)" }}
         >
           <table className="w-full">
-            <thead className="sticky top-0 z-30 bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12 bg-white border-b border-slate-200">
-                  Select
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Project Name
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Aggregation Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Use Case
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Products
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Aggregated
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Enrichment
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Completeness
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                  Status
-                </th>
-              </tr>
-            </thead>
+           <thead className="sticky top-0 z-30 bg-slate-50">
+  <tr>
+    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12 bg-white border-b border-slate-200">
+      Select
+    </th>
+    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Project Name
+    </th>
+    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Aggregation Type
+    </th>
+    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Use Case
+    </th>
+    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Products
+    </th>
+    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Aggregated
+    </th>
+    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Enrichment
+    </th>
+    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Completeness
+    </th>
+    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Status
+    </th>
+  </tr>
+</thead>
             <tbody className="divide-y divide-slate-200">
               {projectsLoading ? (
                 <tr>

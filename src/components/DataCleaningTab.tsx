@@ -153,7 +153,7 @@ function AttrHeader({
   return (
     <th
       style={{ width: COL_ATTR, minWidth: COL_ATTR, zIndex: 40 }}
-      className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
+      className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold  text-slate-500 select-none"
     >
       <div ref={ref} className="flex items-center gap-1 px-2 py-2">
         <span className="truncate flex-1 text-[10px]" title={attr}>
@@ -946,7 +946,7 @@ export default function DataCleaningTab() {
     const q = bulkSearch.toLowerCase().trim();
     return availableAttributes.filter((a) => a.toLowerCase().includes(q));
   }, [availableAttributes, bulkSearch]);
-  
+
   return (
     <div className="p-4 bg-slate-50 min-h-screen font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
@@ -1001,9 +1001,7 @@ export default function DataCleaningTab() {
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-                Algorithm
-              </label>
+            <label className="block text-sm text-slate-700 mb-2">Algorithm</label>
               <select
                 value={selectedLLM}
                 onChange={(e) => setSelectedLLM(e.target.value)}
@@ -1017,9 +1015,7 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
-                Project
-              </label>
+              <label className="block text-sm text-slate-700 mb-2">Project</label>
               <select
                 value={selectedProjectId}
                 onChange={async (e) => {
@@ -1054,7 +1050,7 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+              <label className="block text-sm text-slate-700 mb-2">
                 Status
               </label>
               <select
@@ -1069,7 +1065,7 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+              <label className="block text-sm text-slate-700 mb-2">
                 Brand
               </label>
               <select
@@ -1087,7 +1083,7 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+              <label className="block text-sm text-slate-700 mb-2">
                 Category
               </label>
               <select
@@ -1105,7 +1101,7 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div className="md:col-span-2 xl:col-span-1">
-              <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
+              <label className="block text-sm text-slate-700 mb-2">
                 Search
               </label>
               <div className="flex items-center gap-2">
@@ -1340,29 +1336,28 @@ export default function DataCleaningTab() {
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Project Name
                   </th>
-
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Use Case
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Products
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     CNS Products
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Failed Products
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                    Completeness 
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Completeness
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Actions
                   </th>
                 </tr>
@@ -1438,27 +1433,41 @@ export default function DataCleaningTab() {
                             {failedProducts}
                           </span>
                         </td>
-                       <td className="px-4 py-3">
-  <div className="flex items-center justify-center gap-2">
-    <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-      <div
-        className={`h-full rounded-full ${
-          (totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0) > 80
-            ? "bg-green-500"
-            : (totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0) > 50
-              ? "bg-amber-500"
-              : "bg-red-400"
-        }`}
-        style={{
-          width: `${totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0}%`,
-        }}
-      />
-    </div>
-    <span className="text-xs text-slate-600 font-medium min-w-[35px]">
-      {totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0}%
-    </span>
-  </div>
-</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  (totalProducts > 0
+                                    ? Math.round(
+                                        (cnsProducts / totalProducts) * 100,
+                                      )
+                                    : 0) > 80
+                                    ? "bg-green-500"
+                                    : (totalProducts > 0
+                                          ? Math.round(
+                                              (cnsProducts / totalProducts) *
+                                                100,
+                                            )
+                                          : 0) > 50
+                                      ? "bg-amber-500"
+                                      : "bg-red-400"
+                                }`}
+                                style={{
+                                  width: `${totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+                              {totalProducts > 0
+                                ? Math.round(
+                                    (cnsProducts / totalProducts) * 100,
+                                  )
+                                : 0}
+                              %
+                            </span>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {getStatusBadge(project.source_status || "NA", true)}
                         </td>
@@ -1562,7 +1571,7 @@ export default function DataCleaningTab() {
               }}
             >
               <thead className="sticky top-0 z-40">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
+                <tr className="text-left text-[13px] font-semibold text-slate-500 bg-slate-50">
                   {/* Checkbox - sticky */}
                   <th
                     style={{
@@ -1598,7 +1607,6 @@ export default function DataCleaningTab() {
                     Status
                   </th>
 
-                  {/* Image - sticky */}
                   <th
                     style={{
                       width: COL_THUMB,
@@ -1612,7 +1620,6 @@ export default function DataCleaningTab() {
                     Image
                   </th>
 
-                  {/* Product Name - sticky */}
                   <th
                     style={{
                       width: COL_NAME,
@@ -1631,7 +1638,7 @@ export default function DataCleaningTab() {
                     style={{
                       width: COL_BRAND,
                       minWidth: COL_BRAND,
-                     left: LEFT_MPN,
+                      left: LEFT_MPN,
 
                       position: "sticky",
                       zIndex: 50,
@@ -1646,7 +1653,7 @@ export default function DataCleaningTab() {
                     style={{
                       width: COL_CATEGORY,
                       minWidth: COL_CATEGORY,
-                     left: LEFT_MPN + COL_BRAND,
+                      left: LEFT_MPN + COL_BRAND,
 
                       position: "sticky",
                       zIndex: 50,
@@ -1793,7 +1800,7 @@ export default function DataCleaningTab() {
                         style={{
                           width: COL_CATEGORY,
                           position: "sticky",
-                         left: LEFT_MPN + COL_BRAND,
+                          left: LEFT_MPN + COL_BRAND,
 
                           zIndex: 20,
                         }}

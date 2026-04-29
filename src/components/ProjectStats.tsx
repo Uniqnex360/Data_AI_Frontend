@@ -640,8 +640,10 @@ export function ProjectStats({
 </div>
       <div className="flex-1 overflow-auto px-6">
         <table className="w-full text-xs text-left border-separate border-spacing-0">
-          <thead className="sticky top-0 bg-white text-slate-400 z-10 font-bold uppercase tracking-wider">
-            <tr>
+         <thead className="sticky top-0 bg-white z-10">
+
+             <tr className="text-[13px] font-semibold text-slate-500">
+
               <th className="py-3 border-b border-slate-200 text-center w-12">
                 <input
                   type="checkbox"
@@ -654,14 +656,14 @@ export function ProjectStats({
                 />
               </th>
 
-              <th className="py-3 border-b border-slate-200">Product Name</th>
+              <th className="py-3 border-b border-slate-200">Product Name & MPN</th>
               <th className="py-3 border-b border-slate-200">Brand</th>
               <th className="py-3 border-b border-slate-200">Category</th>
               <th className="py-3 border-b border-slate-200 text-center">
                 No. of Attributes
               </th>
               <th className="py-3 border-b border-slate-200 text-center">
-                Completeness %
+                Completeness
               </th>
               <th className="py-3 border-b border-slate-200 text-center">
                 Status
@@ -732,9 +734,9 @@ export function ProjectStats({
                             p.product_code ||
                             "Unnamed Product"}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          {p.product_code}
-                        </div>
+                       <span className="text-[10px] text-blue-600 font-mono font-medium truncate" title={p.product_code}>
+      MPN: {p.product_code}
+    </span>
                       </div>
                     </div>
                   </td>

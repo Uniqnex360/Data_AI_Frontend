@@ -2330,7 +2330,7 @@ export default function SourcesTab({
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                          <label className="block text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
                             Mode
                           </label>
                           <select
@@ -2349,7 +2349,7 @@ export default function SourcesTab({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                          <label className="block text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
                             Pick date
                           </label>
                           <input

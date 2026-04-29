@@ -363,7 +363,7 @@ export default function ProjectsOverviewTab({
           style={{ minWidth: 1200 }}
         >
           <thead
-            className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wide"
+            className="bg-slate-50 text-slate-500  text-[11px] font-bold tracking-wide"
             style={{ position: "sticky", top: 0, zIndex: 10 }}
           >
             <tr>

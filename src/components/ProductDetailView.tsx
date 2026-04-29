@@ -376,8 +376,10 @@ export function ProductDetailView({
       <div className="flex-1 overflow-hidden px-8 pb-8 flex flex-col">
         <div className="flex-1 overflow-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
           <table className="w-full text-left border-collapse table-fixed">
-            <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">
-              <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+           <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">
+
+               <tr className="text-[13px] font-semibold text-slate-500">
+
                 <th className="p-4 w-12 bg-slate-50 sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">
                   <input
                     type="checkbox"
