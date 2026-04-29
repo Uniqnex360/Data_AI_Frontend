@@ -178,6 +178,8 @@ export  interface Product {
   product_code: string;
   brand_name: string;
   category_1: string;
+  category_2?:string
+  category_3?:string
   description?: string;
   image_url_1?:string;
   completeness_score?:number;

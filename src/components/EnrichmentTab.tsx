@@ -312,7 +312,7 @@ export default function EnrichmentTab({
     }
 
     if (categoryFilter) {
-      filtered = filtered.filter((p) => p.category_1 === categoryFilter);
+      filtered = filtered.filter((p) => p.category_3 === categoryFilter);
     }
 
     if (brandFilter) {
@@ -1603,7 +1603,7 @@ export default function EnrichmentTab({
                                         {product.brand_name || "—"}
                                       </td>
                                       <td className="px-4 py-3 text-sm text-slate-600">
-                                        {product.category_1 || "—"}
+                                        {product.category_3 || "—"}
                                       </td>
                                       <td className="px-4 py-3">
                                         <div className="flex items-center gap-2 justify-center">
@@ -1729,9 +1729,9 @@ export default function EnrichmentTab({
                     {selectedProductData.product_name}
                   </h2>
 
-                  {selectedProductData.category_1 ? (
+                  {selectedProductData.category_3 ? (
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                      {selectedProductData.category_1}
+                      {selectedProductData.category_3}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">

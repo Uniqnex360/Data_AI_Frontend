@@ -441,7 +441,7 @@ export default function DataCleaningTab() {
       list = list.filter((p) => p.enrichment_status === statusFilter);
     if (brandFilter) list = list.filter((p) => p.brand_name === brandFilter);
     if (categoryFilter)
-      list = list.filter((p) => p.category_1 === categoryFilter);
+      list = list.filter((p) => p.category_3 === categoryFilter);
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       list = list.filter(
@@ -449,7 +449,7 @@ export default function DataCleaningTab() {
           (p.product_name || "").toLowerCase().includes(q) ||
           (p.product_code || "").toLowerCase().includes(q) ||
           (p.brand_name || "").toLowerCase().includes(q) ||
-          (p.category_1 || "").toLowerCase().includes(q),
+          (p.category_3 || "").toLowerCase().includes(q),
       );
     }
     if (selectedBulkAttributes.length > 0) {
@@ -1658,7 +1658,7 @@ export default function DataCleaningTab() {
                       </td>
                       <td className="px-3 py-4 border-r border-slate-200">
                         <span className="text-sm text-slate-600">
-                          {product.category_1}
+                          {product.category_3}
                         </span>
                       </td>
                       {availableAttributes.map((attr) => {

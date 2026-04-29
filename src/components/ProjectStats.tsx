@@ -196,12 +196,12 @@ useEffect(() => {
         (p) =>
           p.product_name?.toLowerCase().includes(q) ||
           p.brand_name?.toLowerCase().includes(q) ||
-          p.category_1?.toLowerCase().includes(q),
+          p.category_3?.toLowerCase().includes(q),
       );
     }
     if (brandFilter) arr = arr.filter((p) => p.brand_name === brandFilter);
     if (categoryFilter)
-      arr = arr.filter((p) => p.category_1 === categoryFilter);
+      arr = arr.filter((p) => p.category_3 === categoryFilter);
     if (statusFilter)
       arr = arr.filter(
         (p) => (p.enrichment_status || "pending") === statusFilter,
@@ -367,7 +367,15 @@ useEffect(() => {
         Download Selected ({selectedProductIds.size})
       </button>
     </>
-  )}
+  )}{selectedProductIds.size > 1 && (
+  <button
+    onClick={() => setShowDetailView(true)}
+    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
+  >
+    <Eye className="w-4 h-4" />
+    View Selected ({selectedProductIds.size})
+  </button>
+)}
   {onClose && (
     <button
       onClick={onClose}
@@ -436,6 +444,7 @@ useEffect(() => {
                     year: "numeric",
                     hour: "numeric",
                     minute: "2-digit",
+                    timeZone: 'Asia/Kolkata',
                   })
                 : "Just now"}
             </p>
@@ -588,7 +597,7 @@ useEffect(() => {
           >
             <option value="">All Categories</option>
             {[
-              ...new Set(baseProducts.map((p) => p.category_1).filter(Boolean)),
+              ...new Set(baseProducts.map((p) => p.category_3).filter(Boolean)),
             ].map((c) => (
               <option key={c as string} value={c as string}>
                 {c}
@@ -741,7 +750,7 @@ useEffect(() => {
                     </div>
                   </td>
                   <td className="py-3 text-slate-500">{p.brand_name || "—"}</td>
-                  <td className="py-3 text-slate-500">{p.category_1 || "—"}</td>
+                  <td className="py-3 text-slate-500">{p.category_3 || "—"}</td>
                   <td className="py-3 text-center text-slate-600 font-medium">
                     {(p as any).attribute_count ??
                       p.dynamic_attributes?.length ??
@@ -770,15 +779,16 @@ useEffect(() => {
                     {getStatusBadge(p.enrichment_status || "pending", true)}
                   </td>
                   <td className="py-3 text-right text-slate-400 w-32">
-                    {p.updated_at
-                      ? new Date(p.updated_at).toLocaleDateString("en-US", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </td>
+  {p.updated_at
+    ? new Date(p.updated_at + 'Z').toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: 'Asia/Kolkata',
+      })
+    : "—"}
+</td>
                   <td className="py-3 text-center">
                     <button
                       onClick={(e) => {
@@ -972,7 +982,7 @@ useEffect(() => {
         </div>
       )}
       {showDetailView && (
-        <div className="fixed inset-0 z-50 bg-slate-50">
+      <div className="fixed inset-0 z-50 bg-slate-50 overflow-auto">
           <ProductDetailView
             projectId={projectId}
             projectName={projectName}
