@@ -250,7 +250,9 @@ function AttrHeader({
 export default function DataCleaningTab() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-    const [viewMode, setViewMode] = useState<"projects" | "progress" | "advanced">("projects");
+  const [viewMode, setViewMode] = useState<
+    "projects" | "progress" | "advanced"
+  >("projects");
 
   const [selectedDetailProduct, setSelectedDetailProduct] =
     useState<Product | null>(null);
@@ -388,6 +390,8 @@ export default function DataCleaningTab() {
   const handleBrandChange = async (brand: string) => {
     setBrandFilter(brand);
     setPage(1);
+    setSelectedProductIds(new Set())
+    setAllProductsSelected(false)
     if (selectedProjectId) {
       await loadProjectFilters(
         selectedProjectId,
@@ -401,6 +405,8 @@ export default function DataCleaningTab() {
     setPage(1);
     setColSorts([]);
     setColFilters([]);
+    setSelectedProductIds(new Set())
+    setAllProductsSelected(false);
     if (selectedProjectId) {
       await loadProjectFilters(
         selectedProjectId,
@@ -493,12 +499,12 @@ export default function DataCleaningTab() {
     () => projects.find((p) => p.id === selectedProjectId),
     [projects, selectedProjectId],
   );
-  
+
   const handleProjectClick = (id: string) => {
     setSelectedProjectId(id);
     setViewMode("progress");
   };
-   const enterAdvancedMode = () => {
+  const enterAdvancedMode = () => {
     setViewMode("advanced");
   };
   const loadProjectStats = useCallback(
@@ -892,6 +898,7 @@ export default function DataCleaningTab() {
   };
   const handleReset = () => {
     setSelectedProjectId("");
+    setViewMode('projects')
     setSelectedProductIds(new Set());
     setAllProductsSelected(false);
     setPage(1);
@@ -975,16 +982,16 @@ export default function DataCleaningTab() {
               )}
               Download
             </button>
-         {viewMode === "progress" && (
-      <button
-        onClick={() => setViewMode("advanced")}
-        className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50"
-      >
-        Advanced Edit
-      </button>
-    )}
-  </div>
-)}
+            {viewMode === "progress" && (
+              <button
+                onClick={() => setViewMode("advanced")}
+                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Advanced Edit
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-3">
         <div className="p-4">
@@ -1097,66 +1104,28 @@ export default function DataCleaningTab() {
               <label className="block text-[11px] font-medium text-slate-500 mb-1 uppercase tracking-wide">
                 Search
               </label>
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search products or MPN..."
-                  className="h-10 w-full pl-9 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search products or MPN..."
+                    className="h-10 w-full pl-9 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleReset}
+                    className="h-10 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50 inline-flex items-center gap-1.5 shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
           </div>
-          {hasActiveFilters && (
-            <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-              <button
-                onClick={handleReset}
-                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50 inline-flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear filters
-              </button>
-              <div className="flex flex-wrap gap-2">
-                {colFilters.map(({ attr, value }) => (
-                  <span
-                    key={attr}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200"
-                  >
-                    <Filter className="w-3 h-3" />
-                    {attr}: <strong className="font-semibold">{value}</strong>
-                    <button
-                      onClick={() => setColFilter(attr, "")}
-                      className="ml-0.5 hover:text-blue-900"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                ))}
-                {colSorts.map(({ attr, dir }) => (
-                  <span
-                    key={attr}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-200"
-                  >
-                    {dir === "asc" ? (
-                      <ArrowUp className="w-3 h-3" />
-                    ) : (
-                      <ArrowDown className="w-3 h-3" />
-                    )}
-                    {attr}
-                    <button
-                      onClick={() =>
-                        setColSorts((p) => p.filter((s) => s.attr !== attr))
-                      }
-                      className="ml-0.5 hover:text-violet-900"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
         {selectedProject && (
           <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-4 flex-wrap">
@@ -1195,258 +1164,348 @@ export default function DataCleaningTab() {
         )}
       </div>
       {viewMode === "advanced" && (
-  <div className="mb-3">
-    <button
-      onClick={() => setViewMode("progress")}
-      className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-    >
-      ← Back to Products
-    </button>
-  </div>
-)}
-     {viewMode === "advanced" && selectedProjectId && availableAttributes.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
-          <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                Bulk Update Attributes
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Select attributes and values to apply to selected products
-              </p>
+        <div className="mb-3">
+          <button
+            onClick={() => setViewMode("progress")}
+            className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+          >
+            ← Back to Products
+          </button>
+        </div>
+      )}
+      {viewMode === "advanced" &&
+        selectedProjectId &&
+        availableAttributes.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  Bulk Update Attributes
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Select attributes and values to apply to selected products
+                </p>
+                {selectedBulkAttributes.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
+                      Showing {filteredSortedProducts.length} products on this
+                      page with selected attributes
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedBulkAttributes([]);
+                    setBulkAttributeValues({});
+                  }}
+                  disabled={selectedBulkAttributes.length === 0}
+                  className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Clear All
+                </button>
+                <button
+                  onClick={handleBulkUpdate}
+                  disabled={
+                    bulkUpdating ||
+                    (!allProductsSelected && selectedProductIds.size === 0) ||
+                    selectedBulkAttributes.length === 0
+                  }
+                  className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
+                >
+                  {bulkUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Updating…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      {allProductsSelected
+                        ? `Update All (${total})`
+                        : `Update ${selectedProductIds.size} selected`}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="relative mb-3 max-w-2xl">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={bulkSearch}
+                  onChange={(e) => setBulkSearch(e.target.value)}
+                  placeholder="Search attributes..."
+                  className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <div className="flex flex-wrap gap-2">
+                  {filteredBulkAttributes.length === 0 ? (
+                    <p className="text-sm text-slate-500 py-2">
+                      No attributes found
+                    </p>
+                  ) : (
+                    filteredBulkAttributes.map((attr) => {
+                      const active = selectedBulkAttributes.includes(attr);
+                      return (
+                        <button
+                          key={attr}
+                          type="button"
+                          onClick={() => {
+                            if (active) {
+                              setSelectedBulkAttributes((p) =>
+                                p.filter((a) => a !== attr),
+                              );
+                              setBulkAttributeValues((p) => {
+                                const n = { ...p };
+                                delete n[attr];
+                                return n;
+                              });
+                            } else {
+                              setSelectedBulkAttributes((p) => [...p, attr]);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                            active
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                          title={attr}
+                        >
+                          {active && <Check className="w-4 h-4 shrink-0" />}
+                          <span className="truncate max-w-[260px]">{attr}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
               {selectedBulkAttributes.length > 0 && (
-                <div className="mt-2">
-                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
-                    Showing {filteredSortedProducts.length} products on this
-                    page with selected attributes
-                  </span>
+                <div className="mt-5 pt-5 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Set values for selected attributes (
+                    {selectedBulkAttributes.length} selected)
+                  </p>
+                  <div className="mt-3 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
+                      {selectedBulkAttributes.map((attr) => (
+                        <div key={attr} className="space-y-1">
+                          <label
+                            className="text-sm font-medium text-slate-800 truncate block"
+                            title={attr}
+                          >
+                            {attr}
+                          </label>
+                          <input
+                            value={bulkAttributeValues[attr] || ""}
+                            onChange={(e) =>
+                              setBulkAttributeValues((p) => ({
+                                ...p,
+                                [attr]: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter value"
+                            className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setSelectedBulkAttributes([]);
-                  setBulkAttributeValues({});
-                }}
-                disabled={selectedBulkAttributes.length === 0}
-                className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear All
-              </button>
-              <button
-                onClick={handleBulkUpdate}
-                disabled={
-                  bulkUpdating ||
-                  (!allProductsSelected && selectedProductIds.size === 0) ||
-                  selectedBulkAttributes.length === 0
-                }
-                className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
-              >
-                {bulkUpdating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Updating…
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    {allProductsSelected
-                      ? `Update All (${total})`
-                      : `Update ${selectedProductIds.size} selected`}
-                  </>
-                )}
-              </button>
+          </div>
+        )}
+      {viewMode === "projects" && !selectedProjectId ? (
+        // PROJECTS TABLE
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-slate-900">
+                {projects.length} Cleaning Projects
+              </span>
             </div>
           </div>
-          <div className="p-4">
-            <div className="relative mb-3 max-w-2xl">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={bulkSearch}
-                onChange={(e) => setBulkSearch(e.target.value)}
-                placeholder="Search attributes..."
-                className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
-              />
-            </div>
-            <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
-              <div className="flex flex-wrap gap-2">
-                {filteredBulkAttributes.length === 0 ? (
-                  <p className="text-sm text-slate-500 py-2">
-                    No attributes found
-                  </p>
+          <div
+            className="overflow-auto"
+            style={{ maxHeight: "calc(100vh - 250px)" }}
+          >
+            <table className="w-full">
+              <thead className="sticky top-0 z-30 bg-slate-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Project Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Use Case
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Total Products
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    CNS Products
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Failed Products
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Completeness %
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {projectsLoading ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+                      <p className="text-slate-500 text-sm">
+                        Loading projects...
+                      </p>
+                    </td>
+                  </tr>
+                ) : projects.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-slate-500">
+                      No cleaning projects found
+                    </td>
+                  </tr>
                 ) : (
-                  filteredBulkAttributes.map((attr) => {
-                    const active = selectedBulkAttributes.includes(attr);
+                  projects.map((project) => {
+                    const totalProducts = project.product_count ?? 0;
+                    const cnsProducts = project.cleaned_count ?? 0;
+                    const failedProducts = project.failed_count ?? 0;
                     return (
-                      <button
-                        key={attr}
-                        type="button"
-                        onClick={() => {
-                          if (active) {
-                            setSelectedBulkAttributes((p) =>
-                              p.filter((a) => a !== attr),
-                            );
-                            setBulkAttributeValues((p) => {
-                              const n = { ...p };
-                              delete n[attr];
-                              return n;
-                            });
-                          } else {
-                            setSelectedBulkAttributes((p) => [...p, attr]);
+                      <tr
+                        key={project.id}
+                        className="hover:bg-slate-50 cursor-pointer transition-colors"
+                        onClick={async () => {
+                          setProjectSwitching(true);
+                          setSelectedProjectId(project.id);
+                          setViewMode("progress");
+                          setPage(1);
+                          setAllProductsSelected(false);
+                          setSelectedProductIds(new Set());
+                          try {
+                            await loadProjectFilters(project.id);
+                            await loadProjectAttributes(project.id);
+                          } finally {
+                            setProjectSwitching(false);
                           }
                         }}
-                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                          active
-                            ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                        title={attr}
                       >
-                        {active && <Check className="w-4 h-4 shrink-0" />}
-                        <span className="truncate max-w-[260px]">{attr}</span>
-                      </button>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-slate-900 text-sm">
+                            {project.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {project.use_case ? (
+                            <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                              {project.use_case}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                            {totalProducts}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full">
+                            {cnsProducts}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`px-2 py-1 text-sm font-medium rounded-full ${failedProducts > 0 ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}
+                          >
+                            {failedProducts}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${(project.completeness_score || 0) > 80 ? "bg-green-500" : (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"}`}
+                                style={{
+                                  width: `${project.completeness_score || 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+                              {project.completeness_score || 0}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {getStatusBadge(project.source_status || "NA", true)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-xs text-blue-600 font-medium hover:underline">
+                            View Products
+                          </span>
+                        </td>
+                      </tr>
                     );
                   })
                 )}
-              </div>
-            </div>
-            {selectedBulkAttributes.length > 0 && (
-              <div className="mt-5 pt-5 border-t border-slate-100">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Set values for selected attributes (
-                  {selectedBulkAttributes.length} selected)
-                </p>
-                <div className="mt-3 max-h-64 overflow-y-auto">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
-                    {selectedBulkAttributes.map((attr) => (
-                      <div key={attr} className="space-y-1">
-                        <label
-                          className="text-sm font-medium text-slate-800 truncate block"
-                          title={attr}
-                        >
-                          {attr}
-                        </label>
-                        <input
-                          value={bulkAttributeValues[attr] || ""}
-                          onChange={(e) =>
-                            setBulkAttributeValues((p) => ({
-                              ...p,
-                              [attr]: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter value"
-                          className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
-     {viewMode === "projects" && !selectedProjectId ? (
-  // PROJECTS TABLE
-  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-    <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-slate-900">
-          {projects.length} Cleaning Projects
-        </span>
-      </div>
-    </div>
-    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 250px)" }}>
-      <table className="w-full">
-        <thead className="sticky top-0 z-30 bg-slate-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Project Name</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Use Case</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Total Products</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">CNS Products</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Failed Products</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Completeness %</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Status</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-200">
-          {projectsLoading ? (
-            <tr><td colSpan={8} className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" /><p className="text-slate-500 text-sm">Loading projects...</p></td></tr>
-          ) : projects.length === 0 ? (
-            <tr><td colSpan={8} className="p-8 text-center text-slate-500">No cleaning projects found</td></tr>
-          ) : (
-            projects.map((project) => {
-              const totalProducts = project.product_count ?? 0;
-              const cnsProducts = project.cleaned_count ?? 0;
-              const failedProducts = project.failed_count ?? 0;
-              return (
-                <tr key={project.id} className="hover:bg-slate-50 cursor-pointer transition-colors"
-                  onClick={async () => {
-                    setProjectSwitching(true);
-                    setSelectedProjectId(project.id);
-                    setViewMode("progress");
-                    setPage(1);
-                    setAllProductsSelected(false);
-                    setSelectedProductIds(new Set());
-                    try {
-                      await loadProjectFilters(project.id);
-                      await loadProjectAttributes(project.id);
-                    } finally {
-                      setProjectSwitching(false);
-                    }
-                  }}>
-                  <td className="px-4 py-3"><span className="font-semibold text-slate-900 text-sm">{project.name}</span></td>
-                  <td className="px-4 py-3">{project.use_case ? <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span> : <span className="text-slate-400 text-xs">—</span>}</td>
-                  <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">{totalProducts}</span></td>
-                  <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full">{cnsProducts}</span></td>
-                  <td className="px-4 py-3 text-center"><span className={`px-2 py-1 text-sm font-medium rounded-full ${failedProducts > 0 ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>{failedProducts}</span></td>
-                  <td className="px-4 py-3"><div className="flex items-center justify-center gap-2"><div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(project.completeness_score || 0) > 80 ? "bg-green-500" : (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"}`} style={{ width: `${project.completeness_score || 0}%` }} /></div><span className="text-xs text-slate-600 font-medium min-w-[35px]">{project.completeness_score || 0}%</span></div></td>
-                  <td className="px-4 py-3 text-center">{getStatusBadge(project.source_status || "NA", true)}</td>
-                  <td className="px-4 py-3 text-center"><span className="text-xs text-blue-600 font-medium hover:underline">View Products</span></td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-) : viewMode === "progress" ? (
-  <CleaningProductsOverview
-    project={selectedProject!}
-    products={filteredSortedProducts}
-    loading={loading}
-    total={total}
-    page={page}
-    pageSize={pageSize}
-    totalPages={totalPages}
-    onBack={() => { setViewMode("projects"); handleReset(); }}
-    onPageChange={(p) => { setPage(p); setAllProductsSelected(false); setSelectedProductIds(new Set()); }}
-    onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-    onProductClick={(product) => {
-    setSelectedProductIds(new Set([product.id]));
-    setAllProductsSelected(false);
-    setViewMode("advanced");
-  }}
-     onAdvancedEdit={() => {
-    if (selectedProductIds.size === 0 && !allProductsSelected) {
-      notify.info("Select products first or click a product to edit");
-      return;
-    }
-    setViewMode("advanced");
-  }}
-    searchTerm={searchTerm}
-    onSearchChange={setSearchTerm}
-    selectedProductIds={selectedProductIds}
-  allProductsSelected={allProductsSelected}
-  onToggleProduct={toggleProduct}
-  onToggleAll={toggleAll}
-  onSelectAllAcrossPages={() => setAllProductsSelected(true)}
-  />
-
+      ) : viewMode === "progress" ? (
+        <CleaningProductsOverview
+          project={selectedProject!}
+          products={filteredSortedProducts}
+          loading={loading}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          onBack={() => {
+            setViewMode("projects");
+            handleReset();
+          }}
+          onPageChange={(p) => {
+            setPage(p);
+            setAllProductsSelected(false);
+            setSelectedProductIds(new Set());
+          }}
+          onPageSizeChange={(s) => {
+            setPageSize(s);
+            setPage(1);
+          }}
+          onProductClick={(product) => {
+            setSelectedProductIds(new Set([product.id]));
+            setAllProductsSelected(false);
+            setViewMode("advanced");
+          }}
+          onAdvancedEdit={() => {
+            if (selectedProductIds.size === 0 && !allProductsSelected) {
+              notify.info("Select products first or click a product to edit");
+              return;
+            }
+            setViewMode("advanced");
+          }}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          selectedProductIds={selectedProductIds}
+          allProductsSelected={allProductsSelected}
+          onToggleProduct={toggleProduct}
+          onToggleAll={toggleAll}
+          onSelectAllAcrossPages={() => setAllProductsSelected(true)}
+        />
       ) : loading || projectSwitching ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -1457,97 +1516,280 @@ export default function DataCleaningTab() {
           <p className="text-slate-500">No products found</p>
         </div>
       ) : (
-  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-    <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
-      <div className="flex items-center gap-3">
-        <span className="text-slate-700 font-medium">
-          {allProductsSelected 
-            ? `All ${total} products` 
-            : `${selectedProductIds.size} product(s) selected`}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-slate-500">MPN: {selectedDetailProduct?.product_code}</span>
-      </div>
-    </div>
-    <div className="overflow-auto relative" style={{ maxHeight: "calc(100vh - 280px)" }}>
-      <table className="border-separate border-spacing-0"
-        style={{
-          tableLayout: "fixed",
-          width: COL_STATUS + COL_NAME + COL_MPN + COL_THUMB + COL_BRAND + COL_CATEGORY + COL_ACTION + availableAttributes.length * COL_ATTR,
-        }}>
-        <thead className="sticky top-0 z-40">
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
-            <th style={{ width: COL_STATUS, minWidth: COL_STATUS }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center">Status</th>
-            <th style={{ width: COL_NAME, minWidth: COL_NAME }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Product Name</th>
-            <th style={{ width: COL_MPN, minWidth: COL_MPN }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">MPN</th>
-            <th style={{ width: COL_THUMB, minWidth: COL_THUMB }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center">Image</th>
-            <th style={{ width: COL_BRAND, minWidth: COL_BRAND }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Brand</th>
-            <th style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }} className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50">Category</th>
-            {availableAttributes.map((attr) => (
-              <AttrHeader key={attr} attr={attr} sort={getSort(attr)} filter={getFilter(attr)} onSort={() => toggleSort(attr)} onFilter={(v) => setColFilter(attr, v)} />
-            ))}
-            <th style={{ width: COL_ACTION, minWidth: COL_ACTION, right: 0, position: "sticky", zIndex: 50 }} className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-  {filteredSortedProducts
-    .filter(p => allProductsSelected || selectedProductIds.has(p.id))
-    .map((product) => (
-      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50/70 align-top">
-        <td className="px-3 py-4 border-r border-slate-100">
-          <div className="flex justify-center"><StatusPill status={product.enrichment_status} /></div>
-        </td>
-        <td className="px-3 py-4 border-r border-slate-100">
-          <span className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2" title={product.product_name}>{product.product_name}</span>
-        </td>
-        <td className="px-3 py-4 border-r border-slate-100">
-          <span className="text-sm font-mono text-slate-700 truncate block" title={product.product_code}>{product.product_code}</span>
-        </td>
-        <td className="px-3 py-4 border-r border-slate-100">
-          <div className="flex justify-center"><ProductThumbnail src={(product as any).image_url_1} alt={product.product_name} /></div>
-        </td>
-        <td className="px-3 py-4 border-r border-slate-100"><span className="text-sm text-slate-600">{product.brand_name}</span></td>
-        <td className="px-3 py-4 border-r border-slate-200"><span className="text-sm text-slate-600">{product.category_1}</span></td>
-        {availableAttributes.map((attr) => {
-          const dynAttr = (product.dynamic_attributes || []).find((a) => a.name === attr);
-          const edited = editingAttributes[product.id]?.[attr];
-          const currentValues = getAttrValues(product, attr);
-          const curVal = edited?.value ?? (dynAttr?.value as any) ?? "";
-          const curUom = edited?.uom ?? (dynAttr as any)?.unit ?? (dynAttr as any)?.uom ?? "";
-          const conflict = product.validation_conflicts?.[attr];
-          return (
-            <td key={attr} style={{ width: COL_ATTR, minWidth: COL_ATTR }} className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}>
-              <div className="px-2 py-3">
-                <div className="flex items-start gap-2">
-                  <input type="text" value={curVal} onChange={(e) => handleAttributeChange(product.id, attr, "value", e.target.value)} disabled={savingAttributes[product.id]} placeholder="—" className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-slate-900 outline-none focus:ring-0 placeholder:text-slate-300 disabled:opacity-40" />
-                  {conflict && <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" title="AI suggested correction" />}
-                </div>
-                <AttributeValueTags values={currentValues} onRemove={(value) => handleRemoveAttributeValue(product, attr, value)} />
-                <input type="text" value={curUom} onChange={(e) => handleAttributeChange(product.id, attr, "uom", e.target.value)} placeholder="unit (e.g. kg, V)" className="mt-3 h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:bg-white focus:border-blue-300 transition-colors" />
-              </div>
-            </td>
-          );
-        })}
-        <td style={{ width: COL_ACTION, position: "sticky", right: 0, zIndex: 20 }} className="px-3 py-4 border-l border-slate-200 bg-white">
-          <div className="flex flex-col gap-2 items-center">
-            <button onClick={() => handleCleanProduct(product.id)} disabled={cleaning || product.enrichment_status === "processing"} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40 hover:underline">
-              {product.enrichment_status === "processing" ? <><Loader2 className="w-4 h-4 animate-spin" /> Cleaning</> : product.enrichment_status === "completed" ? "Re-clean" : "Clean"}
-            </button>
-            {Object.keys(editingAttributes[product.id] || {}).length > 0 && (
-              <button onClick={() => handleSaveAttributes(product.id)} disabled={savingAttributes[product.id]} className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium disabled:opacity-40 hover:underline">
-                {savingAttributes[product.id] ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving</> : <><Check className="w-4 h-4" /> Save</>}
-              </button>
-            )}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-slate-700 font-medium">
+                {allProductsSelected
+                  ? `All ${total} products`
+                  : `${selectedProductIds.size} product(s) selected`}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">
+                MPN: {selectedDetailProduct?.product_code}
+              </span>
+            </div>
           </div>
-        </td>
-      </tr>
-    ))}
-</tbody>
-      </table>
-    </div>
-  </div>
-)}
+          <div
+            className="overflow-auto relative"
+            style={{ maxHeight: "calc(100vh - 280px)" }}
+          >
+            <table
+              className="border-separate border-spacing-0"
+              style={{
+                tableLayout: "fixed",
+                width:
+                  COL_STATUS +
+                  COL_NAME +
+                  COL_MPN +
+                  COL_THUMB +
+                  COL_BRAND +
+                  COL_CATEGORY +
+                  COL_ACTION +
+                  availableAttributes.length * COL_ATTR,
+              }}
+            >
+              <thead className="sticky top-0 z-40">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
+                  <th
+                    style={{ width: COL_STATUS, minWidth: COL_STATUS }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
+                  >
+                    Status
+                  </th>
+                  <th
+                    style={{ width: COL_NAME, minWidth: COL_NAME }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                  >
+                    Product Name
+                  </th>
+                  <th
+                    style={{ width: COL_MPN, minWidth: COL_MPN }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                  >
+                    MPN
+                  </th>
+                  <th
+                    style={{ width: COL_THUMB, minWidth: COL_THUMB }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
+                  >
+                    Image
+                  </th>
+                  <th
+                    style={{ width: COL_BRAND, minWidth: COL_BRAND }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                  >
+                    Brand
+                  </th>
+                  <th
+                    style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                  >
+                    Category
+                  </th>
+                  {availableAttributes.map((attr) => (
+                    <AttrHeader
+                      key={attr}
+                      attr={attr}
+                      sort={getSort(attr)}
+                      filter={getFilter(attr)}
+                      onSort={() => toggleSort(attr)}
+                      onFilter={(v) => setColFilter(attr, v)}
+                    />
+                  ))}
+                  <th
+                    style={{
+                      width: COL_ACTION,
+                      minWidth: COL_ACTION,
+                      right: 0,
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
+                    className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center"
+                  >
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSortedProducts
+                  .filter(
+                    (p) => allProductsSelected || selectedProductIds.has(p.id),
+                  )
+                  .map((product) => (
+                    <tr
+                      key={product.id}
+                      className="border-b border-slate-100 hover:bg-slate-50/70 align-top"
+                    >
+                      <td className="px-3 py-4 border-r border-slate-100">
+                        <div className="flex justify-center">
+                          <StatusPill status={product.enrichment_status} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 border-r border-slate-100">
+                        <span
+                          className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
+                          title={product.product_name}
+                        >
+                          {product.product_name}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 border-r border-slate-100">
+                        <span
+                          className="text-sm font-mono text-slate-700 truncate block"
+                          title={product.product_code}
+                        >
+                          {product.product_code}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 border-r border-slate-100">
+                        <div className="flex justify-center">
+                          <ProductThumbnail
+                            src={(product as any).image_url_1}
+                            alt={product.product_name}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 border-r border-slate-100">
+                        <span className="text-sm text-slate-600">
+                          {product.brand_name}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 border-r border-slate-200">
+                        <span className="text-sm text-slate-600">
+                          {product.category_1}
+                        </span>
+                      </td>
+                      {availableAttributes.map((attr) => {
+                        const dynAttr = (product.dynamic_attributes || []).find(
+                          (a) => a.name === attr,
+                        );
+                        const edited = editingAttributes[product.id]?.[attr];
+                        const currentValues = getAttrValues(product, attr);
+                        const curVal =
+                          edited?.value ?? (dynAttr?.value as any) ?? "";
+                        const curUom =
+                          edited?.uom ??
+                          (dynAttr as any)?.unit ??
+                          (dynAttr as any)?.uom ??
+                          "";
+                        const conflict = product.validation_conflicts?.[attr];
+                        return (
+                          <td
+                            key={attr}
+                            style={{ width: COL_ATTR, minWidth: COL_ATTR }}
+                            className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}
+                          >
+                            <div className="px-2 py-3">
+                              <div className="flex items-start gap-2">
+                                <input
+                                  type="text"
+                                  value={curVal}
+                                  onChange={(e) =>
+                                    handleAttributeChange(
+                                      product.id,
+                                      attr,
+                                      "value",
+                                      e.target.value,
+                                    )
+                                  }
+                                  disabled={savingAttributes[product.id]}
+                                  placeholder="—"
+                                  className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-slate-900 outline-none focus:ring-0 placeholder:text-slate-300 disabled:opacity-40"
+                                />
+                                {conflict && (
+                                  <AlertCircle
+                                    className="w-4 h-4 text-amber-500 shrink-0 mt-0.5"
+                                    title="AI suggested correction"
+                                  />
+                                )}
+                              </div>
+                              <AttributeValueTags
+                                values={currentValues}
+                                onRemove={(value) =>
+                                  handleRemoveAttributeValue(
+                                    product,
+                                    attr,
+                                    value,
+                                  )
+                                }
+                              />
+                              <input
+                                type="text"
+                                value={curUom}
+                                onChange={(e) =>
+                                  handleAttributeChange(
+                                    product.id,
+                                    attr,
+                                    "uom",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="unit (e.g. kg, V)"
+                                className="mt-3 h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:bg-white focus:border-blue-300 transition-colors"
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td
+                        style={{
+                          width: COL_ACTION,
+                          position: "sticky",
+                          right: 0,
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-l border-slate-200 bg-white"
+                      >
+                        <div className="flex flex-col gap-2 items-center">
+                          <button
+                            onClick={() => handleCleanProduct(product.id)}
+                            disabled={
+                              cleaning ||
+                              product.enrichment_status === "processing"
+                            }
+                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40 hover:underline"
+                          >
+                            {product.enrichment_status === "processing" ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                                Cleaning
+                              </>
+                            ) : product.enrichment_status === "completed" ? (
+                              "Re-clean"
+                            ) : (
+                              "Clean"
+                            )}
+                          </button>
+                          {Object.keys(editingAttributes[product.id] || {})
+                            .length > 0 && (
+                            <button
+                              onClick={() => handleSaveAttributes(product.id)}
+                              disabled={savingAttributes[product.id]}
+                              className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium disabled:opacity-40 hover:underline"
+                            >
+                              {savingAttributes[product.id] ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                                  Saving
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4" /> Save
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

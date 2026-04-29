@@ -105,18 +105,18 @@ export default function AggregationTab({
     return filtered;
   }, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
   const useCaseMap: Record<string, string[]> = {
-    web: [
-      "Products with Category Assignments",
-      "Products without Category Assignments",
-    ],
-    pdf: [
-      "MPN/UPC based PDF Extraction",
-      "Structured PDF Extraction (Given MPNs)",
-      "Unstructured PDF Extraction (Given MPNs)",
-      "Multi-PDF & Multi-MPN Data Extraction.",
-      "Title & Description Based PDF Extraction",
-    ],
-  };
+  web: [
+    "Products with Category Assignments",
+    "Products without Category Assignments",
+  ],
+  pdf: [
+    "Structured PDF Extraction (Given MPNs)",
+    "Unstructured PDF Extraction (Given MPNs)",
+    "Blind PDF Extraction (No MPNs - Title/Description based)",
+    "Title & Description Based PDF Extraction",
+    "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
+  ],
+};
   const getUseCasesForAggregationType = (type: string): string[] => {
     if (!type) {
       return [...(useCaseMap.web || []), ...(useCaseMap.pdf || [])];
@@ -1249,7 +1249,7 @@ useEffect(() => {
               onClick={resetFilters}
               className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Reset
+              Clear
             </button>
           )}
         </div>

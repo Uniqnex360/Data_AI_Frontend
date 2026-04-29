@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -19,8 +25,15 @@ import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { notify } from "../lib/notifications";
 import type { Product } from "../types/database.types";
-import type { AggregatedAttribute, EnrichmentTabProps, Project } from "../types/business-rules.types.ts";
-import { getProductStatusBadge, getStatusBadge } from "../utils/projectStatusColorizer";
+import type {
+  AggregatedAttribute,
+  EnrichmentTabProps,
+  Project,
+} from "../types/business-rules.types.ts";
+import {
+  getProductStatusBadge,
+  getStatusBadge,
+} from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { aggregationService } from "../services/aggregationService";
 import { formatValue } from "../utils/valueParser.tsx";
@@ -28,11 +41,11 @@ import { useProductMovement } from "../hooks/useProductMovement.ts";
 
 const ITEMS_PER_PAGE = 10;
 
-export default function EnrichmentTab({ 
-  projectId, 
+export default function EnrichmentTab({
+  projectId,
   initialFilter = "all",
-  onNavigate 
-}: EnrichmentTabProps){
+  onNavigate,
+}: EnrichmentTabProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
 
@@ -40,10 +53,16 @@ export default function EnrichmentTab({
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [useCases, setUseCases] = useState<string[]>([]);
 
-const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<string, number>>({});
+  const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
+    Record<string, number>
+  >({});
 
-  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
-  const [expandedProjectProducts, setExpandedProjectProducts] = useState<Product[]>([]);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
+    null,
+  );
+  const [expandedProjectProducts, setExpandedProjectProducts] = useState<
+    Product[]
+  >([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
 
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -60,11 +79,19 @@ const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<st
   const [brandFilter, setBrandFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
-  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [downloading, setDownloading] = useState(false);
-  const [enrichingProjects, setEnrichingProjects] = useState<Set<string>>(new Set());
-  const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(new Set());
+  const [enrichingProjects, setEnrichingProjects] = useState<Set<string>>(
+    new Set(),
+  );
+  const [pollingProductIds, setPollingProductIds] = useState<Set<string>>(
+    new Set(),
+  );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
@@ -74,8 +101,9 @@ const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<st
     { value: "claude", label: "Datavio Algo-3" },
   ]);
 
-  const { availableBrands, availableCategories, loadProjectFilters } = useProjectFilters();
-   useEffect(() => {
+  const { availableBrands, availableCategories, loadProjectFilters } =
+    useProjectFilters();
+  useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
       toggleExpandProject(projectId);
@@ -99,11 +127,13 @@ const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<st
       setProjects(enrichmentProjects);
       const projectIds = enrichmentProjects.map((p) => p.id);
       if (projectIds.length > 0) {
-      await loadProjectEnrichmentCounts(projectIds);
-    }
+        await loadProjectEnrichmentCounts(projectIds);
+      }
       const uniqueUseCases = [
         ...new Set(
-          enrichmentProjects.map((p: Project) => p.use_case).filter(Boolean) as string[],
+          enrichmentProjects
+            .map((p: Project) => p.use_case)
+            .filter(Boolean) as string[],
         ),
       ];
       const sortedUseCases = uniqueUseCases.sort((a, b) => {
@@ -126,37 +156,37 @@ const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<Record<st
       setProjectsLoading(false);
     }
   }, []);
-const loadProjectEnrichmentCounts = useCallback(
-  async (projectIds: string[]) => {
-    try {
-      const counts: Record<string, number> = {};
-      await Promise.all(
-        projectIds.map(async (projectId) => {
-          try {
-            const products = await productService.getProductsByProject(
-              projectId,
-              "enrichment",
-            );
-            const productArray = Array.isArray(products)
-              ? products
-              : (products?.products ?? []);
-            counts[projectId] = productArray.filter(
-              (p) =>
-                p.workflow_stage === "enrichment" &&
-                p.enrichment_status === "pending",
-            ).length;
-          } catch {
-            counts[projectId] = 0;
-          }
-        }),
-      );
-      setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
-    } catch (error) {
-      console.error("Failed to load enrichment counts:", error);
-    }
-  },
-  [],
-);
+  const loadProjectEnrichmentCounts = useCallback(
+    async (projectIds: string[]) => {
+      try {
+        const counts: Record<string, number> = {};
+        await Promise.all(
+          projectIds.map(async (projectId) => {
+            try {
+              const products = await productService.getProductsByProject(
+                projectId,
+                "enrichment",
+              );
+              const productArray = Array.isArray(products)
+                ? products
+                : (products?.products ?? []);
+              counts[projectId] = productArray.filter(
+                (p) =>
+                  p.workflow_stage === "enrichment" &&
+                  p.enrichment_status === "pending",
+              ).length;
+            } catch {
+              counts[projectId] = 0;
+            }
+          }),
+        );
+        setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
+      } catch (error) {
+        console.error("Failed to load enrichment counts:", error);
+      }
+    },
+    [],
+  );
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -204,60 +234,67 @@ const loadProjectEnrichmentCounts = useCallback(
   }, []);
 
   const toggleExpandProject = useCallback(
-  async (projectId: string) => {
-    if (expandedProjectId === projectId) {
-      setExpandedProjectId(null);
-      setExpandedProjectProducts([]);
+    async (projectId: string) => {
+      if (expandedProjectId === projectId) {
+        setExpandedProjectId(null);
+        setExpandedProjectProducts([]);
+        setSelectedProduct(null);
+        setAttributes([]);
+        setCurrentPage(1);
+        setSearchQuery("");
+        resetLocalFilters();
+        return;
+      }
+
+      setExpandedProjectId(projectId);
+      setExpandedLoading(true);
       setSelectedProduct(null);
       setAttributes([]);
-      setCurrentPage(1);
       setSearchQuery("");
       resetLocalFilters();
-      return;
-    }
 
-    setExpandedProjectId(projectId);
-    setExpandedLoading(true);
-    setSelectedProduct(null);
-    setAttributes([]);
-    setSearchQuery("");
-    resetLocalFilters();
+      try {
+        const result = await productService.getProductsByProject(
+          projectId,
+          "enrichment",
+        );
 
-    try {
-      const result = await productService.getProductsByProject(projectId, "enrichment");
-      
-      let products: Product[] = [];
-      if (Array.isArray(result)) {
-        products = result;
-      } else if (result && typeof result === 'object' && 'products' in result) {
-        products = Array.isArray(result.products) ? result.products : [];
+        let products: Product[] = [];
+        if (Array.isArray(result)) {
+          products = result;
+        } else if (
+          result &&
+          typeof result === "object" &&
+          "products" in result
+        ) {
+          products = Array.isArray(result.products) ? result.products : [];
+        }
+
+        setExpandedProjectProducts(products);
+        setCurrentPage(1);
+        await loadProjectFilters(projectId, undefined, undefined, "enrichment");
+
+        const processingProductIds = products
+          .filter((p) => p.enrichment_status === "processing")
+          .map((p) => p.id);
+        if (processingProductIds.length > 0) {
+          setPollingProductIds((prev) => {
+            const newSet = new Set(prev);
+            processingProductIds.forEach((id) => newSet.add(id));
+            return newSet;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load project products:", error);
+        notify.error("Failed to load products");
+        setExpandedProjectProducts([]);
+      } finally {
+        setExpandedLoading(false);
+        setSelectedProductIds(new Set());
       }
-      
-      setExpandedProjectProducts(products);
-      setCurrentPage(1);
-      await loadProjectFilters(projectId,undefined,undefined,'enrichment');
-
-      const processingProductIds = products
-        .filter((p) => p.enrichment_status === "processing")
-        .map((p) => p.id);
-      if (processingProductIds.length > 0) {
-        setPollingProductIds((prev) => {
-          const newSet = new Set(prev);
-          processingProductIds.forEach((id) => newSet.add(id));
-          return newSet;
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load project products:", error);
-      notify.error("Failed to load products");
-      setExpandedProjectProducts([]); 
-    } finally {
-      setExpandedLoading(false);
-      setSelectedProductIds(new Set());
-    }
-  },
-  [expandedProjectId, loadProjectFilters, resetLocalFilters],
-);
+    },
+    [expandedProjectId, loadProjectFilters, resetLocalFilters],
+  );
 
   const filteredExpandedProducts = useMemo(() => {
     let filtered = [...expandedProjectProducts];
@@ -283,9 +320,17 @@ const loadProjectEnrichmentCounts = useCallback(
     }
 
     return filtered;
-  }, [expandedProjectProducts, searchQuery, statusFilter, categoryFilter, brandFilter]);
+  }, [
+    expandedProjectProducts,
+    searchQuery,
+    statusFilter,
+    categoryFilter,
+    brandFilter,
+  ]);
 
-  const totalPages = Math.ceil(filteredExpandedProducts.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(
+    filteredExpandedProducts.length / ITEMS_PER_PAGE,
+  );
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedProducts = filteredExpandedProducts.slice(
     startIndex,
@@ -294,12 +339,15 @@ const loadProjectEnrichmentCounts = useCallback(
 
   const expandedStats = useMemo(
     () => ({
-      success: expandedProjectProducts.filter((p) => p.enrichment_status === "completed")
-        .length,
-      failed: expandedProjectProducts.filter((p) => p.enrichment_status === "failed")
-        .length,
-      pending: expandedProjectProducts.filter((p) => p.enrichment_status === "pending")
-        .length,
+      success: expandedProjectProducts.filter(
+        (p) => p.enrichment_status === "completed",
+      ).length,
+      failed: expandedProjectProducts.filter(
+        (p) => p.enrichment_status === "failed",
+      ).length,
+      pending: expandedProjectProducts.filter(
+        (p) => p.enrichment_status === "pending",
+      ).length,
     }),
     [expandedProjectProducts],
   );
@@ -355,13 +403,17 @@ const loadProjectEnrichmentCounts = useCallback(
       notify.success("Enrichment started");
 
       if (expandedProjectId) {
-        const fresh = await productService.getProductsByProject(expandedProjectId, "enrichment");
+        const fresh = await productService.getProductsByProject(
+          expandedProjectId,
+          "enrichment",
+        );
         setExpandedProjectProducts(fresh);
       }
     } catch (error: any) {
       console.error("Enrichment failed:", error);
       removeTrackingProduct(productId);
-      const errorMessage = error.response?.data?.detail || error.message || "Enrichment failed";
+      const errorMessage =
+        error.response?.data?.detail || error.message || "Enrichment failed";
       notify.error("Enrichment Failed", errorMessage);
 
       setPollingProductIds((prev) => {
@@ -371,7 +423,9 @@ const loadProjectEnrichmentCounts = useCallback(
       });
 
       setExpandedProjectProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, enrichment_status: "failed" } : p)),
+        prev.map((p) =>
+          p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+        ),
       );
     } finally {
       setLoading(false);
@@ -391,7 +445,9 @@ const loadProjectEnrichmentCounts = useCallback(
       selectedProductIds.size > 0
         ? selectedPendingProducts
         : expandedProjectProducts.filter(
-            (p) => p.enrichment_status === "pending" || p.enrichment_status === "failed",
+            (p) =>
+              p.enrichment_status === "pending" ||
+              p.enrichment_status === "failed",
           );
 
     if (pendingProducts.length === 0) {
@@ -407,7 +463,9 @@ const loadProjectEnrichmentCounts = useCallback(
     try {
       pendingProducts.forEach((p) => trackProcessingProduct(p.id));
       await Promise.allSettled(
-        pendingProducts.map((p) => aggregationService.aggregateProduct(p.id, selectedLLM)),
+        pendingProducts.map((p) =>
+          aggregationService.aggregateProduct(p.id, selectedLLM),
+        ),
       );
 
       const newPollingIds = pendingProducts.map((p) => p.id);
@@ -425,7 +483,9 @@ const loadProjectEnrichmentCounts = useCallback(
         ),
       );
 
-      notify.success(`Enrichment started for ${pendingProducts.length} product(s)`);
+      notify.success(
+        `Enrichment started for ${pendingProducts.length} product(s)`,
+      );
     } catch (error) {
       console.error("Batch enrichment failed", error);
       notify.error("Batch enrichment failed");
@@ -433,7 +493,12 @@ const loadProjectEnrichmentCounts = useCallback(
     } finally {
       setLoading(false);
     }
-  }, [expandedProjectId, expandedProjectProducts, selectedProductIds, selectedLLM]);
+  }, [
+    expandedProjectId,
+    expandedProjectProducts,
+    selectedProductIds,
+    selectedLLM,
+  ]);
 
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
@@ -446,8 +511,12 @@ const loadProjectEnrichmentCounts = useCallback(
       const completedOrFailed: string[] = [];
 
       pollingProductIds.forEach((productId) => {
-        const productInEnrichment = enrichmentData.find((p) => p.id === productId);
-        const productInAggregation = aggregationData.find((p) => p.id === productId);
+        const productInEnrichment = enrichmentData.find(
+          (p) => p.id === productId,
+        );
+        const productInAggregation = aggregationData.find(
+          (p) => p.id === productId,
+        );
 
         if (!productInEnrichment && productInAggregation) {
           const score = productInAggregation.completeness_score || 0;
@@ -456,18 +525,27 @@ const loadProjectEnrichmentCounts = useCallback(
             "Ready for Export",
             `${productInAggregation.product_name || productInAggregation.product_code} has reached ${score}% completeness and is ready in the Aggregation tab.`,
           );
-        } else if (productInEnrichment && productInEnrichment.enrichment_status === "completed") {
+        } else if (
+          productInEnrichment &&
+          productInEnrichment.enrichment_status === "completed"
+        ) {
           const score = productInEnrichment.completeness_score || 0;
           completedOrFailed.push(productId);
           if (score >= 90) {
-            notify.success("Enrichment Complete", productInEnrichment.product_name);
+            notify.success(
+              "Enrichment Complete",
+              productInEnrichment.product_name,
+            );
           } else {
             notify.info(
               "Enrichment Complete",
               `${productInEnrichment.product_name} has been processed.`,
             );
           }
-        } else if (productInEnrichment && productInEnrichment.enrichment_status === "failed") {
+        } else if (
+          productInEnrichment &&
+          productInEnrichment.enrichment_status === "failed"
+        ) {
           completedOrFailed.push(productId);
           notify.error("Enrichment Failed", productInEnrichment.product_name);
         }
@@ -504,8 +582,16 @@ const loadProjectEnrichmentCounts = useCallback(
         const promises = batch.map((projectId) =>
           aggregationService
             .aggregateProject(projectId, selectedLLM)
-            .then((result) => ({ status: "fulfilled" as const, projectId, result }))
-            .catch((error) => ({ status: "rejected" as const, projectId, error })),
+            .then((result) => ({
+              status: "fulfilled" as const,
+              projectId,
+              result,
+            }))
+            .catch((error) => ({
+              status: "rejected" as const,
+              projectId,
+              error,
+            })),
         );
 
         const results = await Promise.all(promises);
@@ -524,7 +610,10 @@ const loadProjectEnrichmentCounts = useCallback(
       }
 
       if (expandedProjectId && projectIdsToEnrich.includes(expandedProjectId)) {
-        const freshData = await productService.getProductsByProject(expandedProjectId, "enrichment");
+        const freshData = await productService.getProductsByProject(
+          expandedProjectId,
+          "enrichment",
+        );
         setExpandedProjectProducts(freshData);
 
         const processingIds = freshData
@@ -558,12 +647,14 @@ const loadProjectEnrichmentCounts = useCallback(
 
     for (const projectId of enrichingProjects) {
       try {
-        const job = await aggregationService.getProjectAggregationStatus(projectId);
+        const job =
+          await aggregationService.getProjectAggregationStatus(projectId);
 
         if (job.status === "completed" || job.status === "failed") {
           newEnrichingProjects.delete(projectId);
           completedProjects.push(projectId);
-          const projectName = projects.find((p) => p.id === projectId)?.name || projectId;
+          const projectName =
+            projects.find((p) => p.id === projectId)?.name || projectId;
           if (job.status === "completed") {
             notify.success(`Enrichment completed for "${projectName}"`);
           } else {
@@ -579,7 +670,10 @@ const loadProjectEnrichmentCounts = useCallback(
       setEnrichingProjects(newEnrichingProjects);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
-          const fresh = await productService.getProductsByProject(expandedProjectId, "enrichment");
+          const fresh = await productService.getProductsByProject(
+            expandedProjectId,
+            "enrichment",
+          );
           setExpandedProjectProducts(fresh);
         } catch (error) {
           console.error("Failed to refresh expanded project:", error);
@@ -639,7 +733,9 @@ const loadProjectEnrichmentCounts = useCallback(
 
   const toggleSelectAllProjects = useCallback(() => {
     setSelectedProjectIds((prev) =>
-      prev.size === filteredProjects.length ? new Set() : new Set(filteredProjects.map((p) => p.id)),
+      prev.size === filteredProjects.length
+        ? new Set()
+        : new Set(filteredProjects.map((p) => p.id)),
     );
   }, [filteredProjects]);
 
@@ -652,7 +748,7 @@ const loadProjectEnrichmentCounts = useCallback(
           newSet.delete(projectId);
         } else {
           newSet.add(projectId);
-          loadProjectFilters(projectId,undefined,undefined,'enrichment')
+          loadProjectFilters(projectId, undefined, undefined, "enrichment");
           if (expandedProjectId === projectId) {
             setSelectedProductIds(new Set());
           }
@@ -660,7 +756,7 @@ const loadProjectEnrichmentCounts = useCallback(
         return newSet;
       });
     },
-    [expandedProjectId,loadProjectFilters],
+    [expandedProjectId, loadProjectFilters],
   );
 
   const canDownloadSelected = useMemo(() => {
@@ -670,18 +766,25 @@ const loadProjectEnrichmentCounts = useCallback(
       selectedProductIds.size > 0 &&
       expandedProjectProducts.some(
         (p) =>
-          selectedProductIds.has(p.id) && downloadableStatuses.has(p.enrichment_status as any),
+          selectedProductIds.has(p.id) &&
+          downloadableStatuses.has(p.enrichment_status as any),
       );
 
     const projectOk =
       selectedProjectIds.size > 0 &&
       projects.some(
         (pr) =>
-          selectedProjectIds.has(pr.id) && downloadableStatuses.has((pr.processing_status ?? "") as any),
+          selectedProjectIds.has(pr.id) &&
+          downloadableStatuses.has((pr.processing_status ?? "") as any),
       );
 
     return productOk || projectOk;
-  }, [selectedProductIds, expandedProjectProducts, selectedProjectIds, projects]);
+  }, [
+    selectedProductIds,
+    expandedProjectProducts,
+    selectedProjectIds,
+    projects,
+  ]);
 
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
@@ -692,7 +795,10 @@ const loadProjectEnrichmentCounts = useCallback(
     }
     setDownloading(true);
     try {
-      const blob = await aggregationService.exportSelectedItems(selectedProjects, selectedProducts);
+      const blob = await aggregationService.exportSelectedItems(
+        selectedProjects,
+        selectedProducts,
+      );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -716,11 +822,15 @@ const loadProjectEnrichmentCounts = useCallback(
 
   const hasProductsInSelectedProjects = useMemo(() => {
     if (selectedProjectIds.size === 0) return false;
-    const selectedProjectsList = projects.filter((p) => selectedProjectIds.has(p.id));
+    const selectedProjectsList = projects.filter((p) =>
+      selectedProjectIds.has(p.id),
+    );
     return selectedProjectsList.some((p) => (p.product_count ?? 0) > 0);
   }, [selectedProjectIds, projects]);
 
-  const selectedProductData = expandedProjectProducts.find((p) => p.id === selectedProduct);
+  const selectedProductData = expandedProjectProducts.find(
+    (p) => p.id === selectedProduct,
+  );
 
   const getMissingAttributes = useCallback((product: Product): string[] => {
     const raw =
@@ -744,8 +854,12 @@ const loadProjectEnrichmentCounts = useCallback(
       <div className="relative">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-1">Product Enrichment</h3>
-            <p className="text-sm text-slate-600">Select projects to manage product enrichment</p>
+            <h3 className="text-xl font-semibold text-slate-900 mb-1">
+              Product Enrichment
+            </h3>
+            <p className="text-sm text-slate-600">
+              Select projects to manage product enrichment
+            </p>
           </div>
 
           <div
@@ -774,8 +888,13 @@ const loadProjectEnrichmentCounts = useCallback(
                 disabled={loading || !hasProductsInSelectedProjects}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                Enrich {selectedProjectIds.size} Project{selectedProjectIds.size !== 1 ? "s" : ""}
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                Enrich {selectedProjectIds.size} Project
+                {selectedProjectIds.size !== 1 ? "s" : ""}
               </button>
             )}
           </div>
@@ -783,14 +902,17 @@ const loadProjectEnrichmentCounts = useCallback(
 
         <div
           className={`absolute right-0 top-0 w-[420px] z-10 transition-all duration-200 ${
-            expandedProjectId ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"
+            expandedProjectId
+              ? "opacity-100 translate-x-0"
+              : "opacity-0 translate-x-4 pointer-events-none"
           }`}
         >
           <div className="bg-white border border-slate-200 rounded-[12px] py-1.5 px-3 shadow-xs">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-semibold text-slate-900 truncate max-w-[150px]">
-                  {projects.find((p) => p.id === expandedProjectId)?.name || "Project"}
+                  {projects.find((p) => p.id === expandedProjectId)?.name ||
+                    "Project"}
                 </h4>
                 <div className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full">
                   <Clock className="w-3 h-3" />
@@ -804,7 +926,9 @@ const loadProjectEnrichmentCounts = useCallback(
                     className="h-full bg-blue-600 rounded-full transition-all duration-500"
                     style={{
                       width: `${
-                        (expandedStats.success / (expandedProjectProducts.length || 1)) * 100
+                        (expandedStats.success /
+                          (expandedProjectProducts.length || 1)) *
+                        100
                       }%`,
                     }}
                   />
@@ -821,8 +945,12 @@ const loadProjectEnrichmentCounts = useCallback(
                     : "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100"
                 }`}
               >
-                <span className="text-xs font-bold text-emerald-600">{expandedStats.success}</span>
-                <span className="text-[10px] font-medium text-emerald-700">Completed</span>
+                <span className="text-xs font-bold text-emerald-600">
+                  {expandedStats.success}
+                </span>
+                <span className="text-[10px] font-medium text-emerald-700">
+                  Completed
+                </span>
               </button>
 
               <button
@@ -833,8 +961,12 @@ const loadProjectEnrichmentCounts = useCallback(
                     : "bg-rose-50/50 border-rose-100 hover:bg-rose-100"
                 }`}
               >
-                <span className="text-xs font-bold text-rose-600">{expandedStats.failed}</span>
-                <span className="text-[10px] font-medium text-rose-700">Failed</span>
+                <span className="text-xs font-bold text-rose-600">
+                  {expandedStats.failed}
+                </span>
+                <span className="text-[10px] font-medium text-rose-700">
+                  Failed
+                </span>
               </button>
 
               <button
@@ -845,8 +977,12 @@ const loadProjectEnrichmentCounts = useCallback(
                     : "bg-amber-50/50 border-amber-100 hover:bg-amber-100"
                 }`}
               >
-                <span className="text-xs font-bold text-amber-500">{expandedStats.pending}</span>
-                <span className="text-[10px] font-medium text-amber-600">Pending</span>
+                <span className="text-xs font-bold text-amber-500">
+                  {expandedStats.pending}
+                </span>
+                <span className="text-[10px] font-medium text-amber-600">
+                  Pending
+                </span>
               </button>
             </div>
           </div>
@@ -857,7 +993,9 @@ const loadProjectEnrichmentCounts = useCallback(
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 flex-1">
             <div>
-              <label className="block text-sm text-slate-700 mb-2">LLM Provider</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                LLM Provider
+              </label>
               <select
                 value={selectedLLM}
                 onChange={(e) => setSelectedLLM(e.target.value)}
@@ -866,8 +1004,9 @@ const loadProjectEnrichmentCounts = useCallback(
                   (selectedProjectIds.size === 0 &&
                     selectedProductIds.size === 0 &&
                     (!expandedProjectId ||
-                      expandedProjectProducts.filter((p) => p.enrichment_status === "pending")
-                        .length === 0))
+                      expandedProjectProducts.filter(
+                        (p) => p.enrichment_status === "pending",
+                      ).length === 0))
                 }
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
               >
@@ -880,7 +1019,9 @@ const loadProjectEnrichmentCounts = useCallback(
             </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">Use Case</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                Use Case
+              </label>
               <select
                 value={selectedUseCase}
                 onChange={(e) => {
@@ -898,7 +1039,10 @@ const loadProjectEnrichmentCounts = useCallback(
                 {[
                   ...new Set(
                     projects
-                      .filter((p) => !statusFilter || p.source_status === statusFilter)
+                      .filter(
+                        (p) =>
+                          !statusFilter || p.source_status === statusFilter,
+                      )
                       .map((p) => p.use_case)
                       .filter(Boolean) as string[],
                   ),
@@ -923,7 +1067,9 @@ const loadProjectEnrichmentCounts = useCallback(
             </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">Project</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                Project
+              </label>
               <select
                 value={selectedProjectId}
                 onChange={async (e) => {
@@ -931,7 +1077,10 @@ const loadProjectEnrichmentCounts = useCallback(
                   setSelectedProjectId(projectId);
                   await loadProjectFilters(projectId);
                 }}
-                disabled={projectsLoading || (!!selectedUseCase && filteredProjects.length === 0)}
+                disabled={
+                  projectsLoading ||
+                  (!!selectedUseCase && filteredProjects.length === 0)
+                }
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
                 <option value="">All Project</option>
@@ -944,7 +1093,9 @@ const loadProjectEnrichmentCounts = useCallback(
             </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">Status</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                Status
+              </label>
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -962,7 +1113,9 @@ const loadProjectEnrichmentCounts = useCallback(
             </div>
 
             <div>
-              <label className="block text-sm text-slate-700 mb-2">Category</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                Category
+              </label>
               <select
                 value={categoryFilter}
                 onChange={(e) => {
@@ -1012,7 +1165,7 @@ const loadProjectEnrichmentCounts = useCallback(
               onClick={resetFilters}
               className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Reset
+              Clear
             </button>
           )}
         </div>
@@ -1039,11 +1192,16 @@ const loadProjectEnrichmentCounts = useCallback(
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
-              checked={filteredProjects.length > 0 && selectedProjectIds.size === filteredProjects.length}
+              checked={
+                filteredProjects.length > 0 &&
+                selectedProjectIds.size === filteredProjects.length
+              }
               onChange={toggleSelectAllProjects}
               className="rounded border-slate-300"
             />
-            <span className="text-sm font-semibold text-slate-900">{filteredProjects.length} Projects</span>
+            <span className="text-sm font-semibold text-slate-900">
+              {filteredProjects.length} Projects
+            </span>
             {selectedProjectIds.size > 0 && (
               <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                 {selectedProjectIds.size} selected
@@ -1052,300 +1210,508 @@ const loadProjectEnrichmentCounts = useCallback(
           </div>
         </div>
 
-         <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 350px)" }}>
-  <table className="w-full">
-   <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
-  <tr>
-    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12">Select</th>
-    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Project Name</th>
-    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Aggregation Type</th>
-    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Use Case</th>
-    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Products</th>
-    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Aggregated</th>
-    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Enrichment</th>
-    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Completeness</th>
-    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">Status</th>
-    <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 w-12">Actions</th>
-  </tr>
-</thead>
-    <tbody className="divide-y divide-slate-200">
-      {projectsLoading ? (
-        <tr>
-          <td colSpan={10} className="p-8 text-center">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
-            <p className="text-slate-500 text-sm">Loading projects...</p>
-          </td>
-        </tr>
-      ) : filteredProjects.length === 0 ? (
-        <tr>
-          <td colSpan={10} className="p-8 text-center text-slate-500">No projects found</td>
-        </tr>
-      ) : (
-        filteredProjects.map((project) => (
-          <React.Fragment key={project.id}>
-            <tr
-              className={`hover:bg-slate-50 transition-colors cursor-pointer ${
-                expandedProjectId === project.id ? "bg-blue-50" : ""
-              } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
-                enrichingProjects.has(project.id) ? "bg-blue-50/30" : ""
-              }`}
-              onClick={() => toggleExpandProject(project.id)}
-            >
-              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-  <input
-    type="checkbox"
-    checked={selectedProjectIds.has(project.id)}
-    onChange={(e) => toggleProjectSelection(project.id, e as any)}
-    className="rounded border-slate-300"
-    disabled={enrichingProjects.has(project.id)}
-  />
-</td>
-<td className="px-4 py-3">
-  <div className="flex items-center gap-2">
-    <span className="font-semibold text-slate-900">{project.name}</span>
-    {enrichingProjects.has(project.id) && (
-      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        Processing
-      </span>
-    )}
-  </div>
-</td>
-<td className="px-4 py-3">
-  <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
-    {(project as any).aggregation_type ||
-    project.operation_mode === "aggregation"
-      ? "web"
-      : project.operation_mode === "pdf_extraction"
-        ? "pdf"
-        : project.operation_mode === "enrichment"
-          ? "enrichment"
-          : "—"}
-  </span>
-</td>
-<td className="px-4 py-3">
-  {project.use_case ? (
-    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">{project.use_case}</span>
-  ) : (
-    <span className="text-slate-400 text-xs">—</span>
-  )}
-</td>
-<td className="px-4 py-3 text-center">
-  <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
-    {project.product_count ?? 0}
-  </span>
-</td>
-<td className="px-4 py-3 text-center">
-  <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full">
-    {project.aggregated_count ?? 0}
-  </span>
-</td>
-<td className="px-4 py-3 text-center">
-  {projectEnrichmentCounts?.[project.id] > 0 ? (
-    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
-      {projectEnrichmentCounts[project.id]}
-    </span>
-  ) : (
-    <span className="text-slate-400 text-xs">—</span>
-  )}
-</td>
-<td className="px-4 py-3">
-  <div className="flex items-center justify-center gap-2">
-    <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all duration-500 ${
-          (project.completeness_score || 0) > 80 ? "bg-green-500" :
-          (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"
-        }`}
-        style={{ width: `${project.completeness_score || 0}%` }}
-      />
-    </div>
-    <span className="text-xs text-slate-600 font-medium min-w-[35px]">
-      {project.completeness_score || 0}%
-    </span>
-  </div>
-</td>
-<td className="px-4 py-3 text-center">
-  <span title={project.source_status || "NA"} className="cursor-default">
-    {getStatusBadge(project.source_status || "NA", true)}
-  </span>
-</td>
-<td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-  <button
-    onClick={(e) => { e.stopPropagation(); toggleExpandProject(project.id); }}
-    className="p-1 hover:bg-slate-200 rounded transition-colors"
-  >
-    {enrichingProjects.has(project.id) ? (
-      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-    ) : expandedProjectId === project.id ? (
-      <ChevronUp className="w-5 h-5 text-slate-600" />
-    ) : (
-      <ChevronDown className="w-5 h-5 text-slate-400" />
-    )}
-  </button>
-</td>
-</tr>
-
-{expandedProjectId === project.id && (
-  <tr>
-    <td colSpan={10} className="p-0 bg-slate-50">
-      {/* Search & Filters Bar */}
-      <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <input
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            placeholder="Search by product name, MPN..."
-            className="w-full pl-4 pr-8 py-2 border border-slate-300 rounded-lg text-sm"
-          />
-          {searchQuery && (
-            <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded">
-              <X className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-          )}
-        </div>
-        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
-          <option value="">All Categories</option>
-          {availableCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-        </select>
-        <select value={brandFilter} onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1); }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
-          <option value="">All Brands</option>
-          {availableBrands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
-        </select>
-
-        {/* Enrich All / Enrich Selected Button */}
-        {!isExpandedProjectSelected && (
-          <button
-            onClick={handleEnrichAllInExpanded}
-            disabled={loading || enrichingProjects.has(project.id) || (selectedProductIds.size === 0 && expandedStats.pending === 0)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-          >
-            {loading || enrichingProjects.has(project.id) ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            {selectedProductIds.size > 0 ? `Enrich Selected (${selectedProductIds.size})` : "Enrich All"}
-          </button>
-        )}
-      </div>
-
-      {/* Products Table */}
-      <div className="overflow-auto" style={{ maxHeight: "600px" }}>
-        <table className="w-full">
-          <thead className="sticky top-0 z-10 bg-slate-100">
-            <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              <th className="px-4 py-3 border-b border-slate-200 w-12 text-center">
-                <input
-                  type="checkbox"
-                  checked={paginatedProducts.length > 0 && paginatedProducts.every((p) => selectedProductIds.has(p.id))}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedProductIds((prev) => new Set([...prev, ...paginatedProducts.map((p) => p.id)]));
-                    } else {
-                      setSelectedProductIds((prev) => {
-                        const newSet = new Set(prev);
-                        paginatedProducts.forEach((p) => newSet.delete(p.id));
-                        return newSet;
-                      });
-                    }
-                  }}
-                  className="rounded border-slate-300"
-                />
-              </th>
-              <th className="px-4 py-3 border-b border-slate-200">Product Name</th>
-              <th className="px-4 py-3 border-b border-slate-200">MPN</th>
-              <th className="px-4 py-3 border-b border-slate-200">Brand</th>
-              <th className="px-4 py-3 border-b border-slate-200">Category</th>
-              <th className="px-4 py-3 border-b border-slate-200 text-center">Completeness %</th>
-              <th className="px-4 py-3 border-b border-slate-200 text-center">Status</th>
-              <th className="px-4 py-3 border-b border-slate-200 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
-            {expandedLoading ? (
-              <tr><td colSpan={8} className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" /></td></tr>
-            ) : paginatedProducts.length === 0 ? (
-              <tr><td colSpan={8} className="p-8 text-center text-slate-500">No products found</td></tr>
-            ) : (
-              paginatedProducts.map((product) => (
-                <tr key={product.id} onClick={() => setSelectedProduct(product.id)}
-                  className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedProduct === product.id ? "bg-blue-50" : ""}`}>
-                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={selectedProductIds.has(product.id)}
-                      onChange={() => {
-                        setSelectedProductIds((prev) => {
-                          const newSet = new Set(prev);
-                          newSet.has(product.id) ? newSet.delete(product.id) : newSet.add(product.id);
-                          return newSet;
-                        });
-                      }}
-                      className="rounded border-slate-300" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm font-semibold text-slate-900 line-clamp-2" title={product.product_name}>
-                      {product.product_name || "Unnamed Product"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm font-mono text-slate-600">{product.product_code || "—"}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{product.brand_name || "—"}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{product.category_1 || "—"}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-center">
-                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${(product.completeness_score || 0) > 80 ? "bg-emerald-500" : (product.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-500"}`}
-                          style={{ width: `${product.completeness_score || 0}%` }} />
-                      </div>
-                      <span className="text-xs font-medium">{product.completeness_score || 0}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">{getProductStatusBadge(product.enrichment_status || "pending")}</td>
-                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleEnrich(product.id)}
-                      disabled={loading || product.enrichment_status === "processing"}
-                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40">
-                      {product.enrichment_status === "processing" ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                       product.enrichment_status === "completed" ? <><RefreshCw className="w-3.5 h-3.5" /> Backfill</> :
-                       <><Zap className="w-3.5 h-3.5" /> Backfill</>}
-                    </button>
+        <div
+          className="overflow-auto"
+          style={{ maxHeight: "calc(100vh - 350px)" }}
+        >
+          <table className="w-full">
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 w-12">
+                  Select
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  Project Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  Aggregation Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">
+                  Use Case
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Products
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Aggregated
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Enrichment
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Completeness
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 w-12">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {projectsLoading ? (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+                    <p className="text-slate-500 text-sm">
+                      Loading projects...
+                    </p>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : filteredProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-slate-500">
+                    No projects found
+                  </td>
+                </tr>
+              ) : (
+                filteredProjects.map((project) => (
+                  <React.Fragment key={project.id}>
+                    <tr
+                      className={`hover:bg-slate-50 transition-colors cursor-pointer ${
+                        expandedProjectId === project.id ? "bg-blue-50" : ""
+                      } ${selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""} ${
+                        enrichingProjects.has(project.id) ? "bg-blue-50/30" : ""
+                      }`}
+                      onClick={() => toggleExpandProject(project.id)}
+                    >
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedProjectIds.has(project.id)}
+                          onChange={(e) =>
+                            toggleProjectSelection(project.id, e as any)
+                          }
+                          className="rounded border-slate-300"
+                          disabled={enrichingProjects.has(project.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900">
+                            {project.name}
+                          </span>
+                          {enrichingProjects.has(project.id) && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Processing
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
+                          {(project as any).aggregation_type ||
+                          project.operation_mode === "aggregation"
+                            ? "web"
+                            : project.operation_mode === "pdf_extraction"
+                              ? "pdf"
+                              : project.operation_mode === "enrichment"
+                                ? "enrichment"
+                                : "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {project.use_case ? (
+                          <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                            {project.use_case}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                          {project.product_count ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full">
+                          {project.aggregated_count ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {projectEnrichmentCounts?.[project.id] > 0 ? (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                            {projectEnrichmentCounts[project.id]}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                (project.completeness_score || 0) > 80
+                                  ? "bg-green-500"
+                                  : (project.completeness_score || 0) > 50
+                                    ? "bg-amber-500"
+                                    : "bg-red-400"
+                              }`}
+                              style={{
+                                width: `${project.completeness_score || 0}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+                            {project.completeness_score || 0}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          title={project.source_status || "NA"}
+                          className="cursor-default"
+                        >
+                          {getStatusBadge(project.source_status || "NA", true)}
+                        </span>
+                      </td>
+                      <td
+                        className="px-4 py-3 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpandProject(project.id);
+                          }}
+                          className="p-1 hover:bg-slate-200 rounded transition-colors"
+                        >
+                          {enrichingProjects.has(project.id) ? (
+                            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                          ) : expandedProjectId === project.id ? (
+                            <ChevronUp className="w-5 h-5 text-slate-600" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-slate-400" />
+                          )}
+                        </button>
+                      </td>
+                    </tr>
 
-      {/* Pagination */}
-      {filteredExpandedProducts.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-white">
-          <span className="text-sm text-slate-500">
-            Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredExpandedProducts.length)} of {filteredExpandedProducts.length}
-          </span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
-              className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
-              <ChevronLeft className="w-3 h-3" /> Prev
-            </button>
-            <span className="text-sm text-slate-600">Page {currentPage} of {totalPages || 1}</span>
-            <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages}
-              className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
-              Next <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
+                    {expandedProjectId === project.id && (
+                      <tr>
+                        <td colSpan={10} className="p-0 bg-slate-50">
+                          {/* Search & Filters Bar */}
+                          <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-3 flex-wrap">
+                            <div className="relative flex-1 min-w-[200px]">
+                              <input
+                                value={searchQuery}
+                                onChange={(e) => {
+                                  setSearchQuery(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                                placeholder="Search by product name, MPN..."
+                                className="w-full pl-4 pr-8 py-2 border border-slate-300 rounded-lg text-sm"
+                              />
+                              {searchQuery && (
+                                <button
+                                  onClick={() => {
+                                    setSearchQuery("");
+                                    setCurrentPage(1);
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded"
+                                >
+                                  <X className="w-3.5 h-3.5 text-slate-400" />
+                                </button>
+                              )}
+                            </div>
+                            <select
+                              value={categoryFilter}
+                              onChange={(e) => {
+                                setCategoryFilter(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                              className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                            >
+                              <option value="">All Categories</option>
+                              {availableCategories.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={brandFilter}
+                              onChange={(e) => {
+                                setBrandFilter(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                              className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                            >
+                              <option value="">All Brands</option>
+                              {availableBrands.map((brand) => (
+                                <option key={brand} value={brand}>
+                                  {brand}
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* Enrich All / Enrich Selected Button */}
+                            {!isExpandedProjectSelected && (
+                              <button
+                                onClick={handleEnrichAllInExpanded}
+                                disabled={
+                                  loading ||
+                                  enrichingProjects.has(project.id) ||
+                                  (selectedProductIds.size === 0 &&
+                                    expandedStats.pending === 0)
+                                }
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                              >
+                                {loading ||
+                                enrichingProjects.has(project.id) ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-4 h-4" />
+                                )}
+                                {selectedProductIds.size > 0
+                                  ? `Enrich Selected (${selectedProductIds.size})`
+                                  : "Enrich All"}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Products Table */}
+                          <div
+                            className="overflow-auto"
+                            style={{ maxHeight: "600px" }}
+                          >
+                            <table className="w-full">
+                              <thead className="sticky top-0 z-10 bg-slate-100">
+                                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                  <th className="px-4 py-3 border-b border-slate-200 w-12 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        paginatedProducts.length > 0 &&
+                                        paginatedProducts.every((p) =>
+                                          selectedProductIds.has(p.id),
+                                        )
+                                      }
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedProductIds(
+                                            (prev) =>
+                                              new Set([
+                                                ...prev,
+                                                ...paginatedProducts.map(
+                                                  (p) => p.id,
+                                                ),
+                                              ]),
+                                          );
+                                        } else {
+                                          setSelectedProductIds((prev) => {
+                                            const newSet = new Set(prev);
+                                            paginatedProducts.forEach((p) =>
+                                              newSet.delete(p.id),
+                                            );
+                                            return newSet;
+                                          });
+                                        }
+                                      }}
+                                      className="rounded border-slate-300"
+                                    />
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200">
+                                    Product Name
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200">
+                                    MPN
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200">
+                                    Brand
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200">
+                                    Category
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200 text-center">
+                                    Completeness %
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200 text-center">
+                                    Status
+                                  </th>
+                                  <th className="px-4 py-3 border-b border-slate-200 text-center">
+                                    Action
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 bg-white">
+                                {expandedLoading ? (
+                                  <tr>
+                                    <td colSpan={8} className="p-8 text-center">
+                                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" />
+                                    </td>
+                                  </tr>
+                                ) : paginatedProducts.length === 0 ? (
+                                  <tr>
+                                    <td
+                                      colSpan={8}
+                                      className="p-8 text-center text-slate-500"
+                                    >
+                                      No products found
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  paginatedProducts.map((product) => (
+                                    <tr
+                                      key={product.id}
+                                      onClick={() =>
+                                        setSelectedProduct(product.id)
+                                      }
+                                      className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedProduct === product.id ? "bg-blue-50" : ""}`}
+                                    >
+                                      <td
+                                        className="px-4 py-3 text-center"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedProductIds.has(
+                                            product.id,
+                                          )}
+                                          onChange={() => {
+                                            setSelectedProductIds((prev) => {
+                                              const newSet = new Set(prev);
+                                              newSet.has(product.id)
+                                                ? newSet.delete(product.id)
+                                                : newSet.add(product.id);
+                                              return newSet;
+                                            });
+                                          }}
+                                          className="rounded border-slate-300"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span
+                                          className="text-sm font-semibold text-slate-900 line-clamp-2"
+                                          title={product.product_name}
+                                        >
+                                          {product.product_name ||
+                                            "Unnamed Product"}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-sm font-mono text-slate-600">
+                                        {product.product_code || "—"}
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-slate-600">
+                                        {product.brand_name || "—"}
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-slate-600">
+                                        {product.category_1 || "—"}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2 justify-center">
+                                          <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                              className={`h-full rounded-full ${(product.completeness_score || 0) > 80 ? "bg-emerald-500" : (product.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-500"}`}
+                                              style={{
+                                                width: `${product.completeness_score || 0}%`,
+                                              }}
+                                            />
+                                          </div>
+                                          <span className="text-xs font-medium">
+                                            {product.completeness_score || 0}%
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-center">
+                                        {getProductStatusBadge(
+                                          product.enrichment_status ||
+                                            "pending",
+                                        )}
+                                      </td>
+                                      <td
+                                        className="px-4 py-3 text-center"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            handleEnrich(product.id)
+                                          }
+                                          disabled={
+                                            loading ||
+                                            product.enrichment_status ===
+                                              "processing"
+                                          }
+                                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40"
+                                        >
+                                          {product.enrichment_status ===
+                                          "processing" ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : product.enrichment_status ===
+                                            "completed" ? (
+                                            <>
+                                              <RefreshCw className="w-3.5 h-3.5" />{" "}
+                                              Backfill
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Zap className="w-3.5 h-3.5" />{" "}
+                                              Backfill
+                                            </>
+                                          )}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Pagination */}
+                          {filteredExpandedProducts.length > 0 && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-white">
+                              <span className="text-sm text-slate-500">
+                                Showing {startIndex + 1}–
+                                {Math.min(
+                                  startIndex + ITEMS_PER_PAGE,
+                                  filteredExpandedProducts.length,
+                                )}{" "}
+                                of {filteredExpandedProducts.length}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() =>
+                                    setCurrentPage(Math.max(1, currentPage - 1))
+                                  }
+                                  disabled={currentPage === 1}
+                                  className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50"
+                                >
+                                  <ChevronLeft className="w-3 h-3" /> Prev
+                                </button>
+                                <span className="text-sm text-slate-600">
+                                  Page {currentPage} of {totalPages || 1}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    setCurrentPage(
+                                      Math.min(totalPages, currentPage + 1),
+                                    )
+                                  }
+                                  disabled={currentPage >= totalPages}
+                                  className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50"
+                                >
+                                  Next <ChevronRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
-    </td>
-  </tr>
-)}
-          </React.Fragment>
-        ))
-      )}
-    </tbody>
-  </table>
-</div>
       </div>
 
       {isDrawerOpen && selectedProductData && (
@@ -1397,12 +1763,16 @@ const loadProjectEnrichmentCounts = useCallback(
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
                 {/* Completeness */}
                 <div className="lg:col-span-3">
-                  <div className="text-xs text-slate-500 mb-1">Completeness</div>
+                  <div className="text-xs text-slate-500 mb-1">
+                    Completeness
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-rose-400 rounded-full transition-all duration-300"
-                        style={{ width: `${selectedProductData.completeness_score || 0}%` }}
+                        style={{
+                          width: `${selectedProductData.completeness_score || 0}%`,
+                        }}
                       />
                     </div>
                     <div className="text-sm font-semibold text-rose-600">
@@ -1413,7 +1783,9 @@ const loadProjectEnrichmentCounts = useCallback(
 
                 {/* Missing Attributes */}
                 <div className="lg:col-span-6">
-                  <div className="text-xs text-slate-500 mb-1">Missing Attributes</div>
+                  <div className="text-xs text-slate-500 mb-1">
+                    Missing Attributes
+                  </div>
                   {getMissingAttributes(selectedProductData).length === 0 ? (
                     <div className="text-sm text-slate-400">—</div>
                   ) : (
@@ -1430,7 +1802,9 @@ const loadProjectEnrichmentCounts = useCallback(
                         ))}
                       {getMissingAttributes(selectedProductData).length > 3 && (
                         <span className="text-xs text-slate-500 px-2 py-1">
-                          +{getMissingAttributes(selectedProductData).length - 3} more
+                          +
+                          {getMissingAttributes(selectedProductData).length - 3}{" "}
+                          more
                         </span>
                       )}
                     </div>
@@ -1439,14 +1813,20 @@ const loadProjectEnrichmentCounts = useCallback(
 
                 {/* Status + Backfill */}
                 <div className="lg:col-span-3 flex items-center justify-end gap-3">
-                  {getProductStatusBadge(selectedProductData.enrichment_status || "pending")}
+                  {getProductStatusBadge(
+                    selectedProductData.enrichment_status || "pending",
+                  )}
 
                   <button
                     onClick={() => handleEnrich(selectedProductData.id)}
-                    disabled={loading || selectedProductData.enrichment_status === "processing"}
+                    disabled={
+                      loading ||
+                      selectedProductData.enrichment_status === "processing"
+                    }
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                   >
-                    {loading || selectedProductData.enrichment_status === "processing" ? (
+                    {loading ||
+                    selectedProductData.enrichment_status === "processing" ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Backfill
@@ -1472,7 +1852,9 @@ const loadProjectEnrichmentCounts = useCallback(
                 <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   <div>
-                    <p className="text-sm font-semibold text-blue-900">Enrichment In Progress</p>
+                    <p className="text-sm font-semibold text-blue-900">
+                      Enrichment In Progress
+                    </p>
                     <p className="text-xs text-blue-700">
                       Please wait while enrichment is being processed
                     </p>
@@ -1497,7 +1879,9 @@ const loadProjectEnrichmentCounts = useCallback(
                         src={selectedProductData.image_url_1}
                         alt={selectedProductData.product_name}
                         className="max-h-full max-w-full object-contain"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
+                        onError={(e) =>
+                          (e.currentTarget.style.display = "none")
+                        }
                       />
                     </div>
                   )}
@@ -1539,7 +1923,8 @@ const loadProjectEnrichmentCounts = useCallback(
                       </div>
 
                       <div className="space-y-3">
-                        {getMissingAttributes(selectedProductData).length === 0 ? (
+                        {getMissingAttributes(selectedProductData).length ===
+                        0 ? (
                           <div className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
                             No missing attributes detected.
                           </div>
@@ -1550,7 +1935,9 @@ const loadProjectEnrichmentCounts = useCallback(
                               className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50/30"
                             >
                               <div className="text-sm text-amber-900">{m}</div>
-                              <div className="text-sm italic text-amber-600">Will be filled</div>
+                              <div className="text-sm italic text-amber-600">
+                                Will be filled
+                              </div>
                             </div>
                           ))
                         )}
@@ -1607,14 +1994,20 @@ const loadProjectEnrichmentCounts = useCallback(
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-              <span className="text-xs text-slate-500">Last updated: {new Date().toLocaleDateString()}</span>
+              <span className="text-xs text-slate-500">
+                Last updated: {new Date().toLocaleDateString()}
+              </span>
 
               <button
                 onClick={() => handleEnrich(selectedProductData.id)}
-                disabled={loading || selectedProductData.enrichment_status === "processing"}
+                disabled={
+                  loading ||
+                  selectedProductData.enrichment_status === "processing"
+                }
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                {loading || selectedProductData.enrichment_status === "processing" ? (
+                {loading ||
+                selectedProductData.enrichment_status === "processing" ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Processing...
                   </>

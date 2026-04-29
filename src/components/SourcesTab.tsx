@@ -362,7 +362,7 @@ export default function SourcesTab({
     }
     return { start: startOfMonth(dateAnchor), end: endOfMonth(dateAnchor) };
   }, [dateFilterMode, dateAnchor]);
-  const useCaseMap: Record<OperationMode, string[]> = {
+    const useCaseMap: Record<OperationMode, string[]> = {
     aggregation: [
       "Products with Category Assignments",
       "Products without Category Assignments",
@@ -373,11 +373,12 @@ export default function SourcesTab({
     ],
     cleaning: ["Data cleaning and Standardization"],
     pdf_extraction: [
-      "MPN/UPC based PDF Extraction",
       "Structured PDF Extraction (Given MPNs)",
       "Unstructured PDF Extraction (Given MPNs)",
-      "Multi-PDF & Multi-MPN Data Extraction.",
+      "Blind PDF Extraction (No MPNs - Title/Description based)",
       "Title & Description Based PDF Extraction",
+      "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
+      "MPN/UPC based PDF Extraction",
     ],
   };
   const useCaseOptions = useMemo(() => {
@@ -1687,7 +1688,7 @@ export default function SourcesTab({
                     </div>
                   ) : operationMode === "pdf_extraction" &&
                     selectedUseCase?.includes(
-                      "Multi-PDF & Multi-MPN Data Extraction.",
+                      "Multi-PDF + Multi-MPN Extraction",
                     ) &&
                     projectId &&
                     !showProjectModal ? (
