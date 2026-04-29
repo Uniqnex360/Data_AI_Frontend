@@ -120,19 +120,16 @@ useEffect(() => {
       const result = await productService.getProductsByProject(projectId, "aggregation");
       const products = Array.isArray(result) ? result : (result?.products ?? []);
       
-      const stillProcessing = new Set(aggregatingProducts);
-      let allDone = true;
+            const stillProcessing = new Set(aggregatingProducts);
       
       for (const id of aggregatingProducts) {
         const product = products.find((p: Product) => p.id === id);
         if (product && (product.enrichment_status === "completed" || product.enrichment_status === "failed")) {
           stillProcessing.delete(id);
-        } else if (product && product.enrichment_status === "processing") {
-          allDone = false;
         }
       }
       
-      if (allDone) {
+      if (stillProcessing.size === 0) {
         clearInterval(pollingIntervalRef.current!);
         pollingIntervalRef.current = null;
         setAggregatingProducts(new Set());

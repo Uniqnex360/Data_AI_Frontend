@@ -517,20 +517,18 @@ export default function AggregationTab({
   
   
   useEffect(() => {
-  const hasActiveProjects = projects.some(
-    (p) =>
-      p.source_status === "In Progress" ||
-      p.processing_status === "processing",
-  );
-  const shouldPoll = hasActiveProjects || aggregatingProjects.size > 0;
-  
-  if (shouldPoll && !isDrawerOpen && !statsProjectId) {
-    const interval = setInterval(() => {
-      loadProjects();
-    }, 10000); // Increased to 10 seconds
-    return () => clearInterval(interval);
-  }
-}, [projects, loadProjects, aggregatingProjects, isDrawerOpen, statsProjectId]);
+    const hasActiveProjects = projects.some(
+      (p) =>
+        p.source_status === "In Progress" ||
+        p.processing_status === "processing",
+    );
+    if (hasActiveProjects) {
+      const interval = setInterval(() => {
+        loadProjects();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [projects, loadProjects]);
   useEffect(() => {
     if (!expandedProjectId || expandedProjectProducts.length === 0) return;
     const blindProductsNeedingPolling = expandedProjectProducts.filter(
