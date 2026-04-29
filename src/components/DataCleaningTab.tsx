@@ -72,15 +72,14 @@ function StatusPill({ status }: { status?: string }) {
   );
 }
 
-const COL_CHECKBOX = 44;
+const COL_CHECKBOX = 36;
 const COL_STATUS = 60;
-const COL_NAME = 360;
-const COL_MPN = 140;
-const COL_THUMB = 60;
-const COL_BRAND = 160;
-const COL_CATEGORY = 180;
-const COL_ATTR = 200;
-const COL_ACTION = 110;
+const COL_NAME = 240;
+const COL_THUMB = 48;
+const COL_BRAND = 100;
+const COL_CATEGORY = 100;
+const COL_ATTR = 140;
+const COL_ACTION = 90;
 
 const LEFT_CHECKBOX = 0;
 const LEFT_STATUS = COL_CHECKBOX;
@@ -157,7 +156,7 @@ function AttrHeader({
       className="relative border-r border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none"
     >
       <div ref={ref} className="flex items-center gap-1 px-2 py-2">
-        <span className="truncate flex-1" title={attr}>
+        <span className="truncate flex-1 text-[10px]" title={attr}>
           {attr}
         </span>
         <button
@@ -390,8 +389,8 @@ export default function DataCleaningTab() {
   const handleBrandChange = async (brand: string) => {
     setBrandFilter(brand);
     setPage(1);
-    setSelectedProductIds(new Set())
-    setAllProductsSelected(false)
+    setSelectedProductIds(new Set());
+    setAllProductsSelected(false);
     if (selectedProjectId) {
       await loadProjectFilters(
         selectedProjectId,
@@ -405,7 +404,7 @@ export default function DataCleaningTab() {
     setPage(1);
     setColSorts([]);
     setColFilters([]);
-    setSelectedProductIds(new Set())
+    setSelectedProductIds(new Set());
     setAllProductsSelected(false);
     if (selectedProjectId) {
       await loadProjectFilters(
@@ -833,7 +832,7 @@ export default function DataCleaningTab() {
     }
   };
   const handleDownloadSelected = async () => {
-     if (!allProductsSelected && selectedProductIds.size === 0) {
+    if (!allProductsSelected && selectedProductIds.size === 0) {
       notify.info("No products selected");
       return;
     }
@@ -902,7 +901,7 @@ export default function DataCleaningTab() {
   };
   const handleReset = () => {
     setSelectedProjectId("");
-    setViewMode('projects')
+    setViewMode("projects");
     setSelectedProductIds(new Set());
     setAllProductsSelected(false);
     setPage(1);
@@ -947,6 +946,7 @@ export default function DataCleaningTab() {
     const q = bulkSearch.toLowerCase().trim();
     return availableAttributes.filter((a) => a.toLowerCase().includes(q));
   }, [availableAttributes, bulkSearch]);
+  
   return (
     <div className="p-4 bg-slate-50 min-h-screen font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
@@ -1343,6 +1343,7 @@ export default function DataCleaningTab() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
                     Project Name
                   </th>
+
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
                     Use Case
                   </th>
@@ -1356,7 +1357,7 @@ export default function DataCleaningTab() {
                     Failed Products
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                    Completeness %
+                    Completeness 
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
                     Status
@@ -1437,21 +1438,27 @@ export default function DataCleaningTab() {
                             {failedProducts}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${(project.completeness_score || 0) > 80 ? "bg-green-500" : (project.completeness_score || 0) > 50 ? "bg-amber-500" : "bg-red-400"}`}
-                                style={{
-                                  width: `${project.completeness_score || 0}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-slate-600 font-medium min-w-[35px]">
-                              {project.completeness_score || 0}%
-                            </span>
-                          </div>
-                        </td>
+                       <td className="px-4 py-3">
+  <div className="flex items-center justify-center gap-2">
+    <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full ${
+          (totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0) > 80
+            ? "bg-green-500"
+            : (totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0) > 50
+              ? "bg-amber-500"
+              : "bg-red-400"
+        }`}
+        style={{
+          width: `${totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0}%`,
+        }}
+      />
+    </div>
+    <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+      {totalProducts > 0 ? Math.round((cnsProducts / totalProducts) * 100) : 0}%
+    </span>
+  </div>
+</td>
                         <td className="px-4 py-3 text-center">
                           {getStatusBadge(project.source_status || "NA", true)}
                         </td>
@@ -1544,10 +1551,10 @@ export default function DataCleaningTab() {
               style={{
                 tableLayout: "fixed",
                 width:
+                  COL_CHECKBOX +
                   COL_STATUS +
-                  COL_NAME +
-                  COL_MPN +
                   COL_THUMB +
+                  COL_NAME +
                   COL_BRAND +
                   COL_CATEGORY +
                   COL_ACTION +
@@ -1556,42 +1563,100 @@ export default function DataCleaningTab() {
             >
               <thead className="sticky top-0 z-40">
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-50">
+                  {/* Checkbox - sticky */}
                   <th
-                    style={{ width: COL_STATUS, minWidth: COL_STATUS }}
+                    style={{
+                      width: COL_CHECKBOX,
+                      minWidth: COL_CHECKBOX,
+                      left: LEFT_CHECKBOX,
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        allProductsSelected || isCurrentPageFullySelected
+                      }
+                      onChange={toggleAll}
+                      className="rounded border-slate-300 text-blue-600"
+                    />
+                  </th>
+
+                  {/* Status - sticky */}
+                  <th
+                    style={{
+                      width: COL_STATUS,
+                      minWidth: COL_STATUS,
+                      left: LEFT_STATUS,
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
                   >
                     Status
                   </th>
+
+                  {/* Image - sticky */}
                   <th
-                    style={{ width: COL_NAME, minWidth: COL_NAME }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Product Name
-                  </th>
-                  <th
-                    style={{ width: COL_MPN, minWidth: COL_MPN }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    MPN
-                  </th>
-                  <th
-                    style={{ width: COL_THUMB, minWidth: COL_THUMB }}
+                    style={{
+                      width: COL_THUMB,
+                      minWidth: COL_THUMB,
+                      left: LEFT_STATUS + COL_STATUS,
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
                   >
                     Image
                   </th>
+
+                  {/* Product Name - sticky */}
                   <th
-                    style={{ width: COL_BRAND, minWidth: COL_BRAND }}
+                    style={{
+                      width: COL_NAME,
+                      minWidth: COL_NAME,
+                      left: LEFT_NAME,
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
+                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                  >
+                    Product Name
+                  </th>
+
+                  {/* Brand - sticky */}
+                  <th
+                    style={{
+                      width: COL_BRAND,
+                      minWidth: COL_BRAND,
+                     left: LEFT_MPN,
+
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Brand
                   </th>
+
+                  {/* Category - sticky */}
                   <th
-                    style={{ width: COL_CATEGORY, minWidth: COL_CATEGORY }}
+                    style={{
+                      width: COL_CATEGORY,
+                      minWidth: COL_CATEGORY,
+                     left: LEFT_MPN + COL_BRAND,
+
+                      position: "sticky",
+                      zIndex: 50,
+                    }}
                     className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
                   >
                     Category
                   </th>
+
+                  {/* Dynamic Attributes */}
                   {availableAttributes.map((attr) => (
                     <AttrHeader
                       key={attr}
@@ -1602,6 +1667,8 @@ export default function DataCleaningTab() {
                       onFilter={(v) => setColFilter(attr, v)}
                     />
                   ))}
+
+                  {/* Action - sticky right */}
                   <th
                     style={{
                       width: COL_ACTION,
@@ -1624,30 +1691,54 @@ export default function DataCleaningTab() {
                   .map((product) => (
                     <tr
                       key={product.id}
-                      className="border-b border-slate-100 hover:bg-slate-50/70 align-top"
+                      className="border-b border-slate-100 hover:bg-slate-50/70 align-top group"
                     >
-                      <td className="px-3 py-4 border-r border-slate-100">
+                      {/* Checkbox */}
+                      <td
+                        style={{
+                          width: COL_CHECKBOX,
+                          position: "sticky",
+                          left: LEFT_CHECKBOX,
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            allProductsSelected ||
+                            selectedProductIds.has(product.id)
+                          }
+                          onChange={() => toggleProduct(product.id)}
+                          className="rounded border-slate-300 text-blue-600"
+                        />
+                      </td>
+
+                      {/* Status */}
+                      <td
+                        style={{
+                          width: COL_STATUS,
+                          position: "sticky",
+                          left: LEFT_STATUS,
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                      >
                         <div className="flex justify-center">
                           <StatusPill status={product.enrichment_status} />
                         </div>
                       </td>
-                      <td className="px-3 py-4 border-r border-slate-100">
-                        <span
-                          className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
-                          title={product.product_name}
-                        >
-                          {product.product_name}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 border-r border-slate-100">
-                        <span
-                          className="text-sm font-mono text-slate-700 truncate block"
-                          title={product.product_code}
-                        >
-                          {product.product_code}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 border-r border-slate-100">
+
+                      {/* Image */}
+                      <td
+                        style={{
+                          width: COL_THUMB,
+                          position: "sticky",
+                          left: LEFT_STATUS + COL_STATUS,
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                      >
                         <div className="flex justify-center">
                           <ProductThumbnail
                             src={(product as any).image_url_1}
@@ -1655,16 +1746,65 @@ export default function DataCleaningTab() {
                           />
                         </div>
                       </td>
-                      <td className="px-3 py-4 border-r border-slate-100">
+
+                      <td
+                        style={{
+                          width: COL_NAME,
+                          position: "sticky",
+                          left: LEFT_NAME,
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <span
+                            className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
+                            title={product.product_name}
+                          >
+                            {product.product_name}
+                          </span>
+                          <span
+                            className="text-[10px] text-blue-600 font-mono font-medium truncate"
+                            title={product.product_code}
+                          >
+                            MPN: {product.product_code}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Brand */}
+                      <td
+                        style={{
+                          width: COL_BRAND,
+                          position: "sticky",
+                          left: LEFT_MPN,
+
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                      >
                         <span className="text-sm text-slate-600">
                           {product.brand_name}
                         </span>
                       </td>
-                      <td className="px-3 py-4 border-r border-slate-200">
+
+                      {/* Category */}
+                      <td
+                        style={{
+                          width: COL_CATEGORY,
+                          position: "sticky",
+                         left: LEFT_MPN + COL_BRAND,
+
+                          zIndex: 20,
+                        }}
+                        className="px-3 py-4 border-r border-slate-200 bg-white group-hover:bg-slate-50/70"
+                      >
                         <span className="text-sm text-slate-600">
                           {product.category_3}
                         </span>
                       </td>
+
+                      {/* Dynamic Attributes - Keep existing code unchanged */}
                       {availableAttributes.map((attr) => {
                         const dynAttr = (product.dynamic_attributes || []).find(
                           (a) => a.name === attr,
@@ -1737,6 +1877,8 @@ export default function DataCleaningTab() {
                           </td>
                         );
                       })}
+
+                      {/* Action - sticky right */}
                       <td
                         style={{
                           width: COL_ACTION,
@@ -1744,7 +1886,7 @@ export default function DataCleaningTab() {
                           right: 0,
                           zIndex: 20,
                         }}
-                        className="px-3 py-4 border-l border-slate-200 bg-white"
+                        className="px-3 py-4 border-l border-slate-200 bg-white group-hover:bg-slate-50/70 text-center"
                       >
                         <div className="flex flex-col gap-2 items-center">
                           <button

@@ -38,7 +38,7 @@ interface ProjectStatsProps {
   onNavigateProject?:(tab:string,projectId:string)=>void
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 export function ProjectStats({
   projectId,
@@ -617,35 +617,45 @@ useEffect(() => {
           </select>
         </div>
       </div>
-      <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
-          >
-            <ChevronLeft className="w-3 h-3" /> Previous
-          </button>
-          <span className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${p === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-              >
-                {p}
-              </button>
-            ))}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
-          >
-            Next <ChevronRight className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
+      <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+  <span>
+    Showing {start + 1}–{Math.min(start + ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
+  </span>
+  <div className="flex items-center gap-1">
+    <button
+      onClick={() => setPage(Math.max(1, page - 5))}
+      disabled={page <= 5}
+      className="px-2 py-1 hover:bg-slate-100 rounded disabled:opacity-50"
+    >
+      ←
+    </button>
+    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+      const startPage = Math.max(1, Math.ceil(page / 5) * 5 - 4);
+      const pageNum = startPage + i;
+      if (pageNum > totalPages) return null;
+      return (
+        <button
+          key={pageNum}
+          onClick={() => setPage(pageNum)}
+          className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+            pageNum === page
+              ? "bg-blue-600 text-white"
+              : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {pageNum}
+        </button>
+      );
+    })}
+    <button
+      onClick={() => setPage(Math.min(totalPages, page + 5))}
+      disabled={page > totalPages - 5}
+      className="px-2 py-1 hover:bg-slate-100 rounded disabled:opacity-50"
+    >
+      →
+    </button>
+  </div>
+</div>
       <div className="flex-1 overflow-auto px-6">
         <table className="w-full text-xs text-left border-separate border-spacing-0">
           <thead className="sticky top-0 bg-white text-slate-400 z-10 font-bold uppercase tracking-wider">
