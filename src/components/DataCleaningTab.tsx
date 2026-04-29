@@ -1347,7 +1347,7 @@ export default function DataCleaningTab() {
                     Use Case
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
-                    Total Products
+                    Products
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 bg-white border-b border-slate-200">
                     CNS Products
