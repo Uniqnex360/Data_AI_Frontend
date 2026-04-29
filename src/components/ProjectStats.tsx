@@ -25,6 +25,8 @@ import type {
 } from "../types/database.types";
 import type { Project } from "../types/business-rules.types";
 import { ProductDetailView } from "./ProductDetailView";
+import { useRef } from 'react';
+import { productService } from "../services/productService.ts";
 
 type TabKey = "listing" | "aggregated" | "enrichment";
 
@@ -33,6 +35,7 @@ interface ProjectStatsProps {
   project?: Project;
   onClose?: () => void;
    onAggregateProducts?: (productId: string) => Promise<void>;
+  onNavigateProject?:(tab:string,projectId:string)=>void
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -41,11 +44,14 @@ export function ProjectStats({
   projectId,
   project: projectProp,
   onClose,
+  onNavigateProject
   
 }: ProjectStatsProps) {
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
   );
+  const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(new Set());
+const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [aggregationProducts, setAggregationProducts] = useState<Product[]>([]);
   const [enrichmentProducts, setEnrichmentProducts] = useState<Product[]>([]);
   const [projectSource, setProjectSource] = useState<Source | null>(null);
@@ -99,7 +105,60 @@ export function ProjectStats({
   useEffect(() => {
     loadData();
   }, [loadData]);
+  // Poll for completion of aggregating products
+useEffect(() => {
+  if (aggregatingProducts.size === 0) {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    return;
+  }
 
+  pollingIntervalRef.current = setInterval(async () => {
+    try {
+      const result = await productService.getProductsByProject(projectId, "aggregation");
+      const products = Array.isArray(result) ? result : (result?.products ?? []);
+      
+      const stillProcessing = new Set(aggregatingProducts);
+      let allDone = true;
+      
+      for (const id of aggregatingProducts) {
+        const product = products.find((p: Product) => p.id === id);
+        if (product && (product.enrichment_status === "completed" || product.enrichment_status === "failed")) {
+          stillProcessing.delete(id);
+        } else if (product && product.enrichment_status === "processing") {
+          allDone = false;
+        }
+      }
+      
+      if (allDone) {
+        clearInterval(pollingIntervalRef.current!);
+        pollingIntervalRef.current = null;
+        setAggregatingProducts(new Set());
+        setSelectedProductIds(new Set());
+        await loadData();
+        notify.success("All selected products have completed aggregation");
+      }
+    } catch (e) {
+      console.error("Polling error:", e);
+    }
+  }, 3000);
+
+  return () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+}, [aggregatingProducts, projectId, loadData]);
+useEffect(() => {
+  return () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+  };
+}, []);
   const loadAttributes = useCallback(async (productId: string) => {
     try {
       setAttributesLoading(true);
@@ -262,40 +321,39 @@ export function ProjectStats({
   {selectedProductIds.size > 0 && (
     <>
       <button
-        onClick={async () => {
-          const ids = Array.from(selectedProductIds);
-          setLoading(true);
-          let successCount = 0;
-          try {
-            for (const productId of ids) {
-              try {
-                await aggregationService.aggregateProduct(productId, "openai");
-                successCount++;
-              } catch (e) {
-                console.error(`Failed to aggregate ${productId}:`, e);
-              }
-            }
-            if (successCount > 0) {
-              notify.success(`Aggregation started for ${successCount} product(s)`);
-            }
-            setSelectedProductIds(new Set());
-            await loadData();
-          } catch (e: any) {
-            notify.error("Aggregation failed", e.message);
-          } finally {
-            setLoading(false);
-          }
-        }}
-        disabled={loading}
-        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-      >
-        {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Play className="w-4 h-4" />
-        )}
-        Aggregate ({selectedProductIds.size})
-      </button>
+  onClick={async () => {
+    const ids = Array.from(selectedProductIds);
+    setAggregatingProducts(new Set(ids));
+    let successCount = 0;
+    try {
+      for (const productId of ids) {
+        try {
+          await aggregationService.aggregateProduct(productId, "openai");
+          successCount++;
+        } catch (e) {
+          console.error(`Failed to aggregate ${productId}:`, e);
+        }
+      }
+      if (successCount > 0) {
+        notify.success(`Aggregation started for ${successCount} product(s)`);
+      }
+      await loadData();
+
+    } catch (e: any) {
+      notify.error("Aggregation failed", e.message);
+      setAggregatingProducts(new Set());
+    }
+  }}
+  disabled={aggregatingProducts.size > 0}
+  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+>
+  {aggregatingProducts.size > 0 ? (
+    <Loader2 className="w-4 h-4 animate-spin" />
+  ) : (
+    <Play className="w-4 h-4" />
+  )}
+  Aggregate ({selectedProductIds.size})
+</button>
       <button
         onClick={handleDownloadSelected}
         disabled={downloading}
@@ -441,6 +499,12 @@ export function ProjectStats({
           label="Moved to Enrichment"
           value={movedToEnrichment}
           color="text-amber-400"
+          clickable={movedToEnrichment>0}
+          onClick={
+  movedToEnrichment > 0
+    ? () => onNavigateProject?.("enrichment", projectId)
+    : undefined
+}
         />
         <MetricPill
           label="In Progress"
@@ -591,7 +655,6 @@ export function ProjectStats({
                   className="rounded border-slate-600"
                 />
               </th>
-              <th className="py-3 border-b border-slate-200">MPN</th>
 
               <th className="py-3 border-b border-slate-200">Product Name</th>
               <th className="py-3 border-b border-slate-200">Brand</th>
@@ -644,9 +707,7 @@ export function ProjectStats({
                       className="rounded border-slate-600"
                     />
                   </td>
-                  <td className="py-3 text-slate-500 font-mono text-[11px]">
-                    {p.product_code || p.sku || "—"}
-                  </td>
+                 
                   <td className="py-3">
                     <div className="flex items-center gap-3">
                       {p.image_url_1 ? (
@@ -664,6 +725,10 @@ export function ProjectStats({
                         <div
                           className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
                           title={p.product_name}
+                          onClick={() => {
+    setSelectedProductIds(new Set([p.id]));
+    setShowDetailView(true);
+  }}
                         >
                           {p.product_name ||
                             p.product_code ||
@@ -718,7 +783,8 @@ export function ProjectStats({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleProductClick(p);
+                        setSelectedProductIds(new Set([p.id]));
+                        setShowDetailView(true)
                       }}
                       className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-400 transition-colors"
                       title="View Attributes"
@@ -923,15 +989,27 @@ function MetricPill({
   label,
   value,
   color = "text-slate-900",
+  clickable = false,
+  onClick,
 }: {
   label: string;
   value: number;
   color?: string;
+  clickable?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4">
+    <div
+      onClick={clickable ? onClick : undefined}
+      className={`bg-white border border-slate-200 rounded-xl p-4 ${
+        clickable
+          ? "cursor-pointer hover:border-amber-300 hover:bg-amber-50/50 transition-colors"
+          : ""
+      }`}
+    >
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
         {label}
+        
       </p>
       <p className={`text-2xl font-black mt-1 ${color}`}>
         {value.toLocaleString()}

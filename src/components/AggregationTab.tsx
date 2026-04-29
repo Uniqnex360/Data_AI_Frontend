@@ -971,6 +971,7 @@ useEffect(() => {
         projectId={statsProjectId}
         project={statsProject ?? undefined}
         onClose={closeProjectStats}
+        onNavigateProject={onNavigateToProject}
         
       />
     );
