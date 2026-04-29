@@ -833,6 +833,10 @@ export default function DataCleaningTab() {
     }
   };
   const handleDownloadSelected = async () => {
+     if (!allProductsSelected && selectedProductIds.size === 0) {
+      notify.info("No products selected");
+      return;
+    }
     setDownloading(true);
     try {
       const blob = await cleansingService.downloadSelected({

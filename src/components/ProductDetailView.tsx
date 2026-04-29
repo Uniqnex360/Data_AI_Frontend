@@ -392,6 +392,8 @@ export function ProductDetailView({
                 <th className="p-4 w-72 bg-slate-50 sticky left-[112px] z-30 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
                   Product Name
                 </th>
+                <th className="p-4 w-36 border-l border-slate-100">Brand</th>
+<th className="p-4 w-36 border-l border-slate-100">Category</th>
                 {dynamicColumns.map((col, idx) => (
                   <th key={col} className="p-4 w-48 border-l border-slate-100">
                     <div className="flex flex-col">
@@ -458,6 +460,12 @@ export function ProductDetailView({
                         </span>
                       </div>
                     </td>
+                    <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
+  {p.brand_name || "—"}
+</td>
+<td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
+  {p.category_3}
+</td>
                     {dynamicColumns.map((col) => (
   <td key={col} className="p-4 text-sm text-slate-600 border-l border-slate-50 font-medium">
     {attrMap[p.id]?.[col] || "—"}
