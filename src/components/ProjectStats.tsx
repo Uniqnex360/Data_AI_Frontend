@@ -25,8 +25,9 @@ import type {
 } from "../types/database.types";
 import type { Project } from "../types/business-rules.types";
 import { ProductDetailView } from "./ProductDetailView";
-import { useRef } from 'react';
+import { useRef } from "react";
 import { productService } from "../services/productService.ts";
+import { Pagination } from "./Pagination.tsx";
 
 type TabKey = "listing" | "aggregated" | "enrichment";
 
@@ -34,8 +35,8 @@ interface ProjectStatsProps {
   projectId: string;
   project?: Project;
   onClose?: () => void;
-   onAggregateProducts?: (productId: string) => Promise<void>;
-  onNavigateProject?:(tab:string,projectId:string)=>void
+  onAggregateProducts?: (productId: string) => Promise<void>;
+  onNavigateProject?: (tab: string, projectId: string) => void;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -44,14 +45,15 @@ export function ProjectStats({
   projectId,
   project: projectProp,
   onClose,
-  onNavigateProject
-  
+  onNavigateProject,
 }: ProjectStatsProps) {
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
   );
-  const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(new Set());
-const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(
+    new Set(),
+  );
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [aggregationProducts, setAggregationProducts] = useState<Product[]>([]);
   const [enrichmentProducts, setEnrichmentProducts] = useState<Product[]>([]);
   const [projectSource, setProjectSource] = useState<Source | null>(null);
@@ -106,56 +108,65 @@ const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     loadData();
   }, [loadData]);
   // Poll for completion of aggregating products
-useEffect(() => {
-  if (aggregatingProducts.size === 0) {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    return;
-  }
-
-  pollingIntervalRef.current = setInterval(async () => {
-    try {
-      const result = await productService.getProductsByProject(projectId, "aggregation");
-      const products = Array.isArray(result) ? result : (result?.products ?? []);
-      
-            const stillProcessing = new Set(aggregatingProducts);
-      
-      for (const id of aggregatingProducts) {
-        const product = products.find((p: Product) => p.id === id);
-        if (product && (product.enrichment_status === "completed" || product.enrichment_status === "failed")) {
-          stillProcessing.delete(id);
-        }
-      }
-      
-      if (stillProcessing.size === 0) {
-        clearInterval(pollingIntervalRef.current!);
+  useEffect(() => {
+    if (aggregatingProducts.size === 0) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
-        setAggregatingProducts(new Set());
-        setSelectedProductIds(new Set());
-        await loadData();
-        notify.success("All selected products have completed aggregation");
       }
-    } catch (e) {
-      console.error("Polling error:", e);
+      return;
     }
-  }, 3000);
 
-  return () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  };
-}, [aggregatingProducts, projectId, loadData]);
-useEffect(() => {
-  return () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-  };
-}, []);
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const result = await productService.getProductsByProject(
+          projectId,
+          "aggregation",
+        );
+        const products = Array.isArray(result)
+          ? result
+          : (result?.products ?? []);
+
+        const stillProcessing = new Set(aggregatingProducts);
+
+        for (const id of aggregatingProducts) {
+          const product = products.find((p: Product) => p.id === id);
+          if (
+            product &&
+            (product.enrichment_status === "completed" ||
+              product.enrichment_status === "failed")
+          ) {
+            stillProcessing.delete(id);
+          }
+        }
+
+        if (stillProcessing.size === 0) {
+          clearInterval(pollingIntervalRef.current!);
+          pollingIntervalRef.current = null;
+          setAggregatingProducts(new Set());
+          setSelectedProductIds(new Set());
+          await loadData();
+          notify.success("All selected products have completed aggregation");
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+    }, 3000);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [aggregatingProducts, projectId, loadData]);
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
   const loadAttributes = useCallback(async (productId: string) => {
     try {
       setAttributesLoading(true);
@@ -219,8 +230,10 @@ useEffect(() => {
   );
   const totalProducts =
     projectProp?.product_count ?? projectStats?.totalProducts ?? 0;
- const aggregatedCount = projectStats?.aggregatedProducts ??
-  aggregationProducts.filter((p) => p.enrichment_status === "completed").length;
+  const aggregatedCount =
+    projectStats?.aggregatedProducts ??
+    aggregationProducts.filter((p) => p.enrichment_status === "completed")
+      .length;
   const failedCount =
     projectStats?.failedProducts ??
     aggregationProducts.filter((p) => p.enrichment_status === "failed").length;
@@ -315,73 +328,78 @@ useEffect(() => {
         </div>
 
         <div className="flex items-center gap-3">
-  {selectedProductIds.size > 0 && (
-    <>
-      <button
-  onClick={async () => {
-    const ids = Array.from(selectedProductIds);
-    setAggregatingProducts(new Set(ids));
-    let successCount = 0;
-    try {
-      for (const productId of ids) {
-        try {
-          await aggregationService.aggregateProduct(productId, "openai");
-          successCount++;
-        } catch (e) {
-          console.error(`Failed to aggregate ${productId}:`, e);
-        }
-      }
-      if (successCount > 0) {
-        notify.success(`Aggregation started for ${successCount} product(s)`);
-      }
-      await loadData();
-
-    } catch (e: any) {
-      notify.error("Aggregation failed", e.message);
-      setAggregatingProducts(new Set());
-    }
-  }}
-  disabled={aggregatingProducts.size > 0}
-  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
->
-  {aggregatingProducts.size > 0 ? (
-    <Loader2 className="w-4 h-4 animate-spin" />
-  ) : (
-    <Play className="w-4 h-4" />
-  )}
-  Aggregate ({selectedProductIds.size})
-</button>
-      <button
-        onClick={handleDownloadSelected}
-        disabled={downloading}
-        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-      >
-        {downloading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Download className="w-4 h-4" />
-        )}
-        Download Selected ({selectedProductIds.size})
-      </button>
-    </>
-  )}{selectedProductIds.size > 1 && (
-  <button
-    onClick={() => setShowDetailView(true)}
-    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
-  >
-    <Eye className="w-4 h-4" />
-    View Selected ({selectedProductIds.size})
-  </button>
-)}
-  {onClose && (
-    <button
-      onClick={onClose}
-      className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-    >
-      <X className="w-5 h-5" />
-    </button>
-  )}
-</div>
+          {selectedProductIds.size > 0 && (
+            <>
+              <button
+                onClick={async () => {
+                  const ids = Array.from(selectedProductIds);
+                  setAggregatingProducts(new Set(ids));
+                  let successCount = 0;
+                  try {
+                    for (const productId of ids) {
+                      try {
+                        await aggregationService.aggregateProduct(
+                          productId,
+                          "openai",
+                        );
+                        successCount++;
+                      } catch (e) {
+                        console.error(`Failed to aggregate ${productId}:`, e);
+                      }
+                    }
+                    if (successCount > 0) {
+                      notify.success(
+                        `Aggregation started for ${successCount} product(s)`,
+                      );
+                    }
+                    await loadData();
+                  } catch (e: any) {
+                    notify.error("Aggregation failed", e.message);
+                    setAggregatingProducts(new Set());
+                  }
+                }}
+                disabled={aggregatingProducts.size > 0}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {aggregatingProducts.size > 0 ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                Aggregate ({selectedProductIds.size})
+              </button>
+              <button
+                onClick={handleDownloadSelected}
+                disabled={downloading}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {downloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Download Selected ({selectedProductIds.size})
+              </button>
+            </>
+          )}
+          {selectedProductIds.size > 1 && (
+            <button
+              onClick={() => setShowDetailView(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
+            >
+              <Eye className="w-4 h-4" />
+              View Selected ({selectedProductIds.size})
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-200">
@@ -441,7 +459,7 @@ useEffect(() => {
                     year: "numeric",
                     hour: "numeric",
                     minute: "2-digit",
-                    timeZone: 'Asia/Kolkata',
+                    timeZone: "Asia/Kolkata",
                   })
                 : "Just now"}
             </p>
@@ -505,12 +523,12 @@ useEffect(() => {
           label="Moved to Enrichment"
           value={movedToEnrichment}
           color="text-amber-400"
-          clickable={movedToEnrichment>0}
+          clickable={movedToEnrichment > 0}
           onClick={
-  movedToEnrichment > 0
-    ? () => onNavigateProject?.("enrichment", projectId)
-    : undefined
-}
+            movedToEnrichment > 0
+              ? () => onNavigateProject?.("enrichment", projectId)
+              : undefined
+          }
         />
         <MetricPill
           label="In Progress"
@@ -618,36 +636,8 @@ useEffect(() => {
         </div>
       </div>
       <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
-          >
-            <ChevronLeft className="w-3 h-3" /> Previous
-          </button>
-          <span className="flex items-center gap-1">
-  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-    const startPage = Math.floor((page - 1) / 5) * 5 + 1;
-    const pageNum = startPage + i;
-    if (pageNum > totalPages) return null;
-    return (
-      <button key={pageNum} onClick={() => setPage(pageNum)}
-        className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${pageNum === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
-        {pageNum}
-      </button>
-    );
-  })}
-</span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
-          >
-            Next <ChevronRight className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
+  <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+</div>
       <div className="flex-1 overflow-auto px-6">
         <table className="w-full text-xs text-left border-separate border-spacing-0">
           <thead className="sticky top-0 bg-white text-slate-400 z-10 font-bold uppercase tracking-wider">
@@ -715,7 +705,7 @@ useEffect(() => {
                       className="rounded border-slate-600"
                     />
                   </td>
-                 
+
                   <td className="py-3">
                     <div className="flex items-center gap-3">
                       {p.image_url_1 ? (
@@ -734,9 +724,9 @@ useEffect(() => {
                           className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
                           title={p.product_name}
                           onClick={() => {
-    setSelectedProductIds(new Set([p.id]));
-    setShowDetailView(true);
-  }}
+                            setSelectedProductIds(new Set([p.id]));
+                            setShowDetailView(true);
+                          }}
                         >
                           {p.product_name ||
                             p.product_code ||
@@ -778,22 +768,25 @@ useEffect(() => {
                     {getStatusBadge(p.enrichment_status || "pending", true)}
                   </td>
                   <td className="py-3 text-right text-slate-400 w-32">
-  {p.updated_at
-    ? new Date(p.updated_at + 'Z').toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: 'Asia/Kolkata',
-      })
-    : "—"}
-</td>
+                    {p.updated_at
+                      ? new Date(p.updated_at + "Z").toLocaleDateString(
+                          "en-US",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "Asia/Kolkata",
+                          },
+                        )
+                      : "—"}
+                  </td>
                   <td className="py-3 text-center">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedProductIds(new Set([p.id]));
-                        setShowDetailView(true)
+                        setShowDetailView(true);
                       }}
                       className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-400 transition-colors"
                       title="View Attributes"
@@ -981,7 +974,7 @@ useEffect(() => {
         </div>
       )}
       {showDetailView && (
-      <div className="fixed inset-0 z-50 bg-slate-50 overflow-auto">
+        <div className="fixed inset-0 z-50 bg-slate-50 overflow-auto">
           <ProductDetailView
             projectId={projectId}
             projectName={projectName}
@@ -990,6 +983,9 @@ useEffect(() => {
           />
         </div>
       )}
+      <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+  <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+</div>
     </div>
   );
 }
@@ -1018,11 +1014,11 @@ function MetricPill({
     >
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
         {label}
-        
       </p>
       <p className={`text-2xl font-black mt-1 ${color}`}>
         {value.toLocaleString()}
       </p>
+      
     </div>
   );
 }
