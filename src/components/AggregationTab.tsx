@@ -123,6 +123,28 @@ export default function AggregationTab({
     }
     return useCaseMap[type] || [];
   };
+  const availableAggregationTypes = useMemo(() => {
+    const types = new Set<string>();
+    projects.forEach((p) => {
+      const type =
+        (p as any).aggregation_type ||
+        (p.operation_mode === "aggregation"
+          ? "web"
+          : p.operation_mode === "pdf_extraction"
+            ? "pdf"
+            : null);
+      if (type) types.add(type);
+    });
+    return Array.from(types).sort();
+  }, [projects]);
+
+  const availableStatuses = useMemo(() => {
+    const statuses = new Set<string>();
+    projects.forEach((p) => {
+      if (p.source_status) statuses.add(p.source_status);
+    });
+    return Array.from(statuses).sort();
+  }, [projects]);
   const availableUseCases = useMemo(() => {
     const projectUseCases = [
       ...new Set(projects.map((p) => p.use_case).filter(Boolean)),
@@ -136,6 +158,7 @@ export default function AggregationTab({
         return a.localeCompare(b);
       });
     }
+      
     const allowedUseCases = getUseCasesForAggregationType(
       aggregationTypeFilter,
     );
@@ -1115,6 +1138,27 @@ useEffect(() => {
                 ))}
               </select>
             </div>
+             <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Aggregation Type
+              </label>
+              <select
+                value={aggregationTypeFilter}
+                onChange={(e) => {
+                  setAggregationTypeFilter(e.target.value);
+                  setSelectedUseCase("");
+                }}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Types</option>
+                {availableAggregationTypes.includes("web") && (
+                  <option value="web">Web Aggregation</option>
+                )}
+                {availableAggregationTypes.includes("pdf") && (
+                  <option value="pdf">PDF Extraction</option>
+                )}
+              </select>
+            </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Use Case
@@ -1163,7 +1207,7 @@ useEffect(() => {
                 ))}
               </select>
             </div>
-            <div>
+                       <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Status
               </label>
@@ -1175,10 +1219,11 @@ useEffect(() => {
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
                 <option value="">All Status</option>
-                <option value="Yet to Start">Yet to Start</option>
-                <option value="Partially Completed">Partially Completed</option>
-                <option value="Completed">Completed</option>
-                <option value="Failed">Failed</option>
+                {availableStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -1219,23 +1264,7 @@ useEffect(() => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                Aggregation Type
-              </label>
-              <select
-                value={aggregationTypeFilter}
-                onChange={(e) => {
-                  setAggregationTypeFilter(e.target.value);
-                  setSelectedUseCase("");
-                }}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-              >
-                <option value="">All Types</option>
-                <option value="web">Web Aggregation</option>
-                <option value="pdf">PDF Extraction</option>
-              </select>
-            </div>
+            
           </div>
           {(statusFilter.size > 0 ||
             projectStatusFilter ||
