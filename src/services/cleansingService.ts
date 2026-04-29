@@ -10,7 +10,7 @@ export const cleansingService = {
     }
   },
   async downloadSelected(payload: {
-  project_id?: string;
+  project_ids?: string;
   product_ids?: string[];
 }): Promise<Blob> {
   const response = await api.post("/cleansing/download-selected", payload, {

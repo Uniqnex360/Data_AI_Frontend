@@ -840,7 +840,7 @@ export default function DataCleaningTab() {
     setDownloading(true);
     try {
       const blob = await cleansingService.downloadSelected({
-        project_id: allProductsSelected ? selectedProjectId : undefined,
+        project_ids: allProductsSelected ? selectedProjectId : undefined,
         product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
       });
       const url = window.URL.createObjectURL(blob);
