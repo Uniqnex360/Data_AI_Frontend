@@ -7,6 +7,7 @@ import {
   ImageIcon,
   Loader2,
   Search,
+  X,
 } from "lucide-react";
 import { Product, Project } from "../types/business-rules.types";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
@@ -98,9 +99,15 @@ export function CleaningProductsOverview({
             placeholder="Search products..."
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
           />
+          {searchTerm && (
+            <button onClick={()=>onSearchChange('')}
+           className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+            <X className="w-3.5 h-3.5"/>
+           </button>
+
+          )}
         </div>
       </div>
-      {/* Select All Banner */}
       {products.length > 0 &&
         products.every((p) => selectedProductIds.has(p.id)) &&
         !allProductsSelected && (

@@ -20,17 +20,20 @@ import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { notify } from "../lib/notifications";
 import { aggregationService } from "../services/aggregationService";
-import {  Download, GitMerge } from "lucide-react";
-import { AggregatedAttribute, Product, Project } from "../types/business-rules.types.ts";
-import { AggregationTabProps } from "../types/business-rules.types";
+import { Download, GitMerge } from "lucide-react";
 import {
-  getStatusBadge,
-} from "../utils/projectStatusColorizer";
+  AggregatedAttribute,
+  Product,
+  Project,
+} from "../types/business-rules.types.ts";
+import { AggregationTabProps } from "../types/business-rules.types";
+import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { formatValue } from "../utils/valueParser";
 import { useProductMovement } from "../hooks/useProductMovement";
 import { extractionService } from "../services/extractionService.ts";
 import { ProjectStats } from "./ProjectStats";
+import { Pagination } from "./Pagination.tsx";
 export default function AggregationTab({
   projectId,
   onNavigateToProject,
@@ -39,6 +42,8 @@ export default function AggregationTab({
   const [projectsLoading, setProjectsLoading] = useState(false);
   // const [extractingPdf, setExtractingPdf] = useState<Set<string>>(new Set());
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
+  const [projectsPage, setProjectsPage] = useState(1);
+  const PROJECTS_PER_PAGE = 10;
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("");
 
   const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
@@ -84,7 +89,7 @@ export default function AggregationTab({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
-    const filteredProjects = useMemo(() => {
+  const filteredProjects = useMemo(() => {
     let filtered = projects;
     if (selectedUseCase) {
       filtered = filtered.filter((p) => p.use_case === selectedUseCase);
@@ -110,21 +115,36 @@ export default function AggregationTab({
       );
     }
     return filtered;
-  }, [projects, selectedUseCase, selectedProjectId, aggregationTypeFilter, projectStatusFilter]);
+  }, [
+    projects,
+    selectedUseCase,
+    selectedProjectId,
+    aggregationTypeFilter,
+    projectStatusFilter,
+  ]);
+  const paginatedProjects = useMemo(() => {
+    const start = (projectsPage - 1) * PROJECTS_PER_PAGE;
+    return filteredProjects.slice(start, start + PROJECTS_PER_PAGE);
+  }, [filteredProjects, projectsPage]);
+
+  const projectsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE),
+  );
   const useCaseMap: Record<string, string[]> = {
-  web: [
-    "Products with Category Assignments",
-    "Products without Category Assignments",
-  ],
-  pdf: [
-    "Structured PDF Extraction (Given MPNs)",
-    "Unstructured PDF Extraction (Given MPNs)",
-    "Blind PDF Extraction (No MPNs - Title/Description based)",
-    "Title & Description Based PDF Extraction",
-    "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
-    "MPN/UPC based PDF Extraction",
-  ],
-};
+    web: [
+      "Products with Category Assignments",
+      "Products without Category Assignments",
+    ],
+    pdf: [
+      "Structured PDF Extraction (Given MPNs)",
+      "Unstructured PDF Extraction (Given MPNs)",
+      "Blind PDF Extraction (No MPNs - Title/Description based)",
+      "Title & Description Based PDF Extraction",
+      "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
+      "MPN/UPC based PDF Extraction",
+    ],
+  };
   const getUseCasesForAggregationType = (type: string): string[] => {
     if (!type) {
       return [...(useCaseMap.web || []), ...(useCaseMap.pdf || [])];
@@ -166,7 +186,7 @@ export default function AggregationTab({
         return a.localeCompare(b);
       });
     }
-      
+
     const allowedUseCases = getUseCasesForAggregationType(
       aggregationTypeFilter,
     );
@@ -459,20 +479,15 @@ export default function AggregationTab({
       return () => clearInterval(interval);
     }
   }, [aggregatingProjects, pollProjectStatuses]);
-  const {
-    availableBrands,
-    availableCategories,
-    loadProjectFilters,
-  } = useProjectFilters();
+  const { availableBrands, availableCategories, loadProjectFilters } =
+    useProjectFilters();
   const loadDefaultFilters = useCallback(async () => {
     await loadProjectFilters();
   }, [loadProjectFilters]);
   useEffect(() => {
     loadDefaultFilters();
   }, [loadDefaultFilters]);
-  
- 
- 
+
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -490,7 +505,6 @@ export default function AggregationTab({
       if (projectIds.length > 0) {
         await loadProjectEnrichmentCounts(projectIds);
       }
-     
     } catch (error) {
       console.error("Failed to load projects:", error);
       notify.error("Failed to load projects");
@@ -514,8 +528,7 @@ export default function AggregationTab({
     setExpandedProjectProducts([]);
     loadDefaultFilters();
   }, [loadDefaultFilters]);
-  
-  
+
   // useEffect(() => {
   //   const hasActiveProjects = projects.some(
   //     (p) =>
@@ -576,7 +589,7 @@ export default function AggregationTab({
     selectedProjectIds,
     projects,
   ]);
- 
+
   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
     projectId: expandedProjectId,
     currentTab: "aggregation",
@@ -627,7 +640,7 @@ export default function AggregationTab({
     },
     [selectedLLM],
   );
- 
+
   const handleAggregateSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToAggregate = Array.from(selectedProjectIds);
@@ -846,16 +859,16 @@ export default function AggregationTab({
       setIsDrawerOpen(false);
     }
   }, [selectedProduct, loadAttributes]);
-useEffect(() => {
-  if (!projectId) {
-    setStatsProjectId(null);
-    setStatsProject(null);
-  } else {
-    setStatsProjectId(projectId);
-    const proj = projects.find((p) => p.id === projectId);
-    if (proj) setStatsProject(proj);
-  }
-}, [projectId, projects]); 
+  useEffect(() => {
+    if (!projectId) {
+      setStatsProjectId(null);
+      setStatsProject(null);
+    } else {
+      setStatsProjectId(projectId);
+      const proj = projects.find((p) => p.id === projectId);
+      if (proj) setStatsProject(proj);
+    }
+  }, [projectId, projects]);
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
@@ -972,7 +985,6 @@ useEffect(() => {
         project={statsProject ?? undefined}
         onClose={closeProjectStats}
         onNavigateProject={onNavigateToProject}
-        
       />
     );
   }
@@ -1147,7 +1159,7 @@ useEffect(() => {
                 ))}
               </select>
             </div>
-             <div>
+            <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Aggregation Type
               </label>
@@ -1209,14 +1221,14 @@ useEffect(() => {
                 className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
               >
                 <option value="">All Project</option>
-                {filteredProjects.map((project) => (
+                {paginatedProjects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
                 ))}
               </select>
             </div>
-                       <div>
+            <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Status
               </label>
@@ -1273,7 +1285,6 @@ useEffect(() => {
                 ))}
               </select>
             </div>
-            
           </div>
           {(statusFilter.size > 0 ||
             projectStatusFilter ||
@@ -1314,42 +1325,49 @@ useEffect(() => {
             )}
           </div>
         </div>
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+          <Pagination
+            page={projectsPage}
+            totalPages={projectsTotalPages}
+            onPageChange={setProjectsPage}
+          />
+        </div>
         <div
           className="overflow-auto"
           style={{ maxHeight: "calc(100vh - 350px)" }}
         >
           <table className="w-full">
-           <thead className="sticky top-0 z-30 bg-slate-50">
-  <tr>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12 bg-white border-b border-slate-200">
-      Select
-    </th>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Project Name
-    </th>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Aggregation Type
-    </th>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Use Case
-    </th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Products
-    </th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Aggregated
-    </th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Enrichment
-    </th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Completeness
-    </th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Status
-    </th>
-  </tr>
-</thead>
+            <thead className="sticky top-0 z-30 bg-slate-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12 bg-white border-b border-slate-200">
+                  Select
+                </th>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Project Name
+                </th>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Aggregation Type
+                </th>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Use Case
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Products
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Aggregated
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Enrichment
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Completeness
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Status
+                </th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-200">
               {projectsLoading ? (
                 <tr>
@@ -1368,7 +1386,7 @@ useEffect(() => {
                 </tr>
               ) : (
                 <>
-                  {filteredProjects.map((project) => (
+                  {paginatedProjects.map((project) => (
                     <React.Fragment key={project.id}>
                       <tr
                         className={`
@@ -1503,6 +1521,9 @@ useEffect(() => {
               )}
             </tbody>
           </table>
+           <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+            <Pagination page={projectsPage} totalPages={projectsTotalPages} onPageChange={setProjectsPage} />
+          </div>
         </div>
       </div>
       {isDrawerOpen && selectedProductData && (

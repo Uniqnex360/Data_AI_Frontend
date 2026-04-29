@@ -216,9 +216,10 @@ export function ProductDetailView({
   );
 
   return (
-<div className="flex flex-col min-h-screen bg-slate-50 text-slate-900">
+<div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
 
-      <div className="px-8 py-5 flex items-center justify-between bg-white border-b border-slate-200 shrink-0">
+           <div className="px-4 py-4 flex items-center justify-between bg-white border-b border-slate-200 shrink-0 rounded-2xl">
+
         <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
           <button
             onClick={onNavigateToOverview || onBack}
@@ -269,7 +270,7 @@ export function ProductDetailView({
         </div>
       </div>
 
-      <div className="px-8 py-6 grid grid-cols-5 gap-4 shrink-0">
+      <div className="px-4 py-4 grid grid-cols-5 gap-3 shrink-0">
         <StatCard
           label="Total Products"
           value={stats.total}
@@ -301,7 +302,7 @@ export function ProductDetailView({
         />
       </div>
 
-      <div className="px-8 flex items-center justify-between mb-4 gap-4 shrink-0">
+      <div className="px-4 flex items-center justify-between mb-3 gap-3 shrink-0">
         <div className="flex items-center gap-3 flex-1 flex-wrap">
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -373,7 +374,7 @@ export function ProductDetailView({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden px-8 pb-8 flex flex-col">
+      <div className="flex-1 overflow-hidden px-4 pb-4 flex flex-col">
         <div className="flex-1 overflow-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
           <table className="w-full text-left border-collapse table-fixed">
            <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">

@@ -312,8 +312,18 @@ export function ProjectStats({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-slate-900">
-      <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="h-full flex flex-col bg-white text-slate-900">
+
+      {showDetailView ? (
+          <ProductDetailView
+            projectId={projectId}
+            projectName={projectName}
+            products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
+            onBack={() => setShowDetailView(false)}
+          />
+      ):(
+        <>
+<div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
         <div>
           <button
             onClick={onClose}
@@ -975,22 +985,16 @@ export function ProjectStats({
           </div>
         </div>
       )}
-      {showDetailView && (
-        <div className="fixed inset-0 z-50 bg-slate-50 overflow-auto">
-          <ProductDetailView
-            projectId={projectId}
-            projectName={projectName}
-            products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
-            onBack={() => setShowDetailView(false)}
-          />
-        </div>
+      
+       <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      </div>
+      </>
       )}
-      <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
-  <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-</div>
     </div>
   );
 }
+  
 
 function MetricPill({
   label,
