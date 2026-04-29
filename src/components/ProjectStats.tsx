@@ -334,6 +334,7 @@ useEffect(() => {
       if (successCount > 0) {
         notify.success(`Aggregation started for ${successCount} product(s)`);
       }
+      await loadData();
 
     } catch (e: any) {
       notify.error("Aggregation failed", e.message);

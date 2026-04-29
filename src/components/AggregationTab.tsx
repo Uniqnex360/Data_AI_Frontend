@@ -516,19 +516,19 @@ export default function AggregationTab({
   }, [loadDefaultFilters]);
   
   
-  useEffect(() => {
-    const hasActiveProjects = projects.some(
-      (p) =>
-        p.source_status === "In Progress" ||
-        p.processing_status === "processing",
-    );
-    if (hasActiveProjects) {
-      const interval = setInterval(() => {
-        loadProjects();
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [projects, loadProjects]);
+  // useEffect(() => {
+  //   const hasActiveProjects = projects.some(
+  //     (p) =>
+  //       p.source_status === "In Progress" ||
+  //       p.processing_status === "processing",
+  //   );
+  //   if (hasActiveProjects) {
+  //     const interval = setInterval(() => {
+  //       loadProjects();
+  //     }, 5000);
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [projects, loadProjects]);
   useEffect(() => {
     if (!expandedProjectId || expandedProjectProducts.length === 0) return;
     const blindProductsNeedingPolling = expandedProjectProducts.filter(
