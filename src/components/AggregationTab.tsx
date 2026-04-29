@@ -84,7 +84,7 @@ export default function AggregationTab({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
-  const filteredProjects = useMemo(() => {
+    const filteredProjects = useMemo(() => {
     let filtered = projects;
     if (selectedUseCase) {
       filtered = filtered.filter((p) => p.use_case === selectedUseCase);
@@ -93,9 +93,16 @@ export default function AggregationTab({
       filtered = filtered.filter((p) => p.id === selectedProjectId);
     }
     if (aggregationTypeFilter) {
-      filtered = filtered.filter(
-        (p) => (p as any).aggregation_type === aggregationTypeFilter,
-      );
+      filtered = filtered.filter((p) => {
+        const type =
+          (p as any).aggregation_type ||
+          (p.operation_mode === "aggregation"
+            ? "web"
+            : p.operation_mode === "pdf_extraction"
+              ? "pdf"
+              : null);
+        return type === aggregationTypeFilter;
+      });
     }
     if (projectStatusFilter) {
       filtered = filtered.filter(
@@ -103,7 +110,7 @@ export default function AggregationTab({
       );
     }
     return filtered;
-  }, [projects, selectedUseCase, selectedProjectId, projectStatusFilter]);
+  }, [projects, selectedUseCase, selectedProjectId, aggregationTypeFilter, projectStatusFilter]);
   const useCaseMap: Record<string, string[]> = {
   web: [
     "Products with Category Assignments",
@@ -115,6 +122,7 @@ export default function AggregationTab({
     "Blind PDF Extraction (No MPNs - Title/Description based)",
     "Title & Description Based PDF Extraction",
     "Multi-PDF + Multi-MPN Extraction (Structured/Unstructured)",
+    "MPN/UPC based PDF Extraction",
   ],
 };
   const getUseCasesForAggregationType = (type: string): string[] => {
