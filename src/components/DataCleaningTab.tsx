@@ -440,7 +440,11 @@ export default function DataCleaningTab() {
       list = list.filter((p) => p.enrichment_status === statusFilter);
     if (brandFilter) list = list.filter((p) => p.brand_name === brandFilter);
     if (categoryFilter)
-      list = list.filter((p) => p.category_3 === categoryFilter);
+      list = list.filter((p) => 
+        p.category_3 === categoryFilter ||
+        p.category_2 === categoryFilter ||
+        p.category_1 === categoryFilter
+      );
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       list = list.filter(
@@ -453,9 +457,7 @@ export default function DataCleaningTab() {
     }
     if (selectedBulkAttributes.length > 0) {
       list = list.filter((product) => {
-        const productAttrs = (product.dynamic_attributes || []).map(
-          (a) => a.name,
-        );
+        const productAttrs = (product as any).attribute_names || [];
         return selectedBulkAttributes.every((attr) =>
           productAttrs.includes(attr),
         );
@@ -464,18 +466,16 @@ export default function DataCleaningTab() {
     for (const { attr, value } of colFilters) {
       const v = value.toLowerCase();
       list = list.filter((p) => {
-        const a = (p.dynamic_attributes || []).find((x) => x.name === attr);
+        const a = (p as any).attributes_dict?.[attr];
         return (a?.value ?? "").toLowerCase().includes(v);
       });
     }
     for (const { attr, dir } of [...colSorts].reverse()) {
       list.sort((a, b) => {
         const va =
-          (a.dynamic_attributes || []).find((x) => x.name === attr)?.value ??
-          "";
+          (a as any).attributes_dict?.[attr]?.value ?? "";
         const vb =
-          (b.dynamic_attributes || []).find((x) => x.name === attr)?.value ??
-          "";
+          (b as any).attributes_dict?.[attr]?.value ?? "";
         const cmp = String(va).localeCompare(String(vb), undefined, {
           numeric: true,
         });
@@ -630,9 +630,7 @@ export default function DataCleaningTab() {
             .filter(Boolean)
         : [s];
     }
-    const dynAttr = (product.dynamic_attributes || []).find(
-      (a) => a.name === attrName,
-    );
+    const dynAttr = (product as any).attributes_dict?.[attrName];
     if (!dynAttr?.value) return [];
     if (Array.isArray(dynAttr.value))
       return dynAttr.value.filter(Boolean).map(String);
@@ -692,12 +690,8 @@ export default function DataCleaningTab() {
               value: updatedValues.join(" | "),
               uom:
                 prev[product.id]?.[attrName]?.uom ??
-                (product.dynamic_attributes || []).find(
-                  (a) => a.name === attrName,
-                )?.unit ??
-                (product.dynamic_attributes || []).find(
-                  (a) => a.name === attrName,
-                )?.uom ??
+                                (product as any).attributes_dict?.[attrName]?.unit ??
+                (product as any).attributes_dict?.[attrName]?.uom ??
                 "",
               values: updatedValues,
             },
@@ -1813,9 +1807,7 @@ export default function DataCleaningTab() {
 
                       {/* Dynamic Attributes - Keep existing code unchanged */}
                       {availableAttributes.map((attr) => {
-                        const dynAttr = (product.dynamic_attributes || []).find(
-                          (a) => a.name === attr,
-                        );
+                         const dynAttr = (product as any).attributes_dict?.[attr];
                         const edited = editingAttributes[product.id]?.[attr];
                         const currentValues = getAttrValues(product, attr);
                         const curVal =
