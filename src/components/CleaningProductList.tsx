@@ -46,8 +46,8 @@ export function CleaningProductList({ projectName, products, onBack, onEnterAdva
           </thead>
           <tbody className="divide-y divide-slate-100">
             {products.map(p => {
-              const totalAttrs = p.dynamic_attributes?.length || 0;
-              const processedAttrs = p.dynamic_attributes?.filter(a => !!a.value).length || 0;
+              const totalAttrs = (p as any).attribute_count || (p as any).total_attributes || 0;
+              const processedAttrs = totalAttrs;
               return (
                 <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="p-4">

@@ -172,25 +172,26 @@ export interface Project {
   failed_count?:number
   pending_count?:number
 }
-export  interface Product {
+export interface Product {
   id: string;
   product_name: string;
   product_code: string;
   brand_name: string;
   category_1: string;
-  category_2?:string
-  category_3?:string
+  category_2?: string;
+  category_3?: string;
+  attribute_count?: number;
   description?: string;
-  image_url_1?:string;
-  completeness_score?:number;
-  source_url?:string;
+  image_url_1?: string;
+  completeness_score?: number;
+  source_url?: string;
   enrichment_status: string;
-  dynamic_attributes: Array<{
-    name: string;
+  attributes_dict?: Record<string, {
     value: string;
     unit?: string;
     uom?: string;
   }>;
+  attribute_names?: string[];
   validation_conflicts?: Record<string, string>;
 }
 export interface ManualProductData {

@@ -753,9 +753,7 @@ export function ProjectStats({
                   <td className="py-3 text-slate-500">{p.brand_name || "—"}</td>
                   <td className="py-3 text-slate-500">{p.category_3 || "—"}</td>
                   <td className="py-3 text-center text-slate-600 font-medium">
-                    {(p as any).attribute_count ??
-                      p.dynamic_attributes?.length ??
-                      "—"}
+                     {(p as any).attribute_count ?? "—"}
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-3 justify-center">

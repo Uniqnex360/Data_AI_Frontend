@@ -474,18 +474,45 @@ export default function ProjectsOverviewTab({
                       />
                     </td>
 
-                    <td className="px-4 py-3">
+                                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       {isLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                       ) : importFileName ? (
                         <div className="flex items-center gap-1.5">
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span
-                            className="text-xs text-slate-600 font-mono truncate block max-w-[100px]"
-                            title={importFileName}
+                          <button
+                            onClick={async () => {
+                              const sources = projectSources[p.id] || [];
+                              if (sources.length > 0) {
+                                setDownloading((prev) => new Set(prev).add(p.id));
+                                try {
+                                  await extractionService.download(sources[0].id, "input");
+                                  notify.success("Download started");
+                                } catch {
+                                  notify.error("Failed to download input");
+                                } finally {
+                                  setDownloading((prev) => {
+                                    const newSet = new Set(prev);
+                                    newSet.delete(p.id);
+                                    return newSet;
+                                  });
+                                }
+                              }
+                            }}
+                            disabled={isDownloading}
+                            className="flex items-center gap-1.5 hover:underline"
                           >
-                            {importFileName}
-                          </span>
+                            {isDownloading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            )}
+                            <span
+                              className="text-xs text-slate-600 font-mono truncate block max-w-[100px]"
+                              title={importFileName}
+                            >
+                              {importFileName}
+                            </span>
+                          </button>
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs">—</span>

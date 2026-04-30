@@ -56,13 +56,13 @@ export function CleaningProductsOverview({
   onSelectAllAcrossPages,
 }: CleaningProductsOverviewProps) {
   const getProcessedCount = (product: Product): number => {
-    const attrs = product.dynamic_attributes || [];
-    return attrs.filter((a) => a.value && a.value.trim() !== "").length;
-  };
+  return product.attribute_count || 0;
+};
 
-  const getTotalAttributes = (product: Product): number => {
-    return (product.dynamic_attributes || []).length;
-  };
+  
+const getTotalAttributes = (product: Product): number => {
+  return product.attribute_count || 0;
+};
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

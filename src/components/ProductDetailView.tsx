@@ -90,9 +90,7 @@ export function ProductDetailView({
       attrResults[index].forEach((a) => {
   productAttrs[a.attribute_name] = parseValue(a.values[0]?.value);
   
-  const dynAttr = (p.dynamic_attributes || []).find(
-    (d: any) => d.name === a.attribute_name
-  );
+  const dynAttr = (product as any).attributes_dict?.[attrName];
   if (dynAttr?.uom) {
     productUoms[a.attribute_name] = dynAttr.uom;
   }
