@@ -171,7 +171,7 @@ const getTotalAttributes = (product: Product): number => {
                 No. of Attributes
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
-                 Cleaned
+                 Cleansed
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
                 Completeness

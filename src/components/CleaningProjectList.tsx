@@ -9,7 +9,7 @@ export function CleaningProjectList({ projects, loading, onSelect }: any) {
           <tr>
             <th className="px-4 py-3">Project Name</th>
             <th className="px-4 py-3 text-center">Total Products</th>
-            <th className="px-4 py-3 text-center">Cleaned</th>
+            <th className="px-4 py-3 text-center">Cleansed</th>
             <th className="px-4 py-3 text-center">Completeness</th>
             <th className="px-4 py-3 text-center">Status</th>
             <th className="px-4 py-3 text-center">Action</th>

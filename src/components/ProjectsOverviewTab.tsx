@@ -375,7 +375,7 @@ export default function ProjectsOverviewTab({
               <th className="px-4 py-2 text-center w-[80px]">Products</th>
               <th className="px-4 py-2 text-left w-[140px]">Aggregated</th>
               <th className="px-4 py-2 text-left w-[140px]">Enriched</th>
-              <th className="px-4 py-2 text-left w-[140px]">Cleaned</th>
+              <th className="px-4 py-2 text-left w-[140px]">Cleansed</th>
               <th className="px-4 py-2 text-left w-[130px]">Import File</th>
               <th className="px-4 py-2 text-center w-[80px]">Output</th>
               <th className="px-4 py-2 text-center w-[90px]">Action</th>

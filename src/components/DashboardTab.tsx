@@ -877,7 +877,7 @@ useEffect(() => {
             </div>
             <div>
               <div className="text-2xl font-black text-emerald-600">{activityClean}</div>
-              <div className="text-xs text-slate-500">Cleaned</div>
+              <div className="text-xs text-slate-500">Cleansed</div>
             </div>
           </div>
         </div>
