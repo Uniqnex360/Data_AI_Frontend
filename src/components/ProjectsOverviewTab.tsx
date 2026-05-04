@@ -20,6 +20,7 @@ import { notify } from "../lib/notifications";
 
 interface Props {
   projects: ProjectOverview[];
+  totalCount?: number;
   selectedProjectId?: string;
   onOpenProject?: (id: string) => void;
   onSelectProject?: (id: string) => void;
@@ -64,6 +65,7 @@ function ProgressBar({
 
 export default function ProjectsOverviewTab({
   projects,
+  totalCount,
   selectedProjectId,
   onOpenProject,
   onSelectProject,
@@ -302,7 +304,7 @@ export default function ProjectsOverviewTab({
                 Projects Overview
               </h3>
               <span className="text-sm text-slate-500">
-                {filtered.length} projects
+                {totalCount ?? projects.length} projects
               </span>
             </div>
             

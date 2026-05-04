@@ -82,26 +82,15 @@ export const dashboardService = {
     const { data } = await api.get("/dashboard/category-flow", { params });
     return data;
   },
-
-  async getProjectsOverview(
-    params?: {
-      page?: number;
-      page_size?: number;
-      search?: string;
-      status?: string;
-      status_filter?: string;
-    },
-  ): Promise<ProjectOverview[]> {
-    try {
-      const { data } = await api.get("/dashboard/projects-overview", {
-        params: params || {},
-      });
-      return data;
-    } catch (error: any) {
-      console.error("Failed to fetch projects overview:", error);
-      throw new Error(error.response?.data?.detail || "Failed to fetch projects overview");
-    }
-  },
+async getProjectsOverview(params?: {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  search?: string;
+}): Promise<{ projects: ProjectOverview[]; total: number; page: number; page_size: number }> {
+  const { data } = await api.get("/dashboard/projects-overview", { params });
+  return data;
+},
   async getCategoryAttributes(params: CategoryParams & DateRangeParams) {
     const { data } = await api.get("/dashboard/category-attributes", {
       params,

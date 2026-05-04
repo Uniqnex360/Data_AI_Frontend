@@ -215,7 +215,9 @@ const [projectsLoading, setProjectsLoading] = useState(true);
   const [preset, setPreset] = useState<Preset>("month");
   const [startDate, setStartDate] = useState<string>(toYMD(startOfMonth(new Date())));
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
+  
   const [dateField, setDateField] = useState<DateField>("updated_at"); 
+    const [totalProjectCount, setTotalProjectCount] = useState(0);
   
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [metrics, setMetrics] = useState<any[]>([]);
@@ -247,7 +249,8 @@ const [projectsLoading, setProjectsLoading] = useState(true);
   setProjectsLoading(true);
   try {
     const data = await dashboardService.getProjectsOverview();
-    setProjectsOverview(data);
+    setProjectsOverview(data.projects || []); 
+    setTotalProjectCount(data.total || 0);    
   } catch (error) {
     console.error("Failed to load projects overview:", error);
   } finally {
