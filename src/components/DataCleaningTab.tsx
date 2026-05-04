@@ -274,6 +274,10 @@ export default function DataCleaningTab() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set(),
+  );
+
   const [projectSwitching, setProjectSwitching] = useState(false);
 
   const [downloading, setDownloading] = useState(false);
@@ -1320,11 +1324,35 @@ export default function DataCleaningTab() {
       {viewMode === "projects" && !selectedProjectId ? (
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-            <div className="flex items-center gap-3"></div>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={
+                  filteredProjects.length > 0 &&
+                  selectedProjectIds.size === filteredProjects.length
+                }
+                onChange={() => {
+                  if (selectedProjectIds.size === filteredProjects.length) {
+                    setSelectedProjectIds(new Set());
+                  } else {
+                    setSelectedProjectIds(
+                      new Set(filteredProjects.map((p) => p.id)),
+                    );
+                  }
+                }}
+                className="rounded border-slate-300"
+              />
+              <span className="text-xs text-slate-500">Select All</span>
+            </div>
             <div className="flex items-center justify-end gap-4 text-xs text-slate-500">
               <span className="text-sm font-semibold text-slate-900">
-                {filteredProjects.length} Cleaning Projects
+                {filteredProjects.length} Projects
               </span>
+              {selectedProjectIds.size > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                  {selectedProjectIds.size} selected
+                </span>
+              )}
               <div className="flex items-center">
                 <Pagination
                   page={projectsPage}
@@ -1370,7 +1398,7 @@ export default function DataCleaningTab() {
               <tbody className="divide-y divide-slate-200">
                 {projectsLoading ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center">
+                    <td colSpan={9} className="p-8 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
                       <p className="text-slate-500 text-sm">
                         Loading projects...
@@ -1407,6 +1435,27 @@ export default function DataCleaningTab() {
                           }
                         }}
                       >
+                        <td
+                          className="px-4 py-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedProjectIds.has(project.id)}
+                            onChange={() => {
+                              setSelectedProjectIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(project.id)) {
+                                  next.delete(project.id);
+                                } else {
+                                  next.add(project.id);
+                                }
+                                return next;
+                              });
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <span
                             className={`font-semibold text-sm ${
@@ -1556,29 +1605,31 @@ export default function DataCleaningTab() {
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
-  <div className="flex items-center gap-3">
-    <span className="text-slate-700 font-medium">
-      {allProductsSelected
-        ? `All ${total} products selected`
-        : selectedProductIds.size > 0
-          ? `${selectedProductIds.size} product(s) selected`
-          : ""}
-    </span>
-    {!allProductsSelected && selectedProductIds.size > 0 && total > filteredSortedProducts.length && (
-      <button
-        onClick={() => setAllProductsSelected(true)}
-        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-      >
-        Select all {total} products across all pages
-      </button>
-    )}
-  </div>
-  <div className="flex items-center gap-2">
-    <span className="text-slate-500">
-      MPN: {selectedDetailProduct?.product_code}
-    </span>
-  </div>
-</div>
+            <div className="flex items-center gap-3">
+              <span className="text-slate-700 font-medium">
+                {allProductsSelected
+                  ? `All ${total} products selected`
+                  : selectedProductIds.size > 0
+                    ? `${selectedProductIds.size} product(s) selected`
+                    : ""}
+              </span>
+              {!allProductsSelected &&
+                selectedProductIds.size > 0 &&
+                total > filteredSortedProducts.length && (
+                  <button
+                    onClick={() => setAllProductsSelected(true)}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Select all {total} products across all pages
+                  </button>
+                )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">
+                MPN: {selectedDetailProduct?.product_code}
+              </span>
+            </div>
+          </div>
           <div
             className="overflow-auto relative"
             style={{ maxHeight: "calc(100vh - 280px)" }}
