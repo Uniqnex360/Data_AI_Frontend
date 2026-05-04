@@ -898,8 +898,6 @@ export default function DataCleaningTab() {
       await loadProducts();
       setBulkAttributeValues({});
       setSelectedBulkAttributes([]);
-      setSelectedProductIds(new Set());
-      setAllProductsSelected(false);
     } catch (e: any) {
       notify.error("Bulk update failed", e.message);
     } finally {
