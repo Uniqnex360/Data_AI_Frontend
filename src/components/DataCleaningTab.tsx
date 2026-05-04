@@ -1556,19 +1556,29 @@ export default function DataCleaningTab() {
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-slate-700 font-medium">
-                {allProductsSelected
-                  ? `All ${total} products`
-                  : `${selectedProductIds.size} product(s) selected`}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500">
-                MPN: {selectedDetailProduct?.product_code}
-              </span>
-            </div>
-          </div>
+  <div className="flex items-center gap-3">
+    <span className="text-slate-700 font-medium">
+      {allProductsSelected
+        ? `All ${total} products selected`
+        : selectedProductIds.size > 0
+          ? `${selectedProductIds.size} product(s) selected`
+          : ""}
+    </span>
+    {!allProductsSelected && selectedProductIds.size > 0 && total > filteredSortedProducts.length && (
+      <button
+        onClick={() => setAllProductsSelected(true)}
+        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+      >
+        Select all {total} products across all pages
+      </button>
+    )}
+  </div>
+  <div className="flex items-center gap-2">
+    <span className="text-slate-500">
+      MPN: {selectedDetailProduct?.product_code}
+    </span>
+  </div>
+</div>
           <div
             className="overflow-auto relative"
             style={{ maxHeight: "calc(100vh - 280px)" }}
