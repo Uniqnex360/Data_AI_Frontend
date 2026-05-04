@@ -1170,101 +1170,102 @@ export default function SourcesTab({
             Create New Project
           </h4>
           <div className="flex flex-wrap lg:flex-nowrap items-start gap-3 mb-5">
-            <div className="flex-1 min-w-[150px]">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-                Project Name
-              </label>
-              <input
-                type="text"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Enter project name"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            {operationMode === "aggregation" && (
-              <div className="flex-1 min-w-[140px]">
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-                  Aggregation Type
-                </label>
-                <select
-                  value={aggregationType}
-                  onChange={(e) => {
-                    setAggregationType(e.target.value as "web" | "pdf" | "");
-                    setSelectedUseCase("");
-                    setShowUseCaseDropdown(false);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select type</option>
-                  <option value="web">Web Aggregation</option>
-                  <option value="pdf">PDF Extraction</option>
-                </select>
-              </div>
-            )}
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-                Operation Mode
-              </label>
-              <select
-                value={operationMode}
-                onChange={(e) => {
-                  setOperationMode(e.target.value as OperationMode);
-                  setAggregationType("");
-                  setSelectedUseCase("");
-                  setShowUseCaseDropdown(false);
-                }}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="aggregation">Aggregation</option>
-                <option value="cleaning">Cleaning</option>
-                <option value="enrichment">Enrichment</option>
-              </select>
-            </div>
+  {/* 1. Project Name */}
+  <div className="flex-1 min-w-[150px]">
+    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+      Project Name
+    </label>
+    <input
+      type="text"
+      value={projectName}
+      onChange={(e) => setProjectName(e.target.value)}
+      placeholder="Enter project name"
+      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
 
-            <div className="flex-1 min-w-[180px]">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-                Use Case
-              </label>
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowUseCaseDropdown(!showUseCaseDropdown);
-                  }}
-                  disabled={useCaseOptions.length === 0}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 flex items-center justify-between hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <span
-                    className={`truncate ${selectedUseCase ? "text-slate-700" : "text-slate-400"}`}
-                  >
-                    {selectedUseCase || "Select use case"}
-                  </span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-400 shrink-0 ml-1 transition-transform ${showUseCaseDropdown ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {showUseCaseDropdown && (
-                  <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {useCaseOptions.map((useCase) => (
-                      <button
-                        key={useCase}
-                        type="button"
-                        onClick={() => handleSelectUseCase(useCase)}
-                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                          selectedUseCase === useCase
-                            ? "bg-blue-50 text-blue-700 font-medium"
-                            : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {useCase}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+  {/* 2. Operation Mode */}
+  <div className="flex-1 min-w-[140px]">
+    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+      Operation Mode
+    </label>
+    <select
+      value={operationMode}
+      onChange={(e) => {
+        setOperationMode(e.target.value as OperationMode);
+        setAggregationType("");
+        setSelectedUseCase("");
+        setShowUseCaseDropdown(false);
+      }}
+      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <option value="aggregation">Aggregation</option>
+      <option value="cleaning">Cleansing</option>
+      <option value="enrichment">Enrichment</option>
+    </select>
+  </div>
+
+  {operationMode === "aggregation" && (
+    <div className="flex-1 min-w-[140px]">
+      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+        Aggregation Type
+      </label>
+      <select
+        value={aggregationType}
+        onChange={(e) => {
+          setAggregationType(e.target.value as "web" | "pdf" | "");
+          setSelectedUseCase("");
+          setShowUseCaseDropdown(false);
+        }}
+        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">Select type</option>
+        <option value="web">Web Aggregation</option>
+        <option value="pdf">PDF Extraction</option>
+      </select>
+    </div>
+  )}
+
+  {/* 4. Use Case */}
+  <div className="flex-1 min-w-[180px]">
+    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+      Use Case
+    </label>
+    <div className="relative">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowUseCaseDropdown(!showUseCaseDropdown);
+        }}
+        disabled={useCaseOptions.length === 0}
+        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 flex items-center justify-between hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <span className={`truncate ${selectedUseCase ? "text-slate-700" : "text-slate-400"}`}>
+          {selectedUseCase || "Select use case"}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 ml-1 transition-transform ${showUseCaseDropdown ? "rotate-180" : ""}`} />
+      </button>
+      {showUseCaseDropdown && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {useCaseOptions.map((useCase) => (
+            <button
+              key={useCase}
+              type="button"
+              onClick={() => handleSelectUseCase(useCase)}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                selectedUseCase === useCase
+                  ? "bg-blue-50 text-blue-700 font-medium"
+                  : "text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {useCase}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</div>
           <div className="flex justify-end gap-2">
             <button
               onClick={() => {

@@ -8,6 +8,15 @@ export const productService = {
     });
     return response.data;
   },
+  async getEnrichmentCounts(): Promise<Record<string, number>> {
+  try {
+    const { data } = await api.get("/products/enrichment-counts");
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch enrichment counts:", error);
+    return {};
+  }
+},
 async getProjectProductStats(
   projectId: string,
   filters?: {

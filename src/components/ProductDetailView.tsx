@@ -51,12 +51,19 @@ export function ProductDetailView({
 
   const parseValue = (str: string) => {
     if (!str) return "—";
+    if (!str.startsWith("{") || !str.includes("'value'")) {
+      return str;
+    }
     try {
-      const jsonStr = str.replace(/'/g, '"').replace(/None/g, "null");
+      const jsonStr = str
+        .replace(/'/g, '"')
+        .replace(/None/g, "null")
+        .replace(/True/g, "true")
+        .replace(/False/g, "false");
       const parsed = JSON.parse(jsonStr);
-      return parsed.value || "—";
+      return parsed.value || str;
     } catch (e) {
-      return "—";
+      return str;
     }
   };
 
@@ -87,14 +94,14 @@ export function ProductDetailView({
       const productAttrs: Record<string, string> = {};
       const productUoms: Record<string, string> = {};
       
-      attrResults[index].forEach((a) => {
-  productAttrs[a.attribute_name] = parseValue(a.values[0]?.value);
+     attrResults[index].forEach((a) => {
+  productAttrs[a.attribute_name] = parseValue(a.values?.[0]?.value);
   
-  const dynAttr = (product as any).attributes_dict?.[attrName];
-  if (dynAttr?.uom) {
-    productUoms[a.attribute_name] = dynAttr.uom;
+  const dynAttr = (p as any).attributes_dict?.[a.attribute_name];
+  if (dynAttr?.uom || dynAttr?.unit) {
+    productUoms[a.attribute_name] = dynAttr.uom || dynAttr.unit;
   }
-});
+}); 
       
       newMap[p.id] = productAttrs;
       newUomMap[p.id] = productUoms;
@@ -118,11 +125,11 @@ export function ProductDetailView({
     setExporting(true);
     try {
       const productIds = filteredProducts.map((p) => p.id);
-      const blob = await aggregationService.exportSelectedItems([], productIds);
+      const { blob, filename } = await aggregationService.exportSelectedItems([], productIds);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${projectName}_Export.xlsx`;
+      a.download = filename|| `${projectName}_Export.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

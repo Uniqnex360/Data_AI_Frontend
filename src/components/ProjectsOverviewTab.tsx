@@ -222,14 +222,14 @@ export default function ProjectsOverviewTab({
       } else if (sources.length > 0) {
         await extractionService.download(sources[0].id, "output");
       } else {
-        const blob = await aggregationService.exportSelectedItems(
+        const {blob,filename} = await aggregationService.exportSelectedItems(
           [projectId],
           [],
         );
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${projectName}_export.xlsx`;
+        a.download = filename || `${projectName}_export.xlsx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

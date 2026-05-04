@@ -253,14 +253,14 @@ export function ProjectStats({
     setDownloading(true);
     try {
       const selectedProducts = Array.from(selectedProductIds);
-      const blob = await aggregationService.exportSelectedItems(
+      const {blob,filename} = await aggregationService.exportSelectedItems(
         [],
         selectedProducts,
       );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `selected_export.xlsx`;
+      a.download = filename || `selected_export.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -292,14 +292,14 @@ export function ProjectStats({
   const handleDownload = async () => {
     try {
       setDownloading(true);
-      const blob = await aggregationService.exportSelectedItems(
+      const  { blob, filename }  = await aggregationService.exportSelectedItems(
         [projectId],
         [],
       );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${projectName}_export.xlsx`;
+      a.download = filename || `${projectName}_export.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

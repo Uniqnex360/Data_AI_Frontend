@@ -59,26 +59,26 @@ export const aggregationService = {
     }
   },
   async exportSelectedItems(
-    projectIds: string[],
-    productIds: string[],
-  ): Promise<Blob> {
-    try {
-      const response = await api.post(
-        "/aggregation/export/batch",
-        {
-          project_ids: projectIds,
-          product_ids: productIds,
-        },
-        {
-          responseType: "blob",
-        },
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Failed to export selected items:", error);
-      throw new Error("Export failed");
-    }
-  },
+  projectIds: string[],
+  productIds: string[],
+): Promise<{ blob: Blob; filename?: string }> {
+  try {
+    const response = await api.post(
+      "/aggregation/export/batch",
+      { project_ids: projectIds, product_ids: productIds },
+      { responseType: "blob" }
+    );
+
+    const disposition = response.headers["content-disposition"] || "";
+    const match = disposition.match(/filename\*=UTF-8''(.+)/);
+    const filename = match ? decodeURIComponent(match[1]) : undefined;
+
+    return { blob: response.data, filename };
+  } catch (error) {
+    console.error("Failed to export selected items:", error);
+    throw new Error("Export failed");
+  }
+},
   async aggregateProduct(
     productId: string,
     llmProvider: string,

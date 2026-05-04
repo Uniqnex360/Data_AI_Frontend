@@ -20,4 +20,10 @@ export const projectService = {
       throw error;
     }
   },
+  async searchProjects(q: string, operationMode?: string) {
+  const params = new URLSearchParams({ q });
+  if (operationMode) params.append("operation_mode", operationMode);
+  const { data } = await api.get(`/projects/search?${params}`);
+  return data as { id: string; name: string }[];
+}
 };

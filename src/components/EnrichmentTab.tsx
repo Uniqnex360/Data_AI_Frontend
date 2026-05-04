@@ -20,6 +20,7 @@ import {
   X,
   Zap,
   Target,
+  Search,
 } from "lucide-react";
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
@@ -38,6 +39,7 @@ import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { aggregationService } from "../services/aggregationService";
 import { formatValue } from "../utils/valueParser.tsx";
 import { useProductMovement } from "../hooks/useProductMovement.ts";
+import { Pagination } from "./Pagination";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -52,7 +54,8 @@ export default function EnrichmentTab({
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [useCases, setUseCases] = useState<string[]>([]);
-
+  const [projectsPage, setProjectsPage] = useState(1);
+  const PROJECTS_PER_PAGE = 10;
   const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
     Record<string, number>
   >({});
@@ -209,21 +212,28 @@ export default function EnrichmentTab({
   }, [selectedProjectId, projects]);
 
   const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    if (selectedUseCase) {
-      filtered = filtered.filter((p) => p.use_case === selectedUseCase);
-    }
-    if (statusFilter) {
-      filtered = filtered.filter((p) => p.source_status === statusFilter);
-    }
-
-    if (selectedProjectId) {
-      filtered = filtered.filter((p) => p.id === selectedProjectId);
-    }
-
-    return filtered;
-  }, [projects, selectedUseCase, selectedProjectId, statusFilter]);
+  let filtered = projects;
+  
+  if (selectedUseCase) {
+    filtered = filtered.filter((p) => p.use_case === selectedUseCase);
+  }
+  if (statusFilter) {
+    filtered = filtered.filter((p) => p.source_status === statusFilter);
+  }
+  if (selectedProjectId) {
+    filtered = filtered.filter((p) => p.id === selectedProjectId);
+  }
+  
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter((p) =>
+      p.name?.toLowerCase().includes(q) ||
+      p.use_case?.toLowerCase().includes(q)
+    );
+  }
+  
+  return filtered;
+}, [projects, selectedUseCase, selectedProjectId, statusFilter, searchQuery]);
 
   const resetLocalFilters = useCallback(() => {
     setSearchQuery("");
@@ -232,7 +242,15 @@ export default function EnrichmentTab({
     setBrandFilter("");
     setCurrentPage(1);
   }, []);
+  const paginatedProjects = useMemo(() => {
+    const start = (projectsPage - 1) * PROJECTS_PER_PAGE;
+    return filteredProjects.slice(start, start + PROJECTS_PER_PAGE);
+  }, [filteredProjects, projectsPage]);
 
+  const projectsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE),
+  );
   const toggleExpandProject = useCallback(
     async (projectId: string) => {
       if (expandedProjectId === projectId) {
@@ -795,14 +813,14 @@ export default function EnrichmentTab({
     }
     setDownloading(true);
     try {
-      const blob = await aggregationService.exportSelectedItems(
+      const { blob, filename } = await aggregationService.exportSelectedItems(
         selectedProjects,
         selectedProducts,
       );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `enrichment_export.xlsx`;
+      a.download = filename || `enrichment_export.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -991,7 +1009,7 @@ export default function EnrichmentTab({
 
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
         <div className="flex items-end justify-between gap-4 flex-wrap">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 flex-1">
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 LLM Provider
@@ -1153,6 +1171,23 @@ export default function EnrichmentTab({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Search Projects
+              </label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search project..."
+                  className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-lg bg-white text-sm"
+                />
+              </div>
+            </div>
           </div>
 
           {(statusFilter ||
@@ -1199,6 +1234,9 @@ export default function EnrichmentTab({
               onChange={toggleSelectAllProjects}
               className="rounded border-slate-300"
             />
+            <span className="text-xs text-slate-500">Select All</span>
+          </div>
+          <div className="flex items-center gap-4">
             <span className="text-sm font-semibold text-slate-900">
               {filteredProjects.length} Projects
             </span>
@@ -1207,6 +1245,13 @@ export default function EnrichmentTab({
                 {selectedProjectIds.size} selected
               </span>
             )}
+           <div className="flex items-center justify-end text-xs text-slate-500">
+  <Pagination
+    page={projectsPage}
+    totalPages={projectsTotalPages}
+    onPageChange={setProjectsPage}
+  />
+</div>
           </div>
         </div>
 
@@ -1215,20 +1260,40 @@ export default function EnrichmentTab({
           style={{ maxHeight: "calc(100vh - 350px)" }}
         >
           <table className="w-full">
-           <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
-  <tr>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12">Select</th>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500">Project Name</th>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500">Aggregation Type</th>
-    <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500">Use Case</th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">Products</th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">Aggregated</th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">Enrichment</th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">Completeness</th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">Status</th>
-    <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 w-12">Actions</th>
-  </tr>
-</thead>
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12">
+                  Select
+                </th>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500">
+                  Project Name
+                </th>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500">
+                  Aggregation Type
+                </th>
+                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500">
+                  Use Case
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
+                  Products
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
+                  Aggregated
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
+                  Enrichment
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
+                  Completeness
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 w-12">
+                  Actions
+                </th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-200">
               {projectsLoading ? (
                 <tr>
@@ -1239,14 +1304,14 @@ export default function EnrichmentTab({
                     </p>
                   </td>
                 </tr>
-              ) : filteredProjects.length === 0 ? (
+              ) : paginatedProjects.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="p-8 text-center text-slate-500">
                     No projects found
                   </td>
                 </tr>
               ) : (
-                filteredProjects.map((project) => (
+                paginatedProjects.map((project) => (
                   <React.Fragment key={project.id}>
                     <tr
                       className={`hover:bg-slate-50 transition-colors cursor-pointer ${
@@ -1309,21 +1374,21 @@ export default function EnrichmentTab({
                           {project.product_count ?? 0}
                         </span>
                       </td>
-                     <td className="px-4 py-4 text-center">
-  {project?.aggregated_count > 0 ? (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onNavigate?.("aggregation", project.id);
-      }}
-      className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full w-fit hover:bg-emerald-200 transition-colors cursor-pointer font-medium"
-    >
-      {project.aggregated_count}
-    </button>
-  ) : (
-    <span className="text-slate-400 text-xs">—</span>
-  )}
-</td>
+                      <td className="px-4 py-4 text-center">
+                        {project?.aggregated_count > 0 ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigate?.("aggregation", project.id);
+                            }}
+                            className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full w-fit hover:bg-emerald-200 transition-colors cursor-pointer font-medium"
+                          >
+                            {project.aggregated_count}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {projectEnrichmentCounts?.[project.id] > 0 ? (
                           <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
@@ -1442,7 +1507,6 @@ export default function EnrichmentTab({
                               ))}
                             </select>
 
-                            {/* Enrich All / Enrich Selected Button */}
                             {!isExpandedProjectSelected && (
                               <button
                                 onClick={handleEnrichAllInExpanded}
@@ -1474,8 +1538,7 @@ export default function EnrichmentTab({
                           >
                             <table className="w-full">
                               <thead className="sticky top-0 z-10 bg-slate-100">
-                               <tr className="text-left text-[13px] font-semibold text-slate-500">
-
+                                <tr className="text-left text-[13px] font-semibold text-slate-500">
                                   <th className="px-4 py-3 border-b border-slate-200 w-12 text-center">
                                     <input
                                       type="checkbox"
@@ -1522,7 +1585,7 @@ export default function EnrichmentTab({
                                     Category
                                   </th>
                                   <th className="px-4 py-3 border-b border-slate-200 text-center">
-                                    Completeness  
+                                    Completeness
                                   </th>
                                   <th className="px-4 py-3 border-b border-slate-200 text-center">
                                     Status
@@ -1702,6 +1765,13 @@ export default function EnrichmentTab({
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+          <Pagination
+            page={projectsPage}
+            totalPages={projectsTotalPages}
+            onPageChange={setProjectsPage}
+          />
         </div>
       </div>
 

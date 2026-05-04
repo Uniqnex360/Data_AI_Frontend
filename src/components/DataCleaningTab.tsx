@@ -24,6 +24,7 @@ import { cleansingService } from "../services/cleansingService";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { CleaningProductsOverview } from "./CleaningProductsOverview.tsx";
+import { Pagination } from "./Pagination.tsx";
 type SortDir = "asc" | "desc" | null;
 interface ColSort {
   attr: string;
@@ -299,6 +300,10 @@ export default function DataCleaningTab() {
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [projectsPage, setProjectsPage] = useState(1);
+  const PROJECTS_PER_PAGE = 10;
+  const filteredProjects = projects;
+
   const [colSorts, setColSorts] = useState<ColSort[]>([]);
   const [colFilters, setColFilters] = useState<ColFilter[]>([]);
   const [availableAttributes, setAvailableAttributes] = useState<string[]>([]);
@@ -366,6 +371,15 @@ export default function DataCleaningTab() {
       setLoading(false);
     }
   };
+  const paginatedProjects = useMemo(() => {
+    const start = (projectsPage - 1) * PROJECTS_PER_PAGE;
+    return filteredProjects.slice(start, start + PROJECTS_PER_PAGE);
+  }, [filteredProjects, projectsPage]);
+
+  const projectsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE),
+  );
   const loadProjectAttributes = useCallback(
     async (projectId: string, category?: string) => {
       if (!projectId) {
@@ -440,10 +454,11 @@ export default function DataCleaningTab() {
       list = list.filter((p) => p.enrichment_status === statusFilter);
     if (brandFilter) list = list.filter((p) => p.brand_name === brandFilter);
     if (categoryFilter)
-      list = list.filter((p) => 
-        p.category_3 === categoryFilter ||
-        p.category_2 === categoryFilter ||
-        p.category_1 === categoryFilter
+      list = list.filter(
+        (p) =>
+          p.category_3 === categoryFilter ||
+          p.category_2 === categoryFilter ||
+          p.category_1 === categoryFilter,
       );
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
@@ -472,10 +487,8 @@ export default function DataCleaningTab() {
     }
     for (const { attr, dir } of [...colSorts].reverse()) {
       list.sort((a, b) => {
-        const va =
-          (a as any).attributes_dict?.[attr]?.value ?? "";
-        const vb =
-          (b as any).attributes_dict?.[attr]?.value ?? "";
+        const va = (a as any).attributes_dict?.[attr]?.value ?? "";
+        const vb = (b as any).attributes_dict?.[attr]?.value ?? "";
         const cmp = String(va).localeCompare(String(vb), undefined, {
           numeric: true,
         });
@@ -690,7 +703,7 @@ export default function DataCleaningTab() {
               value: updatedValues.join(" | "),
               uom:
                 prev[product.id]?.[attrName]?.uom ??
-                                (product as any).attributes_dict?.[attrName]?.unit ??
+                (product as any).attributes_dict?.[attrName]?.unit ??
                 (product as any).attributes_dict?.[attrName]?.uom ??
                 "",
               values: updatedValues,
@@ -995,7 +1008,9 @@ export default function DataCleaningTab() {
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
             <div>
-            <label className="block text-sm text-slate-700 mb-2">Algorithm</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                Algorithm
+              </label>
               <select
                 value={selectedLLM}
                 onChange={(e) => setSelectedLLM(e.target.value)}
@@ -1009,7 +1024,9 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-slate-700 mb-2">Project</label>
+              <label className="block text-sm text-slate-700 mb-2">
+                Project
+              </label>
               <select
                 value={selectedProjectId}
                 onChange={async (e) => {
@@ -1059,9 +1076,7 @@ export default function DataCleaningTab() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-slate-700 mb-2">
-                Brand
-              </label>
+              <label className="block text-sm text-slate-700 mb-2">Brand</label>
               <select
                 value={brandFilter}
                 onChange={(e) => handleBrandChange(e.target.value)}
@@ -1235,7 +1250,7 @@ export default function DataCleaningTab() {
                   className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
                 />
               </div>
-              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-white">
                 <div className="flex flex-wrap gap-2">
                   {filteredBulkAttributes.length === 0 ? (
                     <p className="text-sm text-slate-500 py-2">
@@ -1283,7 +1298,7 @@ export default function DataCleaningTab() {
                     Set values for selected attributes (
                     {selectedBulkAttributes.length} selected)
                   </p>
-                  <div className="mt-3 max-h-64 overflow-y-auto">
+                  <div className="mt-3 max-h-64 overflow-y-auto bg-white rounded-lg p-3 border border-slate-100">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
                       {selectedBulkAttributes.map((attr) => (
                         <div key={attr} className="space-y-1">
@@ -1314,13 +1329,20 @@ export default function DataCleaningTab() {
           </div>
         )}
       {viewMode === "projects" && !selectedProjectId ? (
-        // PROJECTS TABLE
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3"></div>
+            <div className="flex items-center justify-end gap-4 text-xs text-slate-500">
               <span className="text-sm font-semibold text-slate-900">
-                {projects.length} Cleaning Projects
+                {filteredProjects.length} Cleaning Projects
               </span>
+              <div className="flex items-center">
+                <Pagination
+                  page={projectsPage}
+                  totalPages={projectsTotalPages}
+                  onPageChange={setProjectsPage}
+                />
+              </div>
             </div>
           </div>
           <div
@@ -1366,14 +1388,14 @@ export default function DataCleaningTab() {
                       </p>
                     </td>
                   </tr>
-                ) : projects.length === 0 ? (
+                ) : paginatedProjects.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-slate-500">
                       No cleaning projects found
                     </td>
                   </tr>
                 ) : (
-                  projects.map((project) => {
+                  paginatedProjects.map((project) => {
                     const totalProducts = project.product_count ?? 0;
                     const cnsProducts = project.cleaned_count ?? 0;
                     const failedProducts = project.failed_count ?? 0;
@@ -1476,6 +1498,13 @@ export default function DataCleaningTab() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+            <Pagination
+              page={projectsPage}
+              totalPages={projectsTotalPages}
+              onPageChange={setProjectsPage}
+            />
           </div>
         </div>
       ) : viewMode === "progress" ? (
@@ -1807,7 +1836,9 @@ export default function DataCleaningTab() {
 
                       {/* Dynamic Attributes - Keep existing code unchanged */}
                       {availableAttributes.map((attr) => {
-                         const dynAttr = (product as any).attributes_dict?.[attr];
+                        const dynAttr = (product as any).attributes_dict?.[
+                          attr
+                        ];
                         const edited = editingAttributes[product.id]?.[attr];
                         const currentValues = getAttrValues(product, attr);
                         const curVal =
