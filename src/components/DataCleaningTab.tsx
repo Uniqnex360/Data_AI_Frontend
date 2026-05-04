@@ -865,45 +865,36 @@ export default function DataCleaningTab() {
     }
   };
   const handleBulkUpdate = async () => {
-    if (!allProductsSelected && selectedProductIds.size === 0) {
-      notify.info("No products selected");
-      return;
-    }
-    const attrs = Object.fromEntries(
-      selectedBulkAttributes
-        .map((a) => [a, (bulkAttributeValues[a] || "").trim()])
-        .filter(([, v]) => v),
-    );
-    if (Object.keys(attrs).length === 0) {
-      notify.info("Enter at least one value");
-      return;
-    }
-    setBulkUpdating(true);
-    try {
-      const promises = Object.entries(attrs).map(([attrName, attrValue]) =>
-        cleansingService.bulkUpdateProductAttributes({
-          product_ids: allProductsSelected
-            ? []
-            : Array.from(selectedProductIds),
-          attribute_name: attrName,
-          attribute_value: attrValue,
-        }),
-      );
-      await cleansingService.bulkUpdateProductAttributes({
-        product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
-        project_id: allProductsSelected ? selectedProjectId : undefined,
-        attributes: attrs,
-      });
-      notify.success("Bulk update completed");
-      await loadProducts();
-      setBulkAttributeValues({});
-      setSelectedBulkAttributes([]);
-    } catch (e: any) {
-      notify.error("Bulk update failed", e.message);
-    } finally {
-      setBulkUpdating(false);
-    }
-  };
+  if (!allProductsSelected && selectedProductIds.size === 0) {
+    notify.info("No products selected");
+    return;
+  }
+  const attrs = Object.fromEntries(
+    selectedBulkAttributes
+      .map((a) => [a, (bulkAttributeValues[a] || "").trim()])
+      .filter(([, v]) => v),
+  );
+  if (Object.keys(attrs).length === 0) {
+    notify.info("Enter at least one value");
+    return;
+  }
+  setBulkUpdating(true);
+  try {
+    await cleansingService.bulkUpdateProductAttributes({
+      product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
+      project_id: allProductsSelected ? selectedProjectId : undefined,
+      attributes: attrs,
+    });
+    notify.success("Bulk update completed");
+    await loadProducts();
+    setBulkAttributeValues({});
+    setSelectedBulkAttributes([]);
+  } catch (e: any) {
+    notify.error("Bulk update failed", e.message);
+  } finally {
+    setBulkUpdating(false);
+  }
+};
   const handleReset = () => {
     setSelectedProjectId("");
     setViewMode("projects");

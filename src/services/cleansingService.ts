@@ -29,8 +29,8 @@ export const cleansingService = {
 // },
 async bulkUpdateProductAttributes(payload: {
   product_ids: string[];
-  attribute_name: string;
-  attribute_value: string;
+  project_id?: string;
+  attributes: Record<string, string>;
 }): Promise<any> {
   try {
     const { data } = await api.put("/cleansing/products/bulk-attributes", payload);
