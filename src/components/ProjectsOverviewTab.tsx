@@ -302,7 +302,7 @@ export default function ProjectsOverviewTab({
                 Projects Overview
               </h3>
               <span className="text-sm text-slate-500">
-                {projects.length} projects
+                {filtered.length} projects
               </span>
             </div>
             
