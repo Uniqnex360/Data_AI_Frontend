@@ -3,7 +3,6 @@ import {
   Folder,
   Search,
   Download,
-  FileSpreadsheet,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -12,6 +11,7 @@ import {
   Clock,
   X,
 } from "lucide-react";
+
 import { ProjectOverview } from "../types/business-rules.types.ts";
 import { extractionService } from "../services/extractionService";
 import { aggregationService } from "../services/aggregationService";
@@ -79,15 +79,21 @@ export default function ProjectsOverviewTab({
   loading = false,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [projectSources, setProjectSources] = useState<Record<string, []>>({});
+  const [projectSources, setProjectSources] = useState<Record<string, any[]>>(
+    {},
+  );
   const [loadingSources, setLoadingSources] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
+
+  const [brandFilter, setBrandFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const filtered = useMemo(() => {
     let list =
       currentFilter === "all"
         ? projects
         : projects.filter((p) => p.status === currentFilter);
+
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -96,8 +102,82 @@ export default function ProjectsOverviewTab({
           p.description?.toLowerCase().includes(q),
       );
     }
+
+    if (brandFilter !== "all") {
+      list = list.filter((p) => p.operationMode === brandFilter);
+    }
+    if (categoryFilter !== "all") {
+      list = list.filter((p) => p.useCase === categoryFilter);
+    }
+
     return list;
-  }, [currentFilter, projects, search]);
+  }, [currentFilter, projects, search, brandFilter, categoryFilter]);
+  // Dynamic unique values based on other filters
+  const availableOperationModes = useMemo(() => {
+    let list = [...projects];
+
+    // Apply status filter
+    if (currentFilter !== "all") {
+      list = list.filter((p) => p.status === currentFilter);
+    }
+    // Apply use case filter
+    if (categoryFilter !== "all") {
+      list = list.filter((p) => p.useCase === categoryFilter);
+    }
+    // Apply search
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q),
+      );
+    }
+
+    return [...new Set(list.map((p) => p.operationMode).filter(Boolean))];
+  }, [projects, currentFilter, categoryFilter, search]);
+
+  const availableUseCases = useMemo(() => {
+    let list = [...projects];
+
+    if (currentFilter !== "all") {
+      list = list.filter((p) => p.status === currentFilter);
+    }
+    if (brandFilter !== "all") {
+      list = list.filter((p) => p.operationMode === brandFilter);
+    }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q),
+      );
+    }
+
+    return [...new Set(list.map((p) => p.useCase).filter(Boolean))];
+  }, [projects, currentFilter, brandFilter, search]);
+
+  const availableStatuses = useMemo(() => {
+    let list = [...projects];
+
+    if (brandFilter !== "all") {
+      list = list.filter((p) => p.operationMode === brandFilter);
+    }
+    if (categoryFilter !== "all") {
+      list = list.filter((p) => p.useCase === categoryFilter);
+    }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q),
+      );
+    }
+
+    return [...new Set(list.map((p) => p.status).filter(Boolean))];
+  }, [projects, brandFilter, categoryFilter, search]);
   const effectiveTotalPages = search.trim()
     ? Math.max(1, Math.ceil(filtered.length / 20))
     : totalPages;
@@ -224,7 +304,7 @@ export default function ProjectsOverviewTab({
       } else if (sources.length > 0) {
         await extractionService.download(sources[0].id, "output");
       } else {
-        const {blob,filename} = await aggregationService.exportSelectedItems(
+        const { blob, filename } = await aggregationService.exportSelectedItems(
           [projectId],
           [],
         );
@@ -295,7 +375,7 @@ export default function ProjectsOverviewTab({
       className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
       style={{ maxHeight: "calc(100vh - 220px)" }}
     >
-            <div className="shrink-0 bg-white">
+      <div className="shrink-0 bg-white">
         <div className="px-5 pt-4 pb-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 shrink-0">
@@ -307,26 +387,46 @@ export default function ProjectsOverviewTab({
                 {totalCount ?? projects.length} projects
               </span>
             </div>
-            
+
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                {(["all", "active", "completed", "stalled", "new"] as const).map(
-                  (f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => onFilterChange?.(f)}
-                      className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors ${
-                        currentFilter === f
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </button>
-                  )
-                )}
-              </div>
+              <select
+                value={currentFilter}
+                onChange={(e) => onFilterChange?.(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+              >
+                <option value="all">All Status</option>
+                {availableStatuses.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+              >
+                <option value="all">All Modes</option>
+                {availableOperationModes.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+              >
+                <option value="all">All Use Cases</option>
+                {availableUseCases.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
               <div className="relative w-64">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -453,30 +553,48 @@ export default function ProjectsOverviewTab({
                       {p.totalProducts}
                     </td>
                     <td className="px-4 py-2 w-36">
-                      <ProgressBar
-                        value={p.aggregated}
-                        total={p.totalProducts}
-                        color="bg-blue-500"
-                        failed={p.aggregationFailed}
-                      />
-                    </td>
-                    <td className="px-4 py-2 w-36">
-                      <ProgressBar
-                        value={p.enrichment}
-                        total={p.totalProducts}
-                        color="bg-orange-500"
-                        failed={p.enrichmentFailed}
-                      />
-                    </td>
-                    <td className="px-4 py-2 w-36">
-                      <ProgressBar
-                        value={p.cleaning}
-                        total={p.totalProducts}
-                        color="bg-emerald-500"
-                      />
+                      {p.operationMode === "aggregation" ||
+                      p.operationMode === "pdf_extraction" ? (
+                        <ProgressBar
+                          value={p.aggregated}
+                          total={p.totalProducts}
+                          color="bg-blue-500"
+                          failed={p.aggregationFailed}
+                        />
+                      ) : (
+                        <span className="text-slate-400 text-sm">—</span>
+                      )}
                     </td>
 
-                                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-2 w-36">
+                      {p.operationMode === "enrichment" ? (
+                        <ProgressBar
+                          value={p.enrichment}
+                          total={p.totalProducts}
+                          color="bg-orange-500"
+                          failed={p.enrichmentFailed}
+                        />
+                      ) : (
+                        <span className="text-slate-400 text-sm">—</span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-2 w-36">
+                      {p.operationMode === "cleaning" ? (
+                        <ProgressBar
+                          value={p.cleaning}
+                          total={p.totalProducts}
+                          color="bg-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-400 text-sm">—</span>
+                      )}
+                    </td>
+
+                    <td
+                      className="px-4 py-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {isLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                       ) : importFileName ? (
@@ -485,9 +603,14 @@ export default function ProjectsOverviewTab({
                             onClick={async () => {
                               const sources = projectSources[p.id] || [];
                               if (sources.length > 0) {
-                                setDownloading((prev) => new Set(prev).add(p.id));
+                                setDownloading((prev) =>
+                                  new Set(prev).add(p.id),
+                                );
                                 try {
-                                  await extractionService.download(sources[0].id, "input");
+                                  await extractionService.download(
+                                    sources[0].id,
+                                    "input",
+                                  );
                                   notify.success("Download started");
                                 } catch {
                                   notify.error("Failed to download input");

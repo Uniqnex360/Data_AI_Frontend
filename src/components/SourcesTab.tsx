@@ -68,9 +68,11 @@ const toDateInputValue = (d: Date) =>
 export default function SourcesTab({
   projectId,
   onProjectSelect,
+  onNavigateToProject,
 }: {
   projectId?: string;
   onProjectSelect?: (projectId: string) => void;
+  onNavigateToProject?: (tab: string, projectId: string) => void;
 }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [showMpnExcelModal, setShowMpnExcelModal] = useState(false);
@@ -157,24 +159,24 @@ export default function SourcesTab({
   const [overviewTotalPages, setOverviewTotalPages] = useState(1);
   const [overviewSearch, setOverviewSearch] = useState("");
   const OVERVIEW_PAGE_SIZE = 20;
-  
+
   const loadProjectsOverview = async (page = 1) => {
-  setOverviewLoading(true);
-  try {
-    const data = await dashboardService.getProjectsOverview({
-      page,
-      page_size: OVERVIEW_PAGE_SIZE,
-      status: overviewFilter,
-      search: overviewSearch || undefined,
-    });
-    setProjectsOverview(data.projects || []); 
-    setTotalProjectCount(data.total || 0);
-  } catch (error) {
-    console.error("Failed to load projects overview:", error);
-  } finally {
-    setOverviewLoading(false);
-  }
-};
+    setOverviewLoading(true);
+    try {
+      const data = await dashboardService.getProjectsOverview({
+        page,
+        page_size: OVERVIEW_PAGE_SIZE,
+        status: overviewFilter,
+        search: overviewSearch || undefined,
+      });
+      setProjectsOverview(data.projects || []);
+      setTotalProjectCount(data.total || 0);
+    } catch (error) {
+      console.error("Failed to load projects overview:", error);
+    } finally {
+      setOverviewLoading(false);
+    }
+  };
   const handleOverviewPageChange = (page: number) => {
     setOverviewPage(page);
   };
@@ -1311,15 +1313,26 @@ export default function SourcesTab({
               setOverviewSearch(search);
               setOverviewPage(1);
             }}
-            onOpenProject={(id) => {
+            onOpenProject={async (id) => {
               const project = projects.find((p) => p.id === id);
-              if (project) {
+              if (!project) return;
+
+              const sources = await extractionService.getSourcesByProject(id);
+
+              if (!sources || sources.length === 0) {
                 setSelectedProject(project);
                 setOperationMode(project.operation_mode as OperationMode);
                 setSelectedUseCase(project.use_case || "");
-                loadSourcesForProject(id);
                 onProjectSelect?.(id);
                 setViewMode("sources");
+              } else {
+                if (project.operationMode === "cleaning") {
+                  onNavigateToProject?.("cleaning", id);
+                } else if (project.operationMode === "enrichment") {
+                  onNavigateToProject?.("enrichment", id);
+                } else {
+                  onNavigateToProject?.("aggregation", id);
+                }
               }
             }}
             onSelectProject={(id) => {

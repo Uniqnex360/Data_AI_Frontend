@@ -251,13 +251,13 @@ export default function AggregationTab({
     setStatsProject(null);
   }, []);
   const loadProjectEnrichmentCounts = useCallback(async () => {
-  try {
-    const counts = await productService.getEnrichmentCounts();
-    setProjectEnrichmentCounts(counts);
-  } catch (error) {
-    console.error("Failed to load enrichment counts:", error);
-  }
-}, []);
+    try {
+      const counts = await productService.getEnrichmentCounts();
+      setProjectEnrichmentCounts(counts);
+    } catch (error) {
+      console.error("Failed to load enrichment counts:", error);
+    }
+  }, []);
   // const handleExtractFreshMpn = async (productId: string, mpn: string) => {
   //   if (!expandedProjectId) {
   //     notify.error("No project selected");
@@ -521,7 +521,6 @@ export default function AggregationTab({
       );
       setProjects(aggregationData);
       await loadProjectEnrichmentCounts();
-
     } catch (error) {
       console.error("Failed to load projects:", error);
       notify.error("Failed to load projects");
@@ -530,11 +529,11 @@ export default function AggregationTab({
     }
   }, [loadProjectEnrichmentCounts]);
   useEffect(() => {
-  console.time('initialLoad');
-  loadProjects().then(() => {
-    console.timeEnd('initialLoad');
-  });
-}, [loadProjects]);
+    console.time("initialLoad");
+    loadProjects().then(() => {
+      console.timeEnd("initialLoad");
+    });
+  }, [loadProjects]);
   const resetFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter(new Set());
@@ -847,13 +846,13 @@ export default function AggregationTab({
     setDownloading(true);
     try {
       const { blob, filename } = await aggregationService.exportSelectedItems(
-      selectedProjects,
-      selectedProducts,
-    );
+        selectedProjects,
+        selectedProducts,
+      );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-     a.download = filename || "selected_export.xlsx";
+      a.download = filename || "selected_export.xlsx";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -1236,30 +1235,30 @@ export default function AggregationTab({
               </select>
             </div>
             <div>
-  <label className="block text-sm text-slate-700 mb-2">
-    Project
-  </label>
-  <select
-    value={selectedProjectId}
-    onChange={async (e) => {
-      const projectId = e.target.value;
-      setSelectedProjectId(projectId);
-      await loadProjectFilters(projectId);
-    }}
-    disabled={
-      projectsLoading ||
-      (!!selectedUseCase && filteredProjects.length === 0)
-    }
-    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-  >
-    <option value="">All Project</option>
-    {filteredProjects.map((project) => (
-      <option key={project.id} value={project.id}>
-        {project.name}
-      </option>
-    ))}
-  </select>
-</div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Project
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={async (e) => {
+                  const projectId = e.target.value;
+                  setSelectedProjectId(projectId);
+                  await loadProjectFilters(projectId);
+                }}
+                disabled={
+                  projectsLoading ||
+                  (!!selectedUseCase && filteredProjects.length === 0)
+                }
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Project</option>
+                {filteredProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Status
@@ -1351,216 +1350,219 @@ export default function AggregationTab({
       </div>
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-  <div className="flex items-center gap-3">
-    <input
-      type="checkbox"
-      checked={
-        filteredProjects.length > 0 &&
-        selectedProjectIds.size === filteredProjects.length
-      }
-      onChange={toggleSelectAllProjects}
-      className="rounded border-slate-300"
-    />
-    <span className="text-xs text-slate-500">Select All</span>
-  </div>
-  <div className="flex items-center gap-4">
-    <span className="text-sm font-semibold text-slate-900">
-      {filteredProjects.length} Projects
-    </span>
-    {selectedProjectIds.size > 0 && (
-      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-        {selectedProjectIds.size} selected
-      </span>
-    )}
-    <div className="flex items-center justify-end text-xs text-slate-500">
-      <Pagination
-        page={projectsPage}
-        totalPages={projectsTotalPages}
-        onPageChange={setProjectsPage}
-      />
-    </div>
-  </div>
-</div>
-        <div
-          className="overflow-auto"
-          style={{ maxHeight: "calc(100vh - 350px)" }}
-        >
-          <table className="w-full">
-            <thead className="sticky top-0 z-30 bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12 bg-white border-b border-slate-200">
-                  Select
-                </th>
-                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Project Name
-                </th>
-                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Aggregation Type
-                </th>
-                <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Use Case
-                </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Products
-                </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Aggregated
-                </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Enrichment
-                </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Completeness
-                </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {projectsLoading ? (
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={
+                filteredProjects.length > 0 &&
+                selectedProjectIds.size === filteredProjects.length
+              }
+              onChange={toggleSelectAllProjects}
+              className="rounded border-slate-300"
+            />
+            <span className="text-xs text-slate-500">Select All</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-slate-900">
+              {filteredProjects.length} Projects
+            </span>
+            {selectedProjectIds.size > 0 && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                {selectedProjectIds.size} selected
+              </span>
+            )}
+            <div className="flex items-center justify-end text-xs text-slate-500">
+              <Pagination
+                page={projectsPage}
+                totalPages={projectsTotalPages}
+                onPageChange={setProjectsPage}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-auto">
+            <table className="w-full">
+              <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
-                  <td colSpan={10} className="p-8 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
-                    <p className="text-slate-500 text-sm">
-                      Loading projects...
-                    </p>
-                  </td>
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 w-12 bg-white border-b border-slate-200">
+                    Select
+                  </th>
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Project Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Aggregation Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Use Case
+                  </th>
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Products
+                  </th>
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Aggregated
+                  </th>
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Enrichment
+                  </th>
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Completeness
+                  </th>
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Status
+                  </th>
                 </tr>
-              ) : filteredProjects.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-500">
-                    No projects found
-                  </td>
-                </tr>
-              ) : (
-                paginatedProjects.map((project) => (
-                  <tr
-                    key={project.id}
-                    className={`hover:bg-slate-50 transition-colors cursor-pointer ${
-                      expandedProjectId === project.id ? "bg-blue-50" : ""
-                    } ${
-                      selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""
-                    } ${
-                      aggregatingProjects.has(project.id) ? "bg-blue-50/30" : ""
-                    }`}
-                  >
-                    <td
-                      className="px-4 py-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedProjectIds.has(project.id)}
-                        onChange={(e) =>
-                          toggleProjectSelection(project.id, e as any)
-                        }
-                        className="rounded border-slate-300"
-                        disabled={aggregatingProjects.has(project.id)}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="font-semibold text-slate-900 hover:underline text-left"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openProjectStats(project.id);
-                          }}
-                        >
-                          {project.name}
-                        </button>
-                        {aggregatingProjects.has(project.id) && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            Processing
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
-                        {(project as any).aggregation_type ||
-                        project.operation_mode === "aggregation"
-                          ? "web"
-                          : project.operation_mode === "pdf_extraction"
-                            ? "pdf"
-                            : "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {project.use_case && (
-                        <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">
-                          {project.use_case}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
-                        {project.product_count ?? 0}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
-                        {project.aggregated_count ?? 0}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      {projectEnrichmentCounts[project.id] > 0 ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onNavigateToProject?.("enrichment", project.id);
-                          }}
-                          className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full w-fit hover:bg-purple-200 transition-colors cursor-pointer font-medium"
-                        >
-                          {projectEnrichmentCounts[project.id]}
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              (project.completeness_score || 0) > 80
-                                ? "bg-green-500"
-                                : (project.completeness_score || 0) > 50
-                                  ? "bg-amber-500"
-                                  : "bg-red-400"
-                            }`}
-                            style={{
-                              width: `${project.completeness_score || 0}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs text-slate-600 font-medium min-w-[35px]">
-                          {project.completeness_score || 0}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        title={project.source_status || "NA"}
-                        className="cursor-default"
-                      >
-                        {getStatusBadge(project.source_status || "NA", true)}
-                      </span>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {projectsLoading ? (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+                      <p className="text-slate-500 text-sm">
+                        Loading projects...
+                      </p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
-            <Pagination
-              page={projectsPage}
-              totalPages={projectsTotalPages}
-              onPageChange={setProjectsPage}
-            />
+                ) : filteredProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-slate-500">
+                      No projects found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedProjects.map((project) => (
+                    <tr
+                      key={project.id}
+                      className={`hover:bg-slate-50 transition-colors cursor-pointer ${
+                        expandedProjectId === project.id ? "bg-blue-50" : ""
+                      } ${
+                        selectedProjectIds.has(project.id)
+                          ? "bg-blue-50/50"
+                          : ""
+                      } ${
+                        aggregatingProjects.has(project.id)
+                          ? "bg-blue-50/30"
+                          : ""
+                      }`}
+                    >
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedProjectIds.has(project.id)}
+                          onChange={(e) =>
+                            toggleProjectSelection(project.id, e as any)
+                          }
+                          className="rounded border-slate-300"
+                          disabled={aggregatingProjects.has(project.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="font-semibold text-slate-900 hover:underline text-left"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openProjectStats(project.id);
+                            }}
+                          >
+                            {project.name}
+                          </button>
+                          {aggregatingProjects.has(project.id) && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Processing
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
+                          {(project as any).aggregation_type ||
+                          project.operation_mode === "aggregation"
+                            ? "web"
+                            : project.operation_mode === "pdf_extraction"
+                              ? "pdf"
+                              : "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {project.use_case && (
+                          <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                            {project.use_case}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                          {project.product_count ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+                          {project.aggregated_count ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {projectEnrichmentCounts[project.id] > 0 ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigateToProject?.("enrichment", project.id);
+                            }}
+                            className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full w-fit hover:bg-purple-200 transition-colors cursor-pointer font-medium"
+                          >
+                            {projectEnrichmentCounts[project.id]}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                (project.completeness_score || 0) > 80
+                                  ? "bg-green-500"
+                                  : (project.completeness_score || 0) > 50
+                                    ? "bg-amber-500"
+                                    : "bg-red-400"
+                              }`}
+                              style={{
+                                width: `${project.completeness_score || 0}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-600 font-medium min-w-[35px]">
+                            {project.completeness_score || 0}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          title={project.source_status || "NA"}
+                          className="cursor-default"
+                        >
+                          {getStatusBadge(project.source_status || "NA", true)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+              <Pagination
+                page={projectsPage}
+                totalPages={projectsTotalPages}
+                onPageChange={setProjectsPage}
+              />
+            </div>
           </div>
         </div>
       </div>
