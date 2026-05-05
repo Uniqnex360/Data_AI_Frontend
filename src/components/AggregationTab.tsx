@@ -123,6 +123,14 @@ export default function AggregationTab({
         (p) => p.source_status === projectStatusFilter,
       );
     }
+     if (projectSearch.trim()) {
+      const q = projectSearch.toLowerCase().trim();
+      filtered = filtered.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(q) ||
+          p.use_case?.toLowerCase().includes(q)
+      );
+    }
     return filtered;
   }, [
     projects,
@@ -130,6 +138,7 @@ export default function AggregationTab({
     selectedProjectId,
     aggregationTypeFilter,
     projectStatusFilter,
+    projectSearch
   ]);
   const paginatedProjects = useMemo(() => {
     const start = (projectsPage - 1) * PROJECTS_PER_PAGE;
@@ -1344,6 +1353,7 @@ export default function AggregationTab({
               onClick={resetFilters}
               className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
+
               Clear
             </button>
           )}

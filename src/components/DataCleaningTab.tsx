@@ -1121,7 +1121,6 @@ export default function DataCleaningTab() {
                     onClick={handleReset}
                     className="h-10 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50 inline-flex items-center gap-1.5 shrink-0"
                   >
-                    <X className="w-4 h-4" />
                     Clear
                   </button>
                 )}
@@ -1205,8 +1204,7 @@ export default function DataCleaningTab() {
                   disabled={selectedBulkAttributes.length === 0}
                   className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
                 >
-                  <X className="w-4 h-4" />
-                  Clear All
+                  Clear
                 </button>
                 <button
                   onClick={handleBulkUpdate}

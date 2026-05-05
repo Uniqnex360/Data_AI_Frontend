@@ -245,7 +245,6 @@ export default function BusinessRulesTab() {
               onClick={resetFilters}
               className="h-12 px-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold inline-flex items-center gap-2"
             >
-              <X className="w-4 h-4" />
               Clear
             </button>
           ) : (
