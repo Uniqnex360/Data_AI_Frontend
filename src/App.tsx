@@ -220,8 +220,7 @@ function AppShell() {
               })}
             </div>
           </nav>
-         <main className="flex-1 overflow-hidden bg-slate-50 p-2">
-
+          <main className="flex-1 overflow-y-auto bg-slate-50 p-2">
             {ActiveComponent && (
               <ActiveComponent
                 key={`${activeTab}-${selectedProject ?? "none"}-${resetKey}`}

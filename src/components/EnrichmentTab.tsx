@@ -40,9 +40,8 @@ import { aggregationService } from "../services/aggregationService";
 import { formatValue } from "../utils/valueParser.tsx";
 import { useProductMovement } from "../hooks/useProductMovement.ts";
 import { Pagination } from "./Pagination";
-
+import { ProjectStats } from "./ProjectStats.tsx";
 const ITEMS_PER_PAGE = 10;
-
 export default function EnrichmentTab({
   projectId,
   initialFilter = "all",
@@ -50,7 +49,6 @@ export default function EnrichmentTab({
 }: EnrichmentTabProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
-
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedUseCase, setSelectedUseCase] = useState("");
   const [useCases, setUseCases] = useState<string[]>([]);
@@ -59,7 +57,6 @@ export default function EnrichmentTab({
   const [projectEnrichmentCounts, setProjectEnrichmentCounts] = useState<
     Record<string, number>
   >({});
-
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
     null,
   );
@@ -67,21 +64,18 @@ export default function EnrichmentTab({
     Product[]
   >([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
-
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
+  const [statsProjectId, setStatsProjectId] = useState<string | null>(null);
+const [statsProject, setStatsProject] = useState<Project | null>(null);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
     new Set(),
   );
@@ -96,14 +90,12 @@ export default function EnrichmentTab({
     new Set(),
   );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
   const [selectedLLM, setSelectedLLM] = useState<string>("openai");
   const [llmOptions] = useState([
     { value: "openai", label: "Datavio Algo-1" },
     { value: "gemini", label: "Datavio Algo-2" },
     { value: "claude", label: "Datavio Algo-3" },
   ]);
-
   const { availableBrands, availableCategories, loadProjectFilters } =
     useProjectFilters();
   useEffect(() => {
@@ -112,6 +104,21 @@ export default function EnrichmentTab({
       toggleExpandProject(projectId);
     }
   }, [projectId]);
+  const openProjectStats = useCallback(
+  (pid: string) => {
+    setIsDrawerOpen(false);
+    setSelectedProduct(null);
+    setStatsProjectId(pid);
+    const proj = projects.find((p) => p.id === pid) || null;
+    setStatsProject(proj);
+  },
+  [projects],
+);
+
+const closeProjectStats = useCallback(() => {
+  setStatsProjectId(null);
+  setStatsProject(null);
+}, []);
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -119,14 +126,12 @@ export default function EnrichmentTab({
         operation_mode: "aggregation,pdf_extraction,enrichment",
         tab: "enrichment",
       });
-
       const enrichmentProjects = data.filter(
         (p: Project) =>
           p.operation_mode === "aggregation" ||
           p.operation_mode === "pdf_extraction" ||
           p.operation_mode === "enrichment",
       );
-
       setProjects(enrichmentProjects);
       const projectIds = enrichmentProjects.map((p) => p.id);
       if (projectIds.length > 0) {
@@ -146,7 +151,6 @@ export default function EnrichmentTab({
         const bIsAggregation =
           b === "Products with Category Assignments" ||
           b === "Products without Category Assignments";
-
         if (aIsAggregation && !bIsAggregation) return -1;
         if (!aIsAggregation && bIsAggregation) return 1;
         return a.localeCompare(b);
@@ -193,15 +197,12 @@ export default function EnrichmentTab({
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
-
   const loadDefaultFilters = useCallback(async () => {
     await loadProjectFilters();
   }, [loadProjectFilters]);
-
   useEffect(() => {
     loadDefaultFilters();
   }, [loadDefaultFilters]);
-
   useEffect(() => {
     if (selectedProjectId && projects.length > 0) {
       const project = projects.find((p) => p.id === selectedProjectId);
@@ -210,31 +211,27 @@ export default function EnrichmentTab({
       }
     }
   }, [selectedProjectId, projects]);
-
   const filteredProjects = useMemo(() => {
-  let filtered = projects;
-  
-  if (selectedUseCase) {
-    filtered = filtered.filter((p) => p.use_case === selectedUseCase);
-  }
-  if (statusFilter) {
-    filtered = filtered.filter((p) => p.source_status === statusFilter);
-  }
-  if (selectedProjectId) {
-    filtered = filtered.filter((p) => p.id === selectedProjectId);
-  }
-  
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase().trim();
-    filtered = filtered.filter((p) =>
-      p.name?.toLowerCase().includes(q) ||
-      p.use_case?.toLowerCase().includes(q)
-    );
-  }
-  
-  return filtered;
-}, [projects, selectedUseCase, selectedProjectId, statusFilter, searchQuery]);
-
+    let filtered = projects;
+    if (selectedUseCase) {
+      filtered = filtered.filter((p) => p.use_case === selectedUseCase);
+    }
+    if (statusFilter) {
+      filtered = filtered.filter((p) => p.source_status === statusFilter);
+    }
+    if (selectedProjectId) {
+      filtered = filtered.filter((p) => p.id === selectedProjectId);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(q) ||
+          p.use_case?.toLowerCase().includes(q),
+      );
+    }
+    return filtered;
+  }, [projects, selectedUseCase, selectedProjectId, statusFilter, searchQuery]);
   const resetLocalFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter("");
@@ -246,7 +243,6 @@ export default function EnrichmentTab({
     const start = (projectsPage - 1) * PROJECTS_PER_PAGE;
     return filteredProjects.slice(start, start + PROJECTS_PER_PAGE);
   }, [filteredProjects, projectsPage]);
-
   const projectsTotalPages = Math.max(
     1,
     Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE),
@@ -263,20 +259,17 @@ export default function EnrichmentTab({
         resetLocalFilters();
         return;
       }
-
       setExpandedProjectId(projectId);
       setExpandedLoading(true);
       setSelectedProduct(null);
       setAttributes([]);
       setSearchQuery("");
       resetLocalFilters();
-
       try {
         const result = await productService.getProductsByProject(
           projectId,
           "enrichment",
         );
-
         let products: Product[] = [];
         if (Array.isArray(result)) {
           products = result;
@@ -287,11 +280,9 @@ export default function EnrichmentTab({
         ) {
           products = Array.isArray(result.products) ? result.products : [];
         }
-
         setExpandedProjectProducts(products);
         setCurrentPage(1);
         await loadProjectFilters(projectId, undefined, undefined, "enrichment");
-
         const processingProductIds = products
           .filter((p) => p.enrichment_status === "processing")
           .map((p) => p.id);
@@ -313,10 +304,8 @@ export default function EnrichmentTab({
     },
     [expandedProjectId, loadProjectFilters, resetLocalFilters],
   );
-
   const filteredExpandedProducts = useMemo(() => {
     let filtered = [...expandedProjectProducts];
-
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
@@ -328,15 +317,12 @@ export default function EnrichmentTab({
           (p as any).mpn?.toLowerCase().includes(query),
       );
     }
-
     if (categoryFilter) {
       filtered = filtered.filter((p) => p.category_3 === categoryFilter);
     }
-
     if (brandFilter) {
       filtered = filtered.filter((p) => p.brand_name === brandFilter);
     }
-
     return filtered;
   }, [
     expandedProjectProducts,
@@ -345,7 +331,6 @@ export default function EnrichmentTab({
     categoryFilter,
     brandFilter,
   ]);
-
   const totalPages = Math.ceil(
     filteredExpandedProducts.length / ITEMS_PER_PAGE,
   );
@@ -354,7 +339,6 @@ export default function EnrichmentTab({
     startIndex,
     startIndex + ITEMS_PER_PAGE,
   );
-
   const expandedStats = useMemo(
     () => ({
       success: expandedProjectProducts.filter(
@@ -369,7 +353,6 @@ export default function EnrichmentTab({
     }),
     [expandedProjectProducts],
   );
-
   const loadAttributes = useCallback(async (productId: string) => {
     try {
       setAttributesLoading(true);
@@ -383,7 +366,6 @@ export default function EnrichmentTab({
       setAttributesLoading(false);
     }
   }, []);
-
   useEffect(() => {
     if (selectedProduct) {
       loadAttributes(selectedProduct);
@@ -392,7 +374,6 @@ export default function EnrichmentTab({
       setIsDrawerOpen(false);
     }
   }, [selectedProduct, loadAttributes]);
-
   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
     projectId: expandedProjectId,
     currentTab: "enrichment",
@@ -406,7 +387,6 @@ export default function EnrichmentTab({
     }, [expandedProjectId]),
     enabled: !!expandedProjectId && expandedProjectProducts.length > 0,
   });
-
   const handleEnrich = async (productId: string) => {
     setLoading(true);
     try {
@@ -419,7 +399,6 @@ export default function EnrichmentTab({
       await aggregationService.aggregateProduct(productId, selectedLLM);
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("Enrichment started");
-
       if (expandedProjectId) {
         const fresh = await productService.getProductsByProject(
           expandedProjectId,
@@ -433,13 +412,11 @@ export default function EnrichmentTab({
       const errorMessage =
         error.response?.data?.detail || error.message || "Enrichment failed";
       notify.error("Enrichment Failed", errorMessage);
-
       setPollingProductIds((prev) => {
         const updated = new Set(prev);
         updated.delete(productId);
         return updated;
       });
-
       setExpandedProjectProducts((prev) =>
         prev.map((p) =>
           p.id === productId ? { ...p, enrichment_status: "failed" } : p,
@@ -449,16 +426,13 @@ export default function EnrichmentTab({
       setLoading(false);
     }
   };
-
   const handleEnrichAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
-
     const selectedPendingProducts = expandedProjectProducts.filter(
       (p) =>
         selectedProductIds.has(p.id) &&
         (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
     );
-
     const pendingProducts =
       selectedProductIds.size > 0
         ? selectedPendingProducts
@@ -467,7 +441,6 @@ export default function EnrichmentTab({
               p.enrichment_status === "pending" ||
               p.enrichment_status === "failed",
           );
-
     if (pendingProducts.length === 0) {
       notify.info(
         selectedProductIds.size > 0
@@ -476,7 +449,6 @@ export default function EnrichmentTab({
       );
       return;
     }
-
     setLoading(true);
     try {
       pendingProducts.forEach((p) => trackProcessingProduct(p.id));
@@ -485,14 +457,12 @@ export default function EnrichmentTab({
           aggregationService.aggregateProduct(p.id, selectedLLM),
         ),
       );
-
       const newPollingIds = pendingProducts.map((p) => p.id);
       setPollingProductIds((prev) => {
         const updated = new Set(prev);
         newPollingIds.forEach((id) => updated.add(id));
         return updated;
       });
-
       setExpandedProjectProducts((prev) =>
         prev.map((p) =>
           pendingProducts.some((pp) => pp.id === p.id)
@@ -500,7 +470,6 @@ export default function EnrichmentTab({
             : p,
         ),
       );
-
       notify.success(
         `Enrichment started for ${pendingProducts.length} product(s)`,
       );
@@ -517,7 +486,6 @@ export default function EnrichmentTab({
     selectedProductIds,
     selectedLLM,
   ]);
-
   const pollProductStatuses = useCallback(async () => {
     if (pollingProductIds.size === 0 || !expandedProjectId) return;
     try {
@@ -525,9 +493,7 @@ export default function EnrichmentTab({
         productService.getProductsByProject(expandedProjectId, "enrichment"),
         productService.getProductsByProject(expandedProjectId, "aggregation"),
       ]);
-
       const completedOrFailed: string[] = [];
-
       pollingProductIds.forEach((productId) => {
         const productInEnrichment = enrichmentData.find(
           (p) => p.id === productId,
@@ -535,7 +501,6 @@ export default function EnrichmentTab({
         const productInAggregation = aggregationData.find(
           (p) => p.id === productId,
         );
-
         if (!productInEnrichment && productInAggregation) {
           const score = productInAggregation.completeness_score || 0;
           completedOrFailed.push(productId);
@@ -568,9 +533,7 @@ export default function EnrichmentTab({
           notify.error("Enrichment Failed", productInEnrichment.product_name);
         }
       });
-
       setExpandedProjectProducts(enrichmentData);
-
       if (completedOrFailed.length > 0) {
         setPollingProductIds((prev) => {
           const updated = new Set(prev);
@@ -578,7 +541,6 @@ export default function EnrichmentTab({
           return updated;
         });
       }
-
       if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
         await loadAttributes(selectedProduct);
       }
@@ -586,14 +548,12 @@ export default function EnrichmentTab({
       console.error("Polling error:", error);
     }
   }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
-
   const handleEnrichSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToEnrich = Array.from(selectedProjectIds);
     setLoading(true);
     let successCount = 0;
     const batchSize = 3;
-
     try {
       for (let i = 0; i < projectIdsToEnrich.length; i += batchSize) {
         const batch = projectIdsToEnrich.slice(i, i + batchSize);
@@ -611,7 +571,6 @@ export default function EnrichmentTab({
               error,
             })),
         );
-
         const results = await Promise.all(promises);
         for (const result of results) {
           if (result.status === "fulfilled") {
@@ -621,19 +580,16 @@ export default function EnrichmentTab({
             notify.error(`Failed to start enrichment for project`);
           }
         }
-
         if (i + batchSize < projectIdsToEnrich.length) {
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
-
       if (expandedProjectId && projectIdsToEnrich.includes(expandedProjectId)) {
         const freshData = await productService.getProductsByProject(
           expandedProjectId,
           "enrichment",
         );
         setExpandedProjectProducts(freshData);
-
         const processingIds = freshData
           .filter((p) => p.enrichment_status === "processing")
           .map((p) => p.id);
@@ -645,7 +601,6 @@ export default function EnrichmentTab({
           });
         }
       }
-
       if (successCount > 0) {
         notify.success(`Enrichment started for ${successCount} project(s)`);
       }
@@ -657,17 +612,14 @@ export default function EnrichmentTab({
       setSelectedProjectIds(new Set());
     }
   }, [selectedProjectIds, expandedProjectId, selectedLLM]);
-
   const pollProjectStatuses = useCallback(async () => {
     if (enrichingProjects.size === 0) return;
     const newEnrichingProjects = new Set(enrichingProjects);
     const completedProjects: string[] = [];
-
     for (const projectId of enrichingProjects) {
       try {
         const job =
           await aggregationService.getProjectAggregationStatus(projectId);
-
         if (job.status === "completed" || job.status === "failed") {
           newEnrichingProjects.delete(projectId);
           completedProjects.push(projectId);
@@ -683,7 +635,6 @@ export default function EnrichmentTab({
         console.error(`Failed to poll project ${projectId}:`, error);
       }
     }
-
     if (completedProjects.length > 0) {
       setEnrichingProjects(newEnrichingProjects);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
@@ -699,14 +650,12 @@ export default function EnrichmentTab({
       }
     }
   }, [enrichingProjects, expandedProjectId, projects]);
-
   useEffect(() => {
     if (enrichingProjects.size > 0) {
       const interval = setInterval(pollProjectStatuses, 3000);
       return () => clearInterval(interval);
     }
   }, [enrichingProjects, pollProjectStatuses]);
-
   useEffect(() => {
     if (pollingProductIds.size > 0 && expandedProjectId) {
       pollingIntervalRef.current = setInterval(pollProductStatuses, 3000);
@@ -723,17 +672,14 @@ export default function EnrichmentTab({
       }
     };
   }, [pollingProductIds.size, expandedProjectId, pollProductStatuses]);
-
   const toggleStatusFilter = (status: "completed" | "failed" | "pending") => {
     setStatusFilter((prev) => (prev === status ? "" : status));
     setCurrentPage(1);
   };
-
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
   };
-
   const resetFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter("");
@@ -748,7 +694,6 @@ export default function EnrichmentTab({
     setCurrentPage(1);
     loadDefaultFilters();
   }, [loadDefaultFilters]);
-
   const toggleSelectAllProjects = useCallback(() => {
     setSelectedProjectIds((prev) =>
       prev.size === filteredProjects.length
@@ -756,7 +701,6 @@ export default function EnrichmentTab({
         : new Set(filteredProjects.map((p) => p.id)),
     );
   }, [filteredProjects]);
-
   const toggleProjectSelection = useCallback(
     (projectId: string, e?: React.MouseEvent) => {
       e?.stopPropagation();
@@ -776,10 +720,8 @@ export default function EnrichmentTab({
     },
     [expandedProjectId, loadProjectFilters],
   );
-
   const canDownloadSelected = useMemo(() => {
     const downloadableStatuses = new Set(["completed", "failed", "pending"]);
-
     const productOk =
       selectedProductIds.size > 0 &&
       expandedProjectProducts.some(
@@ -787,7 +729,6 @@ export default function EnrichmentTab({
           selectedProductIds.has(p.id) &&
           downloadableStatuses.has(p.enrichment_status as any),
       );
-
     const projectOk =
       selectedProjectIds.size > 0 &&
       projects.some(
@@ -795,7 +736,6 @@ export default function EnrichmentTab({
           selectedProjectIds.has(pr.id) &&
           downloadableStatuses.has((pr.processing_status ?? "") as any),
       );
-
     return productOk || projectOk;
   }, [
     selectedProductIds,
@@ -803,7 +743,6 @@ export default function EnrichmentTab({
     selectedProjectIds,
     projects,
   ]);
-
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
     const selectedProducts = Array.from(selectedProductIds);
@@ -833,11 +772,9 @@ export default function EnrichmentTab({
       setDownloading(false);
     }
   }, [selectedProjectIds, selectedProductIds]);
-
   const isExpandedProjectSelected = expandedProjectId
     ? selectedProjectIds.has(expandedProjectId)
     : false;
-
   const hasProductsInSelectedProjects = useMemo(() => {
     if (selectedProjectIds.size === 0) return false;
     const selectedProjectsList = projects.filter((p) =>
@@ -845,18 +782,15 @@ export default function EnrichmentTab({
     );
     return selectedProjectsList.some((p) => (p.product_count ?? 0) > 0);
   }, [selectedProjectIds, projects]);
-
   const selectedProductData = expandedProjectProducts.find(
     (p) => p.id === selectedProduct,
   );
-
   const getMissingAttributes = useCallback((product: Product): string[] => {
     const raw =
       (product as any).missing_attributes ??
       (product as any).missingAttributes ??
       (product as any).missing_fields ??
       (product as any).missingFields;
-
     if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
     if (typeof raw === "string") {
       return raw
@@ -866,7 +800,16 @@ export default function EnrichmentTab({
     }
     return [];
   }, []);
-
+  if (statsProjectId) {
+  return (
+    <ProjectStats
+      projectId={statsProjectId}
+      project={statsProject ?? undefined}
+      onClose={closeProjectStats}
+      onNavigateProject={onNavigate}
+    />
+  );
+}
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -879,7 +822,6 @@ export default function EnrichmentTab({
               Select projects to manage product enrichment
             </p>
           </div>
-
           <div
             className={`flex items-center gap-3 transition-all duration-200 ${
               expandedProjectId ? "mr-[600px]" : ""
@@ -899,7 +841,6 @@ export default function EnrichmentTab({
                 Download Selected
               </button>
             )}
-
             {selectedProjectIds.size > 0 && (
               <button
                 onClick={handleEnrichSelectedProjects}
@@ -917,7 +858,6 @@ export default function EnrichmentTab({
             )}
           </div>
         </div>
-
         <div
           className={`absolute right-0 top-0 w-[420px] z-10 transition-all duration-200 ${
             expandedProjectId
@@ -937,7 +877,6 @@ export default function EnrichmentTab({
                   <span className="text-xs font-medium">Active</span>
                 </div>
               </div>
-
               <div className="w-[100px]">
                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
@@ -953,7 +892,6 @@ export default function EnrichmentTab({
                 </div>
               </div>
             </div>
-
             <div className="flex items-center gap-2 mt-1.5">
               <button
                 onClick={() => toggleStatusFilter("completed")}
@@ -970,7 +908,6 @@ export default function EnrichmentTab({
                   Completed
                 </span>
               </button>
-
               <button
                 onClick={() => toggleStatusFilter("failed")}
                 className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md border transition-colors ${
@@ -986,7 +923,6 @@ export default function EnrichmentTab({
                   Failed
                 </span>
               </button>
-
               <button
                 onClick={() => toggleStatusFilter("pending")}
                 className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md border transition-colors ${
@@ -1006,7 +942,6 @@ export default function EnrichmentTab({
           </div>
         </div>
       </div>
-
       <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="grid grid-cols-1 md:grid-cols-7 gap-4 flex-1">
@@ -1035,7 +970,6 @@ export default function EnrichmentTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Use Case
@@ -1083,7 +1017,6 @@ export default function EnrichmentTab({
                   ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Project
@@ -1109,7 +1042,6 @@ export default function EnrichmentTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Status
@@ -1129,7 +1061,6 @@ export default function EnrichmentTab({
                 <option value="Completed">Completed</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Category
@@ -1151,7 +1082,6 @@ export default function EnrichmentTab({
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-slate-700 mb-2">Brand</label>
               <select
@@ -1189,7 +1119,6 @@ export default function EnrichmentTab({
               </div>
             </div>
           </div>
-
           {(statusFilter ||
             categoryFilter ||
             brandFilter ||
@@ -1204,7 +1133,6 @@ export default function EnrichmentTab({
             </button>
           )}
         </div>
-
         {expandedProjectId && (
           <div className="mt-4 relative">
             {searchQuery && (
@@ -1221,7 +1149,6 @@ export default function EnrichmentTab({
           </div>
         )}
       </div>
-
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
           <div className="flex items-center gap-3">
@@ -1245,16 +1172,15 @@ export default function EnrichmentTab({
                 {selectedProjectIds.size} selected
               </span>
             )}
-           <div className="flex items-center justify-end text-xs text-slate-500">
-  <Pagination
-    page={projectsPage}
-    totalPages={projectsTotalPages}
-    onPageChange={setProjectsPage}
-  />
-</div>
+            <div className="flex items-center justify-end text-xs text-slate-500">
+              <Pagination
+                page={projectsPage}
+                totalPages={projectsTotalPages}
+                onPageChange={setProjectsPage}
+              />
+            </div>
           </div>
         </div>
-
         <div
           className="overflow-auto"
           style={{ maxHeight: "calc(100vh - 350px)" }}
@@ -1289,9 +1215,7 @@ export default function EnrichmentTab({
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
                   Status
                 </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 w-12">
-                  Actions
-                </th>
+                
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -1335,19 +1259,18 @@ export default function EnrichmentTab({
                           disabled={enrichingProjects.has(project.id)}
                         />
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-900">
-                            {project.name}
-                          </span>
-                          {enrichingProjects.has(project.id) && (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Processing
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                       <td className="px-4 py-3">
+    <button
+      type="button"
+      className="font-semibold text-slate-900 hover:underline text-left"
+      onClick={(e) => {
+        e.stopPropagation();
+        openProjectStats(project.id);
+      }}
+    >
+      {project.name}
+    </button>
+  </td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
                           {(project as any).aggregation_type ||
@@ -1427,32 +1350,11 @@ export default function EnrichmentTab({
                           {getStatusBadge(project.source_status || "NA", true)}
                         </span>
                       </td>
-                      <td
-                        className="px-4 py-3 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleExpandProject(project.id);
-                          }}
-                          className="p-1 hover:bg-slate-200 rounded transition-colors"
-                        >
-                          {enrichingProjects.has(project.id) ? (
-                            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                          ) : expandedProjectId === project.id ? (
-                            <ChevronUp className="w-5 h-5 text-slate-600" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5 text-slate-400" />
-                          )}
-                        </button>
-                      </td>
+                      
                     </tr>
-
                     {expandedProjectId === project.id && (
                       <tr>
                         <td colSpan={10} className="p-0 bg-slate-50">
-                          {/* Search & Filters Bar */}
                           <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-3 flex-wrap">
                             <div className="relative flex-1 min-w-[200px]">
                               <input
@@ -1506,7 +1408,6 @@ export default function EnrichmentTab({
                                 </option>
                               ))}
                             </select>
-
                             {!isExpandedProjectSelected && (
                               <button
                                 onClick={handleEnrichAllInExpanded}
@@ -1530,8 +1431,6 @@ export default function EnrichmentTab({
                               </button>
                             )}
                           </div>
-
-                          {/* Products Table */}
                           <div
                             className="overflow-auto"
                             style={{ maxHeight: "600px" }}
@@ -1718,8 +1617,6 @@ export default function EnrichmentTab({
                               </tbody>
                             </table>
                           </div>
-
-                          {/* Pagination */}
                           {filteredExpandedProducts.length > 0 && (
                             <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-white">
                               <span className="text-sm text-slate-500">
@@ -1774,7 +1671,6 @@ export default function EnrichmentTab({
           />
         </div>
       </div>
-
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
@@ -1782,14 +1678,12 @@ export default function EnrichmentTab({
             onClick={closeDrawer}
           />
           <div className="relative w-full max-w-2xl bg-white shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
-            {/* Header */}
             <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h2 className="text-lg font-bold text-slate-900 leading-tight truncate max-w-[520px]">
                     {selectedProductData.product_name}
                   </h2>
-
                   {selectedProductData.category_3 ? (
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                       {selectedProductData.category_3}
@@ -1801,7 +1695,6 @@ export default function EnrichmentTab({
                     </span>
                   )}
                 </div>
-
                 <div className="flex items-center gap-3 mt-2 text-sm text-slate-600 flex-wrap">
                   <span className="font-mono bg-white px-2 py-1 rounded border border-slate-200">
                     {selectedProductData.product_code}
@@ -1810,7 +1703,6 @@ export default function EnrichmentTab({
                   <span>{selectedProductData.brand_name}</span>
                 </div>
               </div>
-
               <button
                 onClick={closeDrawer}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
@@ -1818,11 +1710,8 @@ export default function EnrichmentTab({
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            {/* Sub-header / summary strip (Completeness + Missing + Status + Backfill) */}
             <div className="px-6 py-4 border-b border-slate-100 bg-white">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-                {/* Completeness */}
                 <div className="lg:col-span-3">
                   <div className="text-xs text-slate-500 mb-1">
                     Completeness
@@ -1841,8 +1730,6 @@ export default function EnrichmentTab({
                     </div>
                   </div>
                 </div>
-
-                {/* Missing Attributes */}
                 <div className="lg:col-span-6">
                   <div className="text-xs text-slate-500 mb-1">
                     Missing Attributes
@@ -1871,13 +1758,10 @@ export default function EnrichmentTab({
                     </div>
                   )}
                 </div>
-
-                {/* Status + Backfill */}
                 <div className="lg:col-span-3 flex items-center justify-end gap-3">
                   {getProductStatusBadge(
                     selectedProductData.enrichment_status || "pending",
                   )}
-
                   <button
                     onClick={() => handleEnrich(selectedProductData.id)}
                     disabled={
@@ -1902,7 +1786,6 @@ export default function EnrichmentTab({
                 </div>
               </div>
             </div>
-
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {attributesLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-500">
@@ -1946,9 +1829,7 @@ export default function EnrichmentTab({
                       />
                     </div>
                   )}
-
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Existing attributes */}
                     <div>
                       <div className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">
@@ -1956,7 +1837,6 @@ export default function EnrichmentTab({
                         </span>
                         Existing Attributes
                       </div>
-
                       <div className="space-y-3">
                         {attributes.map((attr) => (
                           <div
@@ -1975,14 +1855,11 @@ export default function EnrichmentTab({
                         ))}
                       </div>
                     </div>
-
-                    {/* Attributes to backfill */}
                     <div>
                       <div className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
                         <AlertTriangle className="w-5 h-5 text-amber-500" />
                         Attributes to Backfill
                       </div>
-
                       <div className="space-y-3">
                         {getMissingAttributes(selectedProductData).length ===
                         0 ? (
@@ -2005,8 +1882,6 @@ export default function EnrichmentTab({
                       </div>
                     </div>
                   </div>
-
-                  {/* Keep existing technical data source section (no functionality change) */}
                   {/* <div>
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                       <FileText className="w-4 h-4" /> Technical Data Source
@@ -2053,12 +1928,10 @@ export default function EnrichmentTab({
                 </>
               )}
             </div>
-
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
               <span className="text-xs text-slate-500">
                 Last updated: {new Date().toLocaleDateString()}
               </span>
-
               <button
                 onClick={() => handleEnrich(selectedProductData.id)}
                 disabled={
@@ -2089,8 +1962,6 @@ export default function EnrichmentTab({
     </div>
   );
 }
-
-/** UI-only tiny icon used in pills (kept local to avoid other changes) */
 function TagIcon() {
   return (
     <svg

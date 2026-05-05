@@ -13,12 +13,15 @@ import {
   RefreshCw,
   AlertCircle,
   FileDown,
+  Edit,
+  Check,
 } from "lucide-react";
 import { aggregationService } from "../services/aggregationService";
 import { extractionService } from "../services/extractionService";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { Product, Source } from "../types/database.types";
 import { notify } from "../lib/notifications";
+import { cleansingService } from "../services/cleansingService.ts";
 
 interface Props {
   projectId: string;
@@ -36,12 +39,25 @@ export function ProductDetailView({
   onNavigateToOverview,
 }: Props) {
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const [savingAll, setSavingAll] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [attrMap, setAttrMap] = useState<
     Record<string, Record<string, string>>
   >({});
+  const [editingCell, setEditingCell] = useState<{
+    productId: string;
+    attrName: string;
+  } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const [projectSource, setProjectSource] = useState<Source | null>(null);
-  const [attrUomMap, setAttrUomMap] = useState<Record<string, Record<string, string>>>({});
+  const [attrUomMap, setAttrUomMap] = useState<
+    Record<string, Record<string, string>>
+  >({});
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -76,45 +92,45 @@ export function ProductDetailView({
   }, [products]);
 
   const loadViewData = useCallback(async () => {
-  setLoading(true);
-  try {
-    const sources = await extractionService.getSourcesByProject(projectId);
-    if (sources && sources.length > 0) {
-      setProjectSource(sources[0]);
+    setLoading(true);
+    try {
+      const sources = await extractionService.getSourcesByProject(projectId);
+      if (sources && sources.length > 0) {
+        setProjectSource(sources[0]);
+      }
+
+      const attrResults = await Promise.all(
+        products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
+      );
+
+      const newMap: Record<string, Record<string, string>> = {};
+      const newUomMap: Record<string, Record<string, string>> = {};
+
+      products.forEach((p, index) => {
+        const productAttrs: Record<string, string> = {};
+        const productUoms: Record<string, string> = {};
+
+        attrResults[index].forEach((a) => {
+          productAttrs[a.attribute_name] = parseValue(a.values?.[0]?.value);
+
+          const dynAttr = (p as any).attributes_dict?.[a.attribute_name];
+          if (dynAttr?.uom || dynAttr?.unit) {
+            productUoms[a.attribute_name] = dynAttr.uom || dynAttr.unit;
+          }
+        });
+
+        newMap[p.id] = productAttrs;
+        newUomMap[p.id] = productUoms;
+      });
+
+      setAttrMap(newMap);
+      setAttrUomMap(newUomMap);
+    } catch (err) {
+      console.error("Failed to load view data", err);
+    } finally {
+      setLoading(false);
     }
-
-    const attrResults = await Promise.all(
-      products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
-    );
-
-    const newMap: Record<string, Record<string, string>> = {};
-    const newUomMap: Record<string, Record<string, string>> = {};
-    
-    products.forEach((p, index) => {
-      const productAttrs: Record<string, string> = {};
-      const productUoms: Record<string, string> = {};
-      
-     attrResults[index].forEach((a) => {
-  productAttrs[a.attribute_name] = parseValue(a.values?.[0]?.value);
-  
-  const dynAttr = (p as any).attributes_dict?.[a.attribute_name];
-  if (dynAttr?.uom || dynAttr?.unit) {
-    productUoms[a.attribute_name] = dynAttr.uom || dynAttr.unit;
-  }
-}); 
-      
-      newMap[p.id] = productAttrs;
-      newUomMap[p.id] = productUoms;
-    });
-
-    setAttrMap(newMap);
-    setAttrUomMap(newUomMap);
-  } catch (err) {
-    console.error("Failed to load view data", err);
-  } finally {
-    setLoading(false);
-  }
-}, [projectId, products]);
+  }, [projectId, products]);
 
   useEffect(() => {
     loadViewData();
@@ -125,11 +141,14 @@ export function ProductDetailView({
     setExporting(true);
     try {
       const productIds = filteredProducts.map((p) => p.id);
-      const { blob, filename } = await aggregationService.exportSelectedItems([], productIds);
+      const { blob, filename } = await aggregationService.exportSelectedItems(
+        [],
+        productIds,
+      );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename|| `${projectName}_Export.xlsx`;
+      a.download = filename || `${projectName}_Export.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -151,9 +170,54 @@ export function ProductDetailView({
       await extractionService.download(projectSource.id, "input");
     } catch (e) {
       notify.error("Failed to download input");
+      console.log(e);
     }
   };
-
+  const handleSaveAll = async () => {
+  setSavingAll(true);
+  try {
+    const updatedProductIds = new Set<string>();
+    
+    for (const [productId, attrs] of Object.entries(pendingChanges)) {
+      const formattedAttrs: Record<string, { value: string; uom: string }> = {};
+      for (const [key, val] of Object.entries(attrs)) {
+        if (val && val.trim() && val !== attrMap[productId]?.[key]) {
+          formattedAttrs[key] = { 
+            value: val.trim(), 
+            uom: attrUomMap[productId]?.[key] || "" 
+          };
+        }
+      }
+      if (Object.keys(formattedAttrs).length > 0) {
+        await cleansingService.updateProductAttributes(productId, formattedAttrs as any);
+        updatedProductIds.add(productId);
+      }
+    }
+    
+    if (updatedProductIds.size > 0) {
+      for (const productId of updatedProductIds) {
+        const attrs = await aggregationService.getAggregatedAttributes(productId);
+        const productAttrs: Record<string, string> = {};
+        const productUoms: Record<string, string> = {};
+        attrs.forEach((a: any) => {
+          productAttrs[a.attribute_name] = parseValue(a.values?.[0]?.value);
+        });
+        setAttrMap(prev => ({
+          ...prev,
+          [productId]: { ...prev[productId], ...productAttrs }
+        }));
+      }
+    }
+    
+    notify.success("Changes saved and values cleaned");
+    setPendingChanges({});
+    setEditMode(false);
+  } catch {
+    notify.error("Failed to save changes");
+  } finally {
+    setSavingAll(false);
+  }
+};
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesSearch =
@@ -221,10 +285,8 @@ export function ProductDetailView({
   );
 
   return (
-<div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
-
-           <div className="px-4 py-4 flex items-center justify-between bg-white border-b border-slate-200 shrink-0 rounded-2xl">
-
+    <div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
+      <div className="px-4 py-4 flex items-center justify-between bg-white border-b border-slate-200 shrink-0 rounded-2xl">
         <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
           <button
             onClick={onNavigateToOverview || onBack}
@@ -370,11 +432,41 @@ export function ProductDetailView({
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
-            <Filter className="w-3.5 h-3.5" /> Filters
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
-            <Columns className="w-3.5 h-3.5" /> Columns
+          {editMode && (
+            <>
+              <button
+                onClick={handleSaveAll}
+                disabled={savingAll || Object.keys(pendingChanges).length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+              >
+                {savingAll ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                Save All
+              </button>
+              <button
+                onClick={() => {
+                  setEditMode(false);
+                  setPendingChanges({});
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" /> Cancel
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setEditMode(!editMode)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
+              editMode
+                ? "bg-blue-600 text-white"
+                : "bg-white border border-slate-200 text-slate-600"
+            }`}
+          >
+            <Edit className="w-3.5 h-3.5" />
+            {editMode ? "Editing" : "Edit"}
           </button>
         </div>
       </div>
@@ -382,10 +474,8 @@ export function ProductDetailView({
       <div className="flex-1 overflow-hidden px-4 pb-4 flex flex-col">
         <div className="flex-1 overflow-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
           <table className="w-full text-left border-collapse table-fixed">
-           <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">
-
-               <tr className="text-[13px] font-semibold text-slate-500">
-
+            <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">
+              <tr className="text-[13px] font-semibold text-slate-500">
                 <th className="p-4 w-12 bg-slate-50 sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">
                   <input
                     type="checkbox"
@@ -401,7 +491,7 @@ export function ProductDetailView({
                   Product Name
                 </th>
                 <th className="p-4 w-36 border-l border-slate-100">Brand</th>
-<th className="p-4 w-36 border-l border-slate-100">Category</th>
+                <th className="p-4 w-36 border-l border-slate-100">Category</th>
                 {dynamicColumns.map((col, idx) => (
                   <th key={col} className="p-4 w-48 border-l border-slate-100">
                     <div className="flex flex-col">
@@ -469,19 +559,43 @@ export function ProductDetailView({
                       </div>
                     </td>
                     <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
-  {p.brand_name || "—"}
-</td>
-<td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
-  {p.category_3}
-</td>
+                      {p.brand_name || "—"}
+                    </td>
+                    <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
+                      {p.category_3}
+                    </td>
                     {dynamicColumns.map((col) => (
-  <td key={col} className="p-4 text-sm text-slate-600 border-l border-slate-50 font-medium">
-    {attrMap[p.id]?.[col] || "—"}
-    {attrUomMap[p.id]?.[col] && (
-      <span className="text-xs text-slate-400 ml-1">{attrUomMap[p.id][col]}</span>
-    )}
-  </td>
-))}
+                      <td
+                        key={col}
+                        className="p-4 text-sm border-l border-slate-50 font-medium"
+                      >
+                        {editMode ? (
+                          <input
+                            defaultValue={attrMap[p.id]?.[col] || ""}
+                            onChange={(e) => {
+                              setPendingChanges((prev) => ({
+                                ...prev,
+                                [p.id]: {
+                                  ...(prev[p.id] || {}),
+                                  [col]: e.target.value,
+                                },
+                              }));
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 outline-none focus:border-blue-300 text-sm"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <span>
+                            {attrMap[p.id]?.[col] || "—"}
+                            {attrUomMap[p.id]?.[col] && (
+                              <span className="text-xs text-slate-400 ml-1">
+                                {attrUomMap[p.id][col]}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    ))}
                     <td className="p-4 border-l border-slate-50">
                       <div className="flex flex-col items-center gap-1.5">
                         <span className="text-xs font-black text-slate-700">

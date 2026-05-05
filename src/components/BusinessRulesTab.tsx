@@ -23,6 +23,8 @@ import EditPromptModal from "./BusinessModal/EditPromptModal";
 import AddRuleModal from "./BusinessModal/AddRuleModal.tsx";
 import AddPromptModal from "./BusinessModal/AddPromptModal.tsx";
 import StatusConfirmModal from "./BusinessModal/StatusConfirmModal";
+import CategoryPromptModal from "./CategoryPromptModal";
+import BrandPromptModal from "./BrandPromptModal";
 const CATEGORY_COLORS: Record<RuleCategory, string> = {
   enrichment: "bg-emerald-100 text-emerald-700 border-emerald-200",
   aggregation: "bg-indigo-100 text-indigo-700 border-indigo-200",
@@ -71,6 +73,16 @@ export default function BusinessRulesTab() {
     item: BusinessRule | RulePrompt;
     newStatus: RuleStatus;
   } | null>(null);
+  const [categoryPrompts, setCategoryPrompts] = useState<any[]>([]);
+  const [brandPrompts, setBrandPrompts] = useState<any[]>([]);
+  const [showCategoryPromptModal, setShowCategoryPromptModal] = useState(false);
+  const [showBrandPromptModal, setShowBrandPromptModal] = useState(false);
+  const [selectedCategoryPrompt, setSelectedCategoryPrompt] =
+    useState<any>(null);
+  const [selectedBrandPrompt, setSelectedBrandPrompt] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"rules" | "categories" | "brands">(
+    "rules",
+  );
   const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set());
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
@@ -87,10 +99,11 @@ export default function BusinessRulesTab() {
         category: categoryFilter !== "all" ? categoryFilter : undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
         search: searchQuery.trim() || undefined,
-        
       });
       const allPrompts = data.rules.flatMap((rule) => rule.prompts);
-      const promptNames = [...new Set(allPrompts.map((p) => p.prompt_name))].sort();
+      const promptNames = [
+        ...new Set(allPrompts.map((p) => p.prompt_name)),
+      ].sort();
       setUniquePromptNames(promptNames);
       setAllRules(data.rules);
     } catch (error) {
@@ -106,12 +119,15 @@ export default function BusinessRulesTab() {
       filteredRules = filteredRules
         .map((rule) => ({
           ...rule,
-          prompts: rule.prompts.filter((p) => p.prompt_name === promptNameFilter),
+          prompts: rule.prompts.filter(
+            (p) => p.prompt_name === promptNameFilter,
+          ),
         }))
         .filter((rule) => rule.prompts.length > 0);
     }
     setRules(filteredRules);
   }, [allRules, promptNameFilter]);
+
   useEffect(() => {
     loadRules();
   }, [loadRules]);
@@ -127,7 +143,10 @@ export default function BusinessRulesTab() {
     setCategoryFilter("all");
     setPromptNameFilter("");
   }, []);
-  const handleUpdateRuleStatus = async (rule: BusinessRule, status: RuleStatus) => {
+  const handleUpdateRuleStatus = async (
+    rule: BusinessRule,
+    status: RuleStatus,
+  ) => {
     try {
       await businessRulesService.updateRuleStatus(rule.id, status);
       notify.success(`Rule status updated to ${status}`);
@@ -136,6 +155,23 @@ export default function BusinessRulesTab() {
       await loadRules();
     } catch (error: any) {
       notify.error("Failed to update rule status", error.message);
+    }
+  };
+  const loadCategoryPrompts = async () => {
+    try {
+      const data = await businessRulesService.getCategoryPrompts();
+      setCategoryPrompts(data);
+    } catch (error) {
+      console.error("Failed to load category prompts:", error);
+    }
+  };
+
+  const loadBrandPrompts = async () => {
+    try {
+      const data = await businessRulesService.getBrandPrompts();
+      setBrandPrompts(data);
+    } catch (error) {
+      console.error("Failed to load brand prompts:", error);
     }
   };
   const handleUpdatePromptStatus = async (
@@ -169,7 +205,8 @@ export default function BusinessRulesTab() {
             Business Rules / Prompts
           </h3>
           <p className="text-sm text-slate-500 mt-1">
-            Configure LLM prompts that drive aggregation and enrichment pipelines
+            Configure LLM prompts that drive aggregation and enrichment
+            pipelines
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -224,7 +261,7 @@ export default function BusinessRulesTab() {
             <option value="all">All Scenarios</option>
             <option value="enrichment">Enrichment</option>
             <option value="aggregation">Aggregation</option>
-             <option value="extraction">PDF Extraction</option> 
+            <option value="extraction">PDF Extraction</option>
             <option value="standardization">Standardization</option>
           </select>
           <select
@@ -245,6 +282,7 @@ export default function BusinessRulesTab() {
               onClick={resetFilters}
               className="h-12 px-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold inline-flex items-center gap-2"
             >
+              <X className="w-4 h-4" />
               Clear
             </button>
           ) : (
@@ -252,11 +290,49 @@ export default function BusinessRulesTab() {
           )}
         </div>
       </div>
+      <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("rules")}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            activeTab === "rules"
+              ? "bg-blue-600 text-white"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          Rules & Prompts
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("categories");
+            loadCategoryPrompts();
+          }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            activeTab === "categories"
+              ? "bg-blue-600 text-white"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          Category Prompts
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("brands");
+            loadBrandPrompts();
+          }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            activeTab === "brands"
+              ? "bg-blue-600 text-white"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          Brand Prompts
+        </button>
+      </div>
       {loading ? (
         <div className="flex items-center justify-center py-16 bg-white border border-slate-200 rounded-2xl">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         </div>
-      ) : rules.length === 0 ? (
+     ) : activeTab !== "rules" ? null : rules.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
           <Shield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-700 font-semibold">No rules found</p>
@@ -319,7 +395,8 @@ export default function BusinessRulesTab() {
                           )}
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
-                          {activePromptCount} of {rule.prompts.length} prompts active
+                          {activePromptCount} of {rule.prompts.length} prompts
+                          active
                         </div>
                         {rule.description && (
                           <div className="text-sm text-slate-600 mt-2 line-clamp-2">
@@ -388,12 +465,12 @@ export default function BusinessRulesTab() {
                                     {prompt.prompt_name}
                                   </div>
                                   <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
-      {prompt.prompt_type}
-    </span>
-    
-    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-      {prompt.response_schema}
-    </span>
+                                    {prompt.prompt_type}
+                                  </span>
+
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                    {prompt.response_schema}
+                                  </span>
                                   {prompt.description && (
                                     <div className="text-sm text-slate-500 mt-1">
                                       {prompt.description}
@@ -404,25 +481,28 @@ export default function BusinessRulesTab() {
                                       {prompt.prompt_text}
                                     </pre>
                                   </div>
-                                  {prompt.variables && prompt.variables.length > 0 && (
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      {prompt.variables.map((variable) => (
-                                        <code
-                                          key={variable}
-                                          className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs"
-                                        >
-                                          {`{{${variable}}}`}
-                                        </code>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {prompt.variables &&
+                                    prompt.variables.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap gap-2">
+                                        {prompt.variables.map((variable) => (
+                                          <code
+                                            key={variable}
+                                            className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs"
+                                          >
+                                            {`{{${variable}}}`}
+                                          </code>
+                                        ))}
+                                      </div>
+                                    )}
                                 </div>
                               </div>
                               <div className="flex flex-col items-end gap-3 shrink-0">
                                 <div className="flex items-center gap-3">
                                   <span
                                     className={`text-xs font-semibold ${
-                                      enabled ? "text-blue-600" : "text-slate-400"
+                                      enabled
+                                        ? "text-blue-600"
+                                        : "text-slate-400"
                                     }`}
                                   >
                                     {enabled ? "Enabled" : "Disabled"}
@@ -442,11 +522,17 @@ export default function BusinessRulesTab() {
                                     className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
                                       enabled ? "bg-blue-600" : "bg-slate-300"
                                     }`}
-                                    title={enabled ? "Disable prompt" : "Enable prompt"}
+                                    title={
+                                      enabled
+                                        ? "Disable prompt"
+                                        : "Enable prompt"
+                                    }
                                   >
                                     <span
                                       className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                                        enabled ? "translate-x-6" : "translate-x-1"
+                                        enabled
+                                          ? "translate-x-6"
+                                          : "translate-x-1"
                                       }`}
                                     />
                                   </button>
@@ -471,7 +557,9 @@ export default function BusinessRulesTab() {
                                       });
                                       setShowStatusModal(true);
                                     }}
-                                    disabled={prompt.status === RuleStatus.INACTIVE}
+                                    disabled={
+                                      prompt.status === RuleStatus.INACTIVE
+                                    }
                                     className="w-10 h-10 rounded-xl border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-700 text-slate-700 disabled:opacity-50"
                                     title={
                                       prompt.status === RuleStatus.INACTIVE
@@ -495,6 +583,164 @@ export default function BusinessRulesTab() {
           })}
         </div>
       )}
+      {activeTab === "categories" && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-slate-100">
+            <h4 className="font-semibold text-slate-900">
+              Category-Specific Prompts
+            </h4>
+            <button
+              onClick={() => {
+                setSelectedCategoryPrompt(null);
+                setShowCategoryPromptModal(true);
+              }}
+              className="h-10 px-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Add Category Prompt
+            </button>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <tr>
+                <th className="px-4 py-3 text-left">Category</th>
+                <th className="px-4 py-3 text-left">Stage</th>
+                <th className="px-4 py-3 text-left">Prompt Name</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {categoryPrompts.map((cp) => (
+                <tr key={cp.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium">{cp.category_name}</td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-1 bg-slate-100 rounded-full text-xs">
+                      {cp.stage}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{cp.prompt_name}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        cp.status === "active"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {cp.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => {
+                        setSelectedCategoryPrompt(cp);
+                        setShowCategoryPromptModal(true);
+                      }}
+                      className="p-1 hover:bg-slate-100 rounded"
+                    >
+                      <Edit className="w-4 h-4 text-slate-500" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await businessRulesService.deleteCategoryPrompt(cp.id);
+                        loadCategoryPrompts();
+                      }}
+                      className="p-1 hover:bg-red-50 rounded ml-1"
+                    >
+                      <X className="w-4 h-4 text-red-500" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {activeTab === "brands" && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-slate-100">
+            <h4 className="font-semibold text-slate-900">
+              Brand-Specific Prompts
+            </h4>
+            <button
+              onClick={() => {
+                setSelectedBrandPrompt(null);
+                setShowBrandPromptModal(true);
+              }}
+              className="h-10 px-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Add Brand Prompt
+            </button>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <tr>
+                <th className="px-4 py-3 text-left">Brand</th>
+                <th className="px-4 py-3 text-left">Stage</th>
+                <th className="px-4 py-3 text-left">Prompt Name</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {brandPrompts.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
+                    No brand prompts found
+                  </td>
+                </tr>
+              ) : (
+                brandPrompts.map((bp) => (
+                  <tr key={bp.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium">{bp.brand_name}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 bg-slate-100 rounded-full text-xs">
+                        {bp.stage}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{bp.prompt_name}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          bp.status === "active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {bp.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => {
+                          setSelectedBrandPrompt(bp);
+                          setShowBrandPromptModal(true);
+                        }}
+                        className="p-1 hover:bg-slate-100 rounded"
+                      >
+                        <Edit className="w-4 h-4 text-slate-500" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await businessRulesService.deleteBrandPrompt(bp.id);
+                          loadBrandPrompts();
+                          notify.success("Brand prompt deleted");
+                        }}
+                        className="p-1 hover:bg-red-50 rounded ml-1"
+                      >
+                        <X className="w-4 h-4 text-red-500" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
       {showAddRuleModal && (
         <AddRuleModal
           onClose={() => setShowAddRuleModal(false)}
@@ -502,7 +748,6 @@ export default function BusinessRulesTab() {
             setShowAddRuleModal(false);
             loadRules();
           }}
-        
         />
       )}
       {showEditRuleModal && selectedRule && (
@@ -567,6 +812,26 @@ export default function BusinessRulesTab() {
                 statusChangeTarget.newStatus,
               );
             }
+          }}
+        />
+      )}
+      {showCategoryPromptModal && (
+        <CategoryPromptModal
+          prompt={selectedCategoryPrompt}
+          onClose={() => setShowCategoryPromptModal(false)}
+          onSuccess={() => {
+            setShowCategoryPromptModal(false);
+            loadCategoryPrompts();
+          }}
+        />
+      )}
+      {showBrandPromptModal && (
+        <BrandPromptModal
+          prompt={selectedBrandPrompt}
+          onClose={() => setShowBrandPromptModal(false)}
+          onSuccess={() => {
+            setShowBrandPromptModal(false);
+            loadBrandPrompts();
           }}
         />
       )}

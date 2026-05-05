@@ -10,6 +10,83 @@ export const businessRulesService = {
        throw error;
     }
   },
+  async getCategoryPrompts(): Promise<any[]> {
+  try {
+    const { data } = await api.get("/business-rules/category-prompts");
+    return data;
+  } catch (error: any) {
+    console.error("Error fetching category prompts:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async createCategoryPrompt(payload: any): Promise<any> {
+  try {
+    const { data } = await api.post("/business-rules/category-prompts", payload);
+    return data;
+  } catch (error: any) {
+    console.error("Error creating category prompt:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async updateCategoryPrompt(id: string, payload: any): Promise<any> {
+  try {
+    const { data } = await api.put(`/business-rules/category-prompts/${id}`, payload);
+    return data;
+  } catch (error: any) {
+    console.error("Error updating category prompt:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async deleteCategoryPrompt(id: string): Promise<void> {
+  try {
+    await api.delete(`/business-rules/category-prompts/${id}`);
+  } catch (error: any) {
+    console.error("Error deleting category prompt:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async getBrandPrompts(): Promise<any[]> {
+  try {
+    const { data } = await api.get("/business-rules/brand-prompts");
+    return data;
+  } catch (error: any) {
+    console.error("Error fetching brand prompts:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async createBrandPrompt(payload: any): Promise<any> {
+  try {
+    const { data } = await api.post("/business-rules/brand-prompts", payload);
+    return data;
+  } catch (error: any) {
+    console.error("Error creating brand prompt:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async updateBrandPrompt(id: string, payload: any): Promise<any> {
+  try {
+    const { data } = await api.put(`/business-rules/brand-prompts/${id}`, payload);
+    return data;
+  } catch (error: any) {
+    console.error("Error updating brand prompt:", error);
+    throw error?.response?.data || error;
+  }
+},
+
+async deleteBrandPrompt(id: string): Promise<void> {
+  try {
+    await api.delete(`/business-rules/brand-prompts/${id}`);
+  } catch (error: any) {
+    console.error("Error deleting brand prompt:", error);
+    throw error?.response?.data || error;
+  }
+},
   async getAllRules(params?: {
     category?: RuleCategory;
     status?: RuleStatus;

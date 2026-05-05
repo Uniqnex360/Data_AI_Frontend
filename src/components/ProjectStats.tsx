@@ -329,7 +329,7 @@ export function ProjectStats({
                 onClick={onClose}
                 className="text-xs text-indigo-400 hover:text-indigo-300 mb-1 flex items-center gap-1"
               >
-                <ChevronLeft className="w-3 h-3" /> Back to Aggregation
+                <ChevronLeft className="w-3 h-3" /> Back
               </button>
 
               <h1 className="text-xl font-bold tracking-tight">
@@ -337,73 +337,7 @@ export function ProjectStats({
               </h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              {selectedProductIds.size > 0 && (
-                <>
-                  <button
-                    onClick={async () => {
-                      const ids = Array.from(selectedProductIds);
-                      setAggregatingProducts(new Set(ids));
-                      let successCount = 0;
-                      try {
-                        for (const productId of ids) {
-                          try {
-                            await aggregationService.aggregateProduct(
-                              productId,
-                              "openai",
-                            );
-                            successCount++;
-                          } catch (e) {
-                            console.error(
-                              `Failed to aggregate ${productId}:`,
-                              e,
-                            );
-                          }
-                        }
-                        if (successCount > 0) {
-                          notify.success(
-                            `Aggregation started for ${successCount} product(s)`,
-                          );
-                        }
-                        await loadData();
-                      } catch (e: any) {
-                        notify.error("Aggregation failed", e.message);
-                        setAggregatingProducts(new Set());
-                      }
-                    }}
-                    disabled={aggregatingProducts.size > 0}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-                  >
-                    {aggregatingProducts.size > 0 ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                    Aggregate ({selectedProductIds.size})
-                  </button>
-                  <button
-                    onClick={handleDownloadSelected}
-                    disabled={downloading}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-                  >
-                    {downloading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4" />
-                    )}
-                    Download Selected ({selectedProductIds.size})
-                  </button>
-                </>
-              )}
-              {selectedProductIds.size > 1 && (
-                <button
-                  onClick={() => setShowDetailView(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
-                >
-                  <Eye className="w-4 h-4" />
-                  View Selected ({selectedProductIds.size})
-                </button>
-              )}
+            
               {onClose && (
                 <button
                   onClick={onClose}
@@ -413,7 +347,6 @@ export function ProjectStats({
                 </button>
               )}
             </div>
-          </div>
 
           <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-200">
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
@@ -556,33 +489,102 @@ export function ProjectStats({
           </div>
 
           <div className="px-6 pt-4 border-b border-slate-200">
-            <div className="flex items-center gap-6">
-              <TabButton
-                label="Product Listing"
-                active={tab === "listing"}
-                onClick={() => {
-                  setTab("listing");
-                  setPage(1);
-                }}
-              />
-              <TabButton
-                label="Aggregated Products"
-                active={tab === "aggregated"}
-                onClick={() => {
-                  setTab("aggregated");
-                  setPage(1);
-                }}
-              />
-              <TabButton
-                label="Enrichment Products"
-                active={tab === "enrichment"}
-                onClick={() => {
-                  setTab("enrichment");
-                  setPage(1);
-                }}
-              />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <TabButton
+                  label="Product Listing"
+                  active={tab === "listing"}
+                  onClick={() => {
+                    setTab("listing");
+                    setPage(1);
+                  }}
+                />
+                <TabButton
+                  label="Aggregated Products"
+                  active={tab === "aggregated"}
+                  onClick={() => {
+                    setTab("aggregated");
+                    setPage(1);
+                  }}
+                />
+                <TabButton
+                  label="Enrichment Products"
+                  active={tab === "enrichment"}
+                  onClick={() => {
+                    setTab("enrichment");
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedProductIds.size > 0 && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        const ids = Array.from(selectedProductIds);
+                        setAggregatingProducts(new Set(ids));
+                        let successCount = 0;
+                        try {
+                          for (const productId of ids) {
+                            try {
+                              await aggregationService.aggregateProduct(
+                                productId,
+                                "openai",
+                              );
+                              successCount++;
+                            } catch (e) {
+                              console.error(
+                                `Failed to aggregate ${productId}:`,
+                                e,
+                              );
+                            }
+                          }
+                          if (successCount > 0)
+                            notify.success(
+                              `Aggregation started for ${successCount} product(s)`,
+                            );
+                          await loadData();
+                        } catch (e: any) {
+                          notify.error("Aggregation failed", e.message);
+                          setAggregatingProducts(new Set());
+                        }
+                      }}
+                      disabled={aggregatingProducts.size > 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 text-xs font-medium"
+                    >
+                      {aggregatingProducts.size > 0 ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5" />
+                      )}
+                      Aggregate ({selectedProductIds.size})
+                    </button>
+                    <button
+                      onClick={handleDownloadSelected}
+                      disabled={downloading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-xs font-medium"
+                    >
+                      {downloading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      Download ({selectedProductIds.size})
+                    </button>
+                  </>
+                )}
+                {selectedProductIds.size > 0 && (
+                  <button
+                    onClick={() => setShowDetailView(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs font-medium"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    View ({selectedProductIds.size})
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="py-3 flex flex-wrap gap-2 items-center">
+            <div className="py-2 flex flex-wrap gap-2 items-center">
               <div className="relative flex-1 min-w-[200px]">
                 <input
                   value={search}
@@ -697,7 +699,7 @@ export function ProjectStats({
               )}
             </div>
           </div>
-          <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+          <div className="px-6 py-2 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
             <Pagination
               page={page}
               totalPages={totalPages}
@@ -708,7 +710,7 @@ export function ProjectStats({
             <table className="w-full text-xs text-left border-separate border-spacing-0">
               <thead className="sticky top-0 bg-white z-10">
                 <tr className="text-[13px] font-semibold text-slate-500">
-                  <th className="py-3 border-b border-slate-200 text-center w-12">
+                  <th className="py-2 border-b border-slate-200 text-center w-12">
                     <input
                       type="checkbox"
                       checked={
@@ -720,24 +722,24 @@ export function ProjectStats({
                     />
                   </th>
 
-                  <th className="py-3 border-b border-slate-200">
+                  <th className="py-2 border-b border-slate-200">
                     Product Name & MPN
                   </th>
-                  <th className="py-3 border-b border-slate-200">Brand</th>
-                  <th className="py-3 border-b border-slate-200">Category</th>
-                  <th className="py-3 border-b border-slate-200 text-center">
+                  <th className="py-2 border-b border-slate-200">Brand</th>
+                  <th className="py-2 border-b border-slate-200">Category</th>
+                  <th className="py-2 border-b border-slate-200 text-center">
                     No. of Attributes
                   </th>
-                  <th className="py-3 border-b border-slate-200 text-center">
+                  <th className="py-2 border-b border-slate-200 text-center">
                     Completeness
                   </th>
-                  <th className="py-3 border-b border-slate-200 text-center">
+                  <th className="py-2 border-b border-slate-200 text-center">
                     Status
                   </th>
-                  <th className="py-3 border-b border-slate-200 text-right w-32">
+                  <th className="py-2 border-b border-slate-200 text-right w-32">
                     Last Updated
                   </th>
-                  <th className="py-3 border-b border-slate-200 text-center w-16">
+                  <th className="py-2 border-b border-slate-200 text-center w-16">
                     Action
                   </th>
                 </tr>
@@ -766,7 +768,7 @@ export function ProjectStats({
                       className="group hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                       <td
-                        className="py-3 text-center"
+                        className="py-2 text-center"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -777,7 +779,7 @@ export function ProjectStats({
                         />
                       </td>
 
-                      <td className="py-3">
+                      <td className="py-2">
                         <div className="flex items-center gap-3">
                           {p.image_url_1 ? (
                             <img
@@ -812,16 +814,16 @@ export function ProjectStats({
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 text-slate-500">
+                      <td className="py-2 text-slate-500">
                         {p.brand_name || "—"}
                       </td>
-                      <td className="py-3 text-slate-500">
+                      <td className="py-2 text-slate-500">
                         {p.category_3 || "—"}
                       </td>
-                      <td className="py-3 text-center text-slate-600 font-medium">
+                      <td className="py-2 text-center text-slate-600 font-medium">
                         {(p as any).attribute_count ?? "—"}
                       </td>
-                      <td className="py-3">
+                      <td className="py-2">
                         <div className="flex items-center gap-3 justify-center">
                           <div className="flex-1 max-w-[100px] h-1.5  bg-slate-100 rounded-full overflow-hidden">
                             <div
@@ -840,10 +842,10 @@ export function ProjectStats({
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 text-center">
+                      <td className="py-2 text-center">
                         {getStatusBadge(p.enrichment_status || "pending", true)}
                       </td>
-                      <td className="py-3 text-right text-slate-400 w-32">
+                      <td className="py-2 text-right text-slate-400 w-32">
                         {p.updated_at
                           ? new Date(p.updated_at + "Z").toLocaleDateString(
                               "en-US",
@@ -857,7 +859,7 @@ export function ProjectStats({
                             )
                           : "—"}
                       </td>
-                      <td className="py-3 text-center">
+                      <td className="py-2 text-center">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1052,7 +1054,7 @@ export function ProjectStats({
             </div>
           )}
 
-          <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+          <div className="px-6 py-2 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
             <Pagination
               page={page}
               totalPages={totalPages}

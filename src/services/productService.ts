@@ -169,7 +169,25 @@ async getProjectProductStats(
       standardized_attributes: attributes,
     });
   },
+async getCategories(): Promise<{ id: string; name: string }[]> {
+  try {
+    const { data } = await api.get("/products/categories");
+    return data || [];
+  } catch (error) {
+    console.error("Failed to fetch categories:", error);
+    return [];
+  }
+},
 
+async getBrands(): Promise<{ id: string; name: string }[]> {
+  try {
+    const { data } = await api.get("/products/brands");
+    return data || [];
+  } catch (error) {
+    console.error("Failed to fetch brands:", error);
+    return [];
+  }
+},
   async getBatchStatus(batchId: string) {
     return api.get(`/batch-status/${batchId}`);
   },
