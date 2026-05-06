@@ -112,19 +112,19 @@ export default function ProjectsOverviewTab({
 
     return list;
   }, [currentFilter, projects, search, brandFilter, categoryFilter]);
-  // Dynamic unique values based on other filters
+  
   const availableOperationModes = useMemo(() => {
     let list = [...projects];
 
-    // Apply status filter
+    
     if (currentFilter !== "all") {
       list = list.filter((p) => p.status === currentFilter);
     }
-    // Apply use case filter
+    
     if (categoryFilter !== "all") {
       list = list.filter((p) => p.useCase === categoryFilter);
     }
-    // Apply search
+    
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(

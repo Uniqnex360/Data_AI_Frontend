@@ -1,5 +1,9 @@
 import api from "../lib/api";
-import { Product, ProductAttributesViewProps, Project } from "../types/business-rules.types";
+import {
+  Product,
+  ProductAttributesViewProps,
+  Project,
+} from "../types/business-rules.types";
 
 export const productService = {
   async getAllProducts(skip = 0, limit = 100): Promise<Product[]> {
@@ -8,54 +12,70 @@ export const productService = {
     });
     return response.data;
   },
-  async getEnrichmentCounts(): Promise<Record<string, number>> {
-  try {
-    const { data } = await api.get("/products/enrichment-counts");
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch enrichment counts:", error);
-    return {};
-  }
-},
-async getProjectProductStats(
-  projectId: string,
-  filters?: {
-    brand?: string;
-    category?: string;
-    search?: string;
-    enrichment_status?: string;
-    bulk_attributes?: string[];  
-  }
-): Promise<{
-  total: number;
-  completed: number;
-  pending: number;
-  processing: number;
-  failed: number;
-}> {
-  try {
-    const params: Record<string, any> = {};
-    if (filters?.brand) params.brand_name = filters.brand;
-    if (filters?.category) params.category_1 = filters.category;
-    if (filters?.search) params.search = filters.search;
-    if (filters?.enrichment_status) params.enrichment_status = filters.enrichment_status;
-    if (filters?.bulk_attributes && filters.bulk_attributes.length > 0) {
-      params.bulk_attributes = filters.bulk_attributes;
+ async createCategory(payload: {
+    name: string;
+    level: number;
+    full_path: string;
+}) {
+    try {
+        const { data } = await api.post("/products/categories", payload);
+        return data;
+    } catch (error: any) {
+        console.error("Error creating category:", error);
+        throw error?.response?.data || error?.message || "Failed to create category";
     }
-    
-    const { data } = await api.get(`/products/stats/project/${projectId}`, { params });
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch project product stats", error);
-    return {
-      total: 0,
-      completed: 0,
-      pending: 0,
-      processing: 0,
-      failed: 0,
-    };
-  }
 },
+  async getEnrichmentCounts(): Promise<Record<string, number>> {
+    try {
+      const { data } = await api.get("/products/enrichment-counts");
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch enrichment counts:", error);
+      return {};
+    }
+  },
+  async getProjectProductStats(
+    projectId: string,
+    filters?: {
+      brand?: string;
+      category?: string;
+      search?: string;
+      enrichment_status?: string;
+      bulk_attributes?: string[];
+    },
+  ): Promise<{
+    total: number;
+    completed: number;
+    pending: number;
+    processing: number;
+    failed: number;
+  }> {
+    try {
+      const params: Record<string, any> = {};
+      if (filters?.brand) params.brand_name = filters.brand;
+      if (filters?.category) params.category_1 = filters.category;
+      if (filters?.search) params.search = filters.search;
+      if (filters?.enrichment_status)
+        params.enrichment_status = filters.enrichment_status;
+      if (filters?.bulk_attributes && filters.bulk_attributes.length > 0) {
+        params.bulk_attributes = filters.bulk_attributes;
+      }
+
+      const { data } = await api.get(`/products/stats/project/${projectId}`, {
+        params,
+      });
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch project product stats", error);
+      return {
+        total: 0,
+        completed: 0,
+        pending: 0,
+        processing: 0,
+        failed: 0,
+      };
+    }
+  },
 
   async getProjectAttributes(
     projectId: string,
@@ -75,16 +95,21 @@ async getProjectProductStats(
     }
   },
 
-  async getProjectFilters(projectId?: string,brand?:string,category?:string, workflowStage?: string): Promise<{
+  async getProjectFilters(
+    projectId?: string,
+    brand?: string,
+    category?: string,
+    workflowStage?: string,
+  ): Promise<{
     categories: string[];
     brands: string[];
   }> {
     try {
       const params: Record<string, string> = {};
-       if (projectId) params.project_id = projectId;
-    if (brand) params.brand_name = brand;      
-    if (category) params.category_1 = category;
-    if (workflowStage) params.workflow_stage = workflowStage; 
+      if (projectId) params.project_id = projectId;
+      if (brand) params.brand_name = brand;
+      if (category) params.category_1 = category;
+      if (workflowStage) params.workflow_stage = workflowStage;
       const { data } = await api.get("/products/filters", { params });
 
       return {
@@ -97,55 +122,56 @@ async getProjectProductStats(
     }
   },
   async createBrand(name: string) {
-  try {
-    const res = await api.post('/products/brands', { name });
-    return res.data;
-  } catch (error: any) {
-    console.error("Error creating brand:", error);
-    throw error?.response?.data || error?.message || "Failed to create brand";
-  }
-},
+    try {
+      const res = await api.post("/products/brands", { name });
+      return res.data;
+    } catch (error: any) {
+      console.error("Error creating brand:", error);
+      throw error?.response?.data || error?.message || "Failed to create brand";
+    }
+  },
 
   async getProductsByProject(
-  projectId: string,
-  workflow_stage?: string,
-  skip = 0,
-  limit = 100,
-  filters?: {
-    brand?: string;
-    category?: string;
-    search?: string;
-    enrichment_status?: string;
-  }
-): Promise<{
-  products: Product[];
-  total: number;
-  skip: number;
-  limit: number;
-  project: Project | null;
-}> {
-  const params: Record<string, any> = { 
-    project_id: projectId, 
-    skip, 
-    limit, 
-    workflow_stage 
-  };
-  
-  if (filters?.brand) params.brand_name = filters.brand;
-  if (filters?.category) params.category_1 = filters.category;
-  if (filters?.search) params.search = filters.search;
-  if (filters?.enrichment_status) params.enrichment_status = filters.enrichment_status;
-  
-  const response = await api.get("/products/", { params });
+    projectId: string,
+    workflow_stage?: string,
+    skip = 0,
+    limit = 100,
+    filters?: {
+      brand?: string;
+      category?: string;
+      search?: string;
+      enrichment_status?: string;
+    },
+  ): Promise<{
+    products: Product[];
+    total: number;
+    skip: number;
+    limit: number;
+    project: Project | null;
+  }> {
+    const params: Record<string, any> = {
+      project_id: projectId,
+      skip,
+      limit,
+      workflow_stage,
+    };
 
-  return {
-    products: response.data?.products ?? [],
-    total: response.data?.total ?? 0,
-    skip: response.data?.skip ?? skip,
-    limit: response.data?.limit ?? limit,
-    project: response.data?.project ?? null,
-  };
-},
+    if (filters?.brand) params.brand_name = filters.brand;
+    if (filters?.category) params.category_1 = filters.category;
+    if (filters?.search) params.search = filters.search;
+    if (filters?.enrichment_status)
+      params.enrichment_status = filters.enrichment_status;
+
+    const response = await api.get("/products/", { params });
+
+    return {
+      products: response.data?.products ?? [],
+      total: response.data?.total ?? 0,
+      skip: response.data?.skip ?? skip,
+      limit: response.data?.limit ?? limit,
+      project: response.data?.project ?? null,
+    };
+  },
 
   async getProductByCode(code: string): Promise<Product> {
     const response = await api.get(`/products/${code}`);
@@ -158,7 +184,10 @@ async getProjectProductStats(
     });
   },
 
-  async standardize(productCode: string, attributes: ProductAttributesViewProps) {
+  async standardize(
+    productCode: string,
+    attributes: ProductAttributesViewProps,
+  ) {
     return api.post("/standardize/", {
       product_key: productCode,
       data: attributes,
@@ -178,25 +207,26 @@ async getProjectProductStats(
       standardized_attributes: attributes,
     });
   },
-async getCategories(): Promise<{ id: string; name: string }[]> {
-  try {
-    const { data } = await api.get("/products/categories");
-    return data || [];
-  } catch (error) {
-    console.error("Failed to fetch categories:", error);
-    return [];
-  }
-},
+  async getCategories(): Promise<{ id: string; name: string }[]> {
+    try {
+      const { data } = await api.get("/products/categories");
+      return data || [];
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      return [];
+    }
+  },
+ 
 
-async getBrands(): Promise<{ id: string; name: string }[]> {
-  try {
-    const { data } = await api.get("/products/brands");
-    return data || [];
-  } catch (error) {
-    console.error("Failed to fetch brands:", error);
-    return [];
-  }
-},
+  async getBrands(): Promise<{ id: string; name: string }[]> {
+    try {
+      const { data } = await api.get("/products/brands");
+      return data || [];
+    } catch (error) {
+      console.error("Failed to fetch brands:", error);
+      return [];
+    }
+  },
   async getBatchStatus(batchId: string) {
     return api.get(`/batch-status/${batchId}`);
   },

@@ -37,7 +37,6 @@ const [brandError, setBrandError] = useState("");
   const [form, setForm] = useState({
     brand_id: prompt?.brand_id || "",
     brand_name: prompt?.brand_name || "",
-    stage: prompt?.stage || "extraction",
     prompt_name: prompt?.prompt_name || "",
     prompt_text: prompt?.prompt_text || "",
     description: prompt?.description || "",

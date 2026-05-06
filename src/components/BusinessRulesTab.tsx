@@ -332,7 +332,7 @@ export default function BusinessRulesTab() {
         <div className="flex items-center justify-center py-16 bg-white border border-slate-200 rounded-2xl">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         </div>
-     ) : activeTab !== "rules" ? null : rules.length === 0 ? (
+      ) : activeTab !== "rules" ? null : rules.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
           <Shield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-700 font-semibold">No rules found</p>
@@ -603,7 +603,6 @@ export default function BusinessRulesTab() {
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
               <tr>
                 <th className="px-4 py-3 text-left">Category</th>
-                <th className="px-4 py-3 text-left">Stage</th>
                 <th className="px-4 py-3 text-left">Prompt Name</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-center">Actions</th>
@@ -613,11 +612,6 @@ export default function BusinessRulesTab() {
               {categoryPrompts.map((cp) => (
                 <tr key={cp.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium">{cp.category_name}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 bg-slate-100 rounded-full text-xs">
-                      {cp.stage}
-                    </span>
-                  </td>
                   <td className="px-4 py-3">{cp.prompt_name}</td>
                   <td className="px-4 py-3 text-center">
                     <span
@@ -676,7 +670,6 @@ export default function BusinessRulesTab() {
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
               <tr>
                 <th className="px-4 py-3 text-left">Brand</th>
-                <th className="px-4 py-3 text-left">Stage</th>
                 <th className="px-4 py-3 text-left">Prompt Name</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-center">Actions</th>
@@ -696,11 +689,7 @@ export default function BusinessRulesTab() {
                 brandPrompts.map((bp) => (
                   <tr key={bp.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium">{bp.brand_name}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-slate-100 rounded-full text-xs">
-                        {bp.stage}
-                      </span>
-                    </td>
+
                     <td className="px-4 py-3">{bp.prompt_name}</td>
                     <td className="px-4 py-3 text-center">
                       <span
