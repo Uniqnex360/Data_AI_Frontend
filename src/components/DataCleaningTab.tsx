@@ -1417,7 +1417,9 @@ export default function DataCleaningTab() {
                     return (
                       <tr
                         key={project.id}
-                        className="hover:bg-slate-50 cursor-pointer transition-colors"
+                        className={`hover:bg-slate-50 cursor-pointer transition-colors ${
+                          selectedProjectIds.has(project.id)?'bg-blue-50/50':""
+                        }`}
                         onClick={async () => {
                           setProjectSwitching(true);
                           setSelectedProjectId(project.id);
