@@ -22,6 +22,7 @@ import logo from "./logo/logo.png";
 import LoginPage from "./components/LoginPage.tsx";
 import RegisterPage from "./components/RegisterPage.tsx";
 import UnauthorizedPage from "./components/UnauthorizedPage.tsx";
+import ReportingTab from "./components/ReportingTab.tsx";
 type TabId =
   | "dashboard"
   | "sources"
@@ -29,7 +30,9 @@ type TabId =
   | "rules"
   | "enrichment"
   | "golden"
-  | "datacleaning";
+  | "datacleaning"
+  | "reporting";
+
 interface Tab {
   id: TabId;
   label: string;
@@ -78,6 +81,13 @@ const tabs: Tab[] = [
     label: "Enrichment",
     icon: Target,
     component: EnrichmentTab,
+    roles: ["admin", "editor", "viewer"],
+  },
+  {
+    id: "reporting",
+    label: "Reporting",
+    icon: BarChart3,
+    component: ReportingTab,
     roles: ["admin", "editor", "viewer"],
   },
 ];

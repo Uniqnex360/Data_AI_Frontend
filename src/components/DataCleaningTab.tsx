@@ -888,6 +888,7 @@ export default function DataCleaningTab() {
         product_ids: allProductsSelected ? [] : Array.from(selectedProductIds),
         project_id: allProductsSelected ? selectedProjectId : undefined,
         attributes: attrs,
+        llm_provider: selectedLLM,
       });
       notify.success("Bulk update completed");
       await loadProducts();

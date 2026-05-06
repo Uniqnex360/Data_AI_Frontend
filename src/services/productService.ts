@@ -96,6 +96,15 @@ async getProjectProductStats(
       throw error;
     }
   },
+  async createBrand(name: string) {
+  try {
+    const res = await api.post('/products/brands', { name });
+    return res.data;
+  } catch (error: any) {
+    console.error("Error creating brand:", error);
+    throw error?.response?.data || error?.message || "Failed to create brand";
+  }
+},
 
   async getProductsByProject(
   projectId: string,

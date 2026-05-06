@@ -19,12 +19,20 @@ const STAGES = [
   { value: "validation", label: "Validation" },
 ];
 
-export default function BrandPromptModal({ prompt, onClose, onSuccess }: Props) {
+export default function BrandPromptModal({
+  prompt,
+  onClose,
+  onSuccess,
+}: Props) {
   const [brands, setBrands] = useState<any[]>([]);
+  const [showAddBrandForm, setShowAddBrandForm] = useState(false);
+const [newBrandName, setNewBrandName] = useState("");
+const [creatingBrand, setCreatingBrand] = useState(false);
+const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+const [brandError, setBrandError] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchBrand, setSearchBrand] = useState("");
-const [showDropdown, setShowDropdown] = useState(false);
 
   const [form, setForm] = useState({
     brand_id: prompt?.brand_id || "",
@@ -44,7 +52,7 @@ const [showDropdown, setShowDropdown] = useState(false);
   const loadBrands = async () => {
     setLoading(true);
     try {
-      const data = await productService.getBrands?.() || [];
+      const data = (await productService.getBrands?.()) || [];
       setBrands(data);
     } catch (error) {
       console.error("Failed to load brands:", error);
@@ -55,7 +63,7 @@ const [showDropdown, setShowDropdown] = useState(false);
   };
 
   const filteredBrands = brands.filter((b: any) =>
-    b.name?.toLowerCase().includes(searchBrand.toLowerCase())
+    b.name?.toLowerCase().includes(searchBrand.toLowerCase()),
   );
 
   const handleSubmit = async () => {
@@ -73,7 +81,10 @@ const [showDropdown, setShowDropdown] = useState(false);
         prompt_text: form.prompt_text,
         description: form.description || undefined,
         variables: form.variables
-          ? form.variables.split(",").map((v: string) => v.trim()).filter(Boolean)
+          ? form.variables
+              .split(",")
+              .map((v: string) => v.trim())
+              .filter(Boolean)
           : undefined,
         status: form.status,
       };
@@ -93,7 +104,37 @@ const [showDropdown, setShowDropdown] = useState(false);
       setSaving(false);
     }
   };
-
+const handleCreateBrand = async () => {
+  const name = newBrandName.trim();
+  if (!name) return;
+  
+  setCreatingBrand(true);
+  setBrandError("");
+  
+  try {
+    const newBrand = await businessRulesService.createBrand?.(name) || 
+                     await productService.createBrand?.(name);
+    
+    setForm({
+      ...form,
+      brand_id: newBrand.id,
+      brand_name: newBrand.name,
+    });
+    setSearchBrand(newBrand.name);
+    setShowAddBrandForm(false);
+    setShowBrandDropdown(false);
+    
+    // Refresh brands list
+    loadBrands();
+    notify.success("Brand created");
+  } catch (error: any) {
+   const message = error?.detail || error?.response?.data?.detail || error?.message || "Failed to create brand";
+   console.log('MESSAGE',message)
+   setBrandError(message);
+  } finally {
+    setCreatingBrand(false);
+  }
+};
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -103,70 +144,120 @@ const [showDropdown, setShowDropdown] = useState(false);
         className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="p-6 border-b border-slate-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">
             {prompt ? "Edit Brand Prompt" : "Add Brand Prompt"}
           </h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-full"
+          >
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-6 space-y-4">
           {/* Brand Selection */}
-          {/* Brand Selection */}
-{/* Brand Selection */}
 <div>
-  <label className="block text-sm font-medium text-slate-700 mb-1">
-    Brand *
-  </label>
+  <label className="block text-sm font-medium text-slate-700 mb-1">Brand *</label>
   <div className="relative">
     <input
       type="text"
       value={searchBrand}
       onChange={(e) => {
         setSearchBrand(e.target.value);
-        setShowDropdown(true);
+        setShowBrandDropdown(true);
+        setShowAddBrandForm(false);
       }}
       onFocus={() => {
-        setShowDropdown(true);
-        if (!form.brand_id) {
-          setSearchBrand("");
-        }
+        setShowBrandDropdown(true);
+        if (!form.brand_id) setSearchBrand("");
       }}
-      onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+      onBlur={() => setTimeout(() => {
+        if (!showAddBrandForm) setShowBrandDropdown(false);
+      }, 200)}
       placeholder="Search brands..."
       className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
     />
 
-    {showDropdown && (
-      <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-        {filteredBrands.map((brand: any) => (
+    {showBrandDropdown && (
+      <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        {!showAddBrandForm ? (
+          <>
           <button
-            key={brand.id}
-            type="button"
-            onClick={() => {
-              setForm({
-                ...form,
-                brand_id: brand.id,
-                brand_name: brand.name,
-              });
-              setSearchBrand(brand.name);
-              setShowDropdown(false);
-            }}
-            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${
-              form.brand_id === brand.id ? "bg-blue-50 text-blue-700" : ""
-            }`}
-          >
-            {brand.name}
-          </button>
-        ))}
-
-        {filteredBrands.length === 0 && (
-          <div className="px-3 py-2 text-sm text-slate-500">
-            No brands found
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setShowAddBrandForm(true);
+                setNewBrandName(searchBrand);
+                setCreatingBrand(false);
+                setBrandError("");
+              }}
+              className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 border-t font-medium"
+            >
+              + Add New Brand
+            </button>
+            {filteredBrands.map((brand: any) => (
+              <button
+                key={brand.id}
+                type="button"
+                onClick={() => {
+                  setForm({
+                    ...form,
+                    brand_id: brand.id,
+                    brand_name: brand.name,
+                  });
+                  setSearchBrand(brand.name);
+                  setShowBrandDropdown(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${
+                  form.brand_id === brand.id ? "bg-blue-50 text-blue-700" : ""
+                }`}
+              >
+                {brand.name}
+              </button>
+            ))}
+            {filteredBrands.length === 0 && searchBrand && (
+              <div className="px-3 py-2 text-sm text-slate-500">
+                No brands found
+              </div>
+            )}
+            
+          </>
+        ) : (
+          <div className="p-3">
+            <input
+              type="text"
+              value={newBrandName}
+              onChange={(e) => setNewBrandName(e.target.value)}
+              placeholder="Enter brand name"
+              className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm mb-2"
+              autoFocus
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter') await handleCreateBrand();
+                if (e.key === 'Escape') setShowAddBrandForm(false);
+              }}
+            />
+            {brandError && (
+              <p className="text-xs text-red-500 mb-2">{brandError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleCreateBrand}
+                disabled={creatingBrand || !newBrandName.trim()}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {creatingBrand ? "Creating..." : "Create"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddBrandForm (false)}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -177,25 +268,6 @@ const [showDropdown, setShowDropdown] = useState(false);
   )}
 </div>
 
-          {/* Stage */}
-          {/* <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Stage *
-            </label>
-            <select
-              value={form.stage}
-              onChange={(e) => setForm({ ...form, stage: e.target.value })}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
-            >
-              {STAGES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div> */}
-
-          {/* Prompt Name */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Prompt Name *
@@ -210,7 +282,6 @@ const [showDropdown, setShowDropdown] = useState(false);
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Description
@@ -225,7 +296,6 @@ const [showDropdown, setShowDropdown] = useState(false);
             />
           </div>
 
-          {/* Prompt Text */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Prompt Text *
@@ -240,7 +310,6 @@ const [showDropdown, setShowDropdown] = useState(false);
             />
           </div>
 
-          {/* Variables */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Variables
@@ -248,27 +317,19 @@ const [showDropdown, setShowDropdown] = useState(false);
             <input
               type="text"
               value={form.variables}
-              onChange={(e) =>
-                setForm({ ...form, variables: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, variables: e.target.value })}
               placeholder="brand, mpn, title"
               className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
             />
           </div>
 
-          {/* Priority */}
-          
-
-          {/* Status */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Status
             </label>
             <select
               value={form.status}
-              onChange={(e) =>
-                setForm({ ...form, status: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
               className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
             >
               <option value="active">Active</option>
@@ -277,7 +338,6 @@ const [showDropdown, setShowDropdown] = useState(false);
           </div>
         </div>
 
-        {/* Footer */}
         <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
           <button
             onClick={onClose}
