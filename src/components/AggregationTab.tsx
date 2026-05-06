@@ -123,12 +123,12 @@ export default function AggregationTab({
         (p) => p.source_status === projectStatusFilter,
       );
     }
-     if (projectSearch.trim()) {
+    if (projectSearch.trim()) {
       const q = projectSearch.toLowerCase().trim();
       filtered = filtered.filter(
         (p) =>
           p.name?.toLowerCase().includes(q) ||
-          p.use_case?.toLowerCase().includes(q)
+          p.use_case?.toLowerCase().includes(q),
       );
     }
     return filtered;
@@ -138,7 +138,7 @@ export default function AggregationTab({
     selectedProjectId,
     aggregationTypeFilter,
     projectStatusFilter,
-    projectSearch
+    projectSearch,
   ]);
   const paginatedProjects = useMemo(() => {
     const start = (projectsPage - 1) * PROJECTS_PER_PAGE;
@@ -260,13 +260,13 @@ export default function AggregationTab({
     setStatsProject(null);
   }, []);
   const loadProjectEnrichmentCounts = useCallback(async () => {
-  try {
-    const counts = await productService.getEnrichmentCounts();
-    setProjectEnrichmentCounts(counts);
-  } catch (error) {
-    console.error("Failed to load enrichment counts:", error);
-  }
-}, []);
+    try {
+      const counts = await productService.getEnrichmentCounts();
+      setProjectEnrichmentCounts(counts);
+    } catch (error) {
+      console.error("Failed to load enrichment counts:", error);
+    }
+  }, []);
   // const handleExtractFreshMpn = async (productId: string, mpn: string) => {
   //   if (!expandedProjectId) {
   //     notify.error("No project selected");
@@ -530,7 +530,6 @@ export default function AggregationTab({
       );
       setProjects(aggregationData);
       await loadProjectEnrichmentCounts();
-
     } catch (error) {
       console.error("Failed to load projects:", error);
       notify.error("Failed to load projects");
@@ -539,11 +538,11 @@ export default function AggregationTab({
     }
   }, [loadProjectEnrichmentCounts]);
   useEffect(() => {
-  console.time('initialLoad');
-  loadProjects().then(() => {
-    console.timeEnd('initialLoad');
-  });
-}, [loadProjects]);
+    console.time("initialLoad");
+    loadProjects().then(() => {
+      console.timeEnd("initialLoad");
+    });
+  }, [loadProjects]);
   const resetFilters = useCallback(() => {
     setSearchQuery("");
     setStatusFilter(new Set());
@@ -856,13 +855,13 @@ export default function AggregationTab({
     setDownloading(true);
     try {
       const { blob, filename } = await aggregationService.exportSelectedItems(
-      selectedProjects,
-      selectedProducts,
-    );
+        selectedProjects,
+        selectedProducts,
+      );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-     a.download = filename || "selected_export.xlsx";
+      a.download = filename || "selected_export.xlsx";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -1245,30 +1244,30 @@ export default function AggregationTab({
               </select>
             </div>
             <div>
-  <label className="block text-sm text-slate-700 mb-2">
-    Project
-  </label>
-  <select
-    value={selectedProjectId}
-    onChange={async (e) => {
-      const projectId = e.target.value;
-      setSelectedProjectId(projectId);
-      await loadProjectFilters(projectId);
-    }}
-    disabled={
-      projectsLoading ||
-      (!!selectedUseCase && filteredProjects.length === 0)
-    }
-    className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-  >
-    <option value="">All Project</option>
-    {filteredProjects.map((project) => (
-      <option key={project.id} value={project.id}>
-        {project.name}
-      </option>
-    ))}
-  </select>
-</div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Project
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={async (e) => {
+                  const projectId = e.target.value;
+                  setSelectedProjectId(projectId);
+                  await loadProjectFilters(projectId);
+                }}
+                disabled={
+                  projectsLoading ||
+                  (!!selectedUseCase && filteredProjects.length === 0)
+                }
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="">All Project</option>
+                {filteredProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm text-slate-700 mb-2">
                 Status
@@ -1353,44 +1352,43 @@ export default function AggregationTab({
               onClick={resetFilters}
               className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-
               Clear
             </button>
           )}
         </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-lg">
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-  <div className="flex items-center gap-3">
-    <input
-      type="checkbox"
-      checked={
-        filteredProjects.length > 0 &&
-        selectedProjectIds.size === filteredProjects.length
-      }
-      onChange={toggleSelectAllProjects}
-      className="rounded border-slate-300"
-    />
-    <span className="text-xs text-slate-500">Select All</span>
-  </div>
-  <div className="flex items-center gap-4">
-    <span className="text-sm font-semibold text-slate-900">
-      {filteredProjects.length} Projects
-    </span>
-    {selectedProjectIds.size > 0 && (
-      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-        {selectedProjectIds.size} selected
-      </span>
-    )}
-    <div className="flex items-center justify-end text-xs text-slate-500">
-      <Pagination
-        page={projectsPage}
-        totalPages={projectsTotalPages}
-        onPageChange={setProjectsPage}
-      />
-    </div>
-  </div>
-</div>
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={
+                filteredProjects.length > 0 &&
+                selectedProjectIds.size === filteredProjects.length
+              }
+              onChange={toggleSelectAllProjects}
+              className="rounded border-slate-300"
+            />
+            <span className="text-xs text-slate-500">Select All</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-slate-900">
+              {filteredProjects.length} Projects
+            </span>
+            {selectedProjectIds.size > 0 && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                {selectedProjectIds.size} selected
+              </span>
+            )}
+            <div className="flex items-center justify-end text-xs text-slate-500">
+              <Pagination
+                page={projectsPage}
+                totalPages={projectsTotalPages}
+                onPageChange={setProjectsPage}
+              />
+            </div>
+          </div>
+        </div>
         <div
           className="overflow-auto"
           style={{ maxHeight: "calc(100vh - 350px)" }}
