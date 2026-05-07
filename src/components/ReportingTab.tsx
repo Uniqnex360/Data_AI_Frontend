@@ -30,6 +30,7 @@ interface EditLog {
   product_id: string;
   product_name: string;
   brand_name: string;
+  category_name?: string;
   mpn: string;
   attribute_name: string;
   old_value: string;
@@ -48,6 +49,8 @@ export default function ReportingTab() {
   const [logLoading, setLogLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedAlgorithm, setSelectedAlgorithm] = useState("");
   const [projects, setProjects] = useState<any[]>([]);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
@@ -74,6 +77,7 @@ export default function ReportingTab() {
         project_id: selectedProject || undefined,
         brand_name: selectedBrand || undefined,
         algorithm: selectedAlgorithm || undefined,
+        category_name: selectedCategory || undefined,
       });
       setQualityData(data || []);
     } catch (e) {
@@ -104,6 +108,7 @@ export default function ReportingTab() {
         project_id: projectId,
         algorithm: selectedAlgorithm || undefined,
         brand_name: selectedBrand || undefined,
+        category_name: selectedCategory || undefined,  
         limit: 50,
       });
       setEditLogs(data || []);
@@ -118,14 +123,30 @@ export default function ReportingTab() {
       loadEditLogs(expandedProject);
     }
   }, [selectedAlgorithm, selectedBrand, expandedProject]);
+  const loadCategories = async () => {
+    try {
+      const data = await cleansingService.getEditLogs({ limit: 1000 });
+      const cats = [
+  ...new Set(data.map((l: any) => l.category_name).filter(Boolean)),
+];
+      setAvailableCategories(cats.sort());
+    } catch (e) {
+      console.error("Failed to load categories", e);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
   const stats = useMemo(() => {
     const total = qualityData.reduce((sum, r) => sum + r.total_products, 0);
-    const avgScore = qualityData.length > 0
-      ? qualityData.reduce(
-        (sum, r) => sum + r.avg_quality_score * r.total_products,
-        0,
-      ) / total
-      : 0;
+    const avgScore =
+      qualityData.length > 0
+        ? qualityData.reduce(
+            (sum, r) => sum + r.avg_quality_score * r.total_products,
+            0,
+          ) / total
+        : 0;
     const totalEdits = qualityData.reduce(
       (sum, r) => sum + r.total_manual_edits,
       0,
@@ -136,11 +157,12 @@ export default function ReportingTab() {
     const manualEdits = editLogs.filter(
       (l) => l.edit_source === "manual",
     ).length;
-    const worstProject = qualityData.length > 0
-      ? [...qualityData].sort(
-        (a, b) => a.avg_quality_score - b.avg_quality_score,
-      )[0]
-      : null;
+    const worstProject =
+      qualityData.length > 0
+        ? [...qualityData].sort(
+            (a, b) => a.avg_quality_score - b.avg_quality_score,
+          )[0]
+        : null;
 
     return { total, avgScore, totalEdits, aiEdits, manualEdits, worstProject };
   }, [qualityData, editLogs]);
@@ -254,18 +276,18 @@ export default function ReportingTab() {
             </span>
             <AlertTriangle className="w-5 h-5 text-red-500" />
           </div>
-          {stats.worstProject
-            ? (
-              <>
-                <div className="text-lg font-bold text-red-600 truncate">
-                  {stats.worstProject.project_name}
-                </div>
-                <div className="mt-1 text-xs text-slate-400">
-                  {stats.worstProject.avg_quality_score}% quality
-                </div>
-              </>
-            )
-            : <div className="text-lg text-slate-400">—</div>}
+          {stats.worstProject ? (
+            <>
+              <div className="text-lg font-bold text-red-600 truncate">
+                {stats.worstProject.project_name}
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                {stats.worstProject.avg_quality_score}% quality
+              </div>
+            </>
+          ) : (
+            <div className="text-lg text-slate-400">—</div>
+          )}
         </div>
       </div>
 
@@ -294,7 +316,26 @@ export default function ReportingTab() {
             </option>
           ))}
         </select>
-
+          <select
+  value={selectedCategory}
+  onChange={(e) => {
+    const val = e.target.value;
+    setSelectedCategory(val);
+    setLoading(true);
+    cleansingService.getDataQualityReport({
+      project_id: selectedProject || undefined,
+      brand_name: selectedBrand || undefined,
+      algorithm: selectedAlgorithm || undefined,
+      category_name: val || undefined
+    }).then(data => setQualityData(data || [])).finally(() => setLoading(false));
+  }}
+  className="h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+>
+  <option value="">All Categories</option>
+  {availableCategories.map((c) => (
+    <option key={c} value={c}>{c}</option>
+  ))}
+</select>
         <select
           value={selectedAlgorithm}
           onChange={(e) => {
@@ -342,20 +383,23 @@ export default function ReportingTab() {
             </option>
           ))}
         </select>
-        {selectedProject || selectedAlgorithm || selectedBrand
-          ? (
-            <button
-              onClick={() => {
-                setSelectedProject("");
-                setSelectedAlgorithm("");
-                setSelectedBrand("");
-              }}
-              className="h-10 px-3 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
-            >
-              Clear
-            </button>
-          )
-          : null}
+        {selectedProject || selectedAlgorithm || selectedBrand ? (
+          <button
+            onClick={() => {
+  setSelectedProject("");
+  setSelectedAlgorithm("");
+  setSelectedBrand("");
+  setSelectedCategory("");
+  setLoading(true);
+  cleansingService.getDataQualityReport({})
+    .then(data => setQualityData(data || []))
+    .finally(() => setLoading(false));
+}}
+            className="h-10 px-3 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+          >
+            Clear
+          </button>
+        ) : null}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -363,181 +407,170 @@ export default function ReportingTab() {
           <h4 className="font-semibold text-slate-900">Quality by Project</h4>
         </div>
         <div className="p-5">
-          {loading
-            ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              </div>
-            )
-            : qualityData.length === 0
-            ? <p className="text-center py-8 text-slate-500">No data found</p>
-            : (
-              <div className="space-y-4">
-                {qualityData.map((row, idx) => (
-                  <div key={idx} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            if (expandedProject === row.project_id) {
-                              setExpandedProject(null);
-                            } else {
-                              setExpandedProject(row.project_id);
-                              loadEditLogs(row.project_id);
-                            }
-                          }}
-                          className="p-1 hover:bg-slate-100 rounded"
-                        >
-                          {expandedProject === row.project_id
-                            ? <ChevronUp className="w-4 h-4 text-slate-500" />
-                            : 
-                            <ChevronDown className="w-4 h-4 text-slate-500" />}
-                        </button>
-                        <span className="font-medium text-slate-800">
-                          {row.project_name}
-                        </span>
-                        {row.brand_name && (
-                          <span className="text-xs text-slate-400">
-                            • {row.brand_name}
-                          </span>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            </div>
+          ) : qualityData.length === 0 ? (
+            <p className="text-center py-8 text-slate-500">No data found</p>
+          ) : (
+            <div className="space-y-4">
+              {qualityData.map((row, idx) => (
+                <div key={idx} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (expandedProject === row.project_id) {
+                            setExpandedProject(null);
+                          } else {
+                            setExpandedProject(row.project_id);
+                            loadEditLogs(row.project_id);
+                          }
+                        }}
+                        className="p-1 hover:bg-slate-100 rounded"
+                      >
+                        {expandedProject === row.project_id ? (
+                          <ChevronUp className="w-4 h-4 text-slate-500" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-500" />
                         )}
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs ${
-                            getScoreBg(row.avg_quality_score)
-                          }`}
-                        >
-                          {row.avg_quality_score}%
+                      </button>
+                      <span className="font-medium text-slate-800">
+                        {row.project_name}
+                      </span>
+                      {row.brand_name && (
+                        <span className="text-xs text-slate-400">
+                          • {row.brand_name}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
-                        <span>{row.total_products} products</span>
-                        <span>{row.total_manual_edits} edits</span>
-                        <span className="px-2 py-0.5 bg-slate-100 rounded-full">
-                          {row.algorithm_used || "unknown"}
-                        </span>
-                      </div>
+                      )}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs ${getScoreBg(
+                          row.avg_quality_score,
+                        )}`}
+                      >
+                        {row.avg_quality_score}%
+                      </span>
                     </div>
-                    <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          getBarColor(row.avg_quality_score)
-                        }`}
-                        style={{ width: `${row.avg_quality_score}%` }}
-                      />
+                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                      <span>{row.total_products} products</span>
+                      <span>{row.total_manual_edits} edits</span>
+                      <span className="px-2 py-0.5 bg-slate-100 rounded-full">
+                        {row.algorithm_used || "unknown"}
+                      </span>
                     </div>
-
-                    {expandedProject === row.project_id && (
-                      <div className="mt-3 ml-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                        <h5 className="text-sm font-semibold text-slate-700 mb-3">
-                          Recent Edit History
-                        </h5>
-                        {logLoading
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : editLogs.length === 0
-                          ? (
-                            <p className="text-xs text-slate-500">
-                              No edits found
-                            </p>
-                          )
-                          : (
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="text-slate-500 border-b border-slate-200">
-                                    <th className="text-left py-2 pr-4">
-                                      Product
-                                    </th>
-                                    <th className="text-left py-2 pr-4">
-                                      Attribute
-                                    </th>
-                                    <th className="text-center py-2 pr-4">
-                                      Edits
-                                    </th>
-                                    <th className="text-left py-2 pr-4">
-                                      Old Value
-                                    </th>
-                                    <th className="text-left py-2 pr-4">
-                                      New Value
-                                    </th>
-                                    <th className="text-left py-2 pr-4">
-                                      Type
-                                    </th>
-                                    <th className="text-left py-2 pr-4">
-                                      Algorithm
-                                    </th>
-                                    <th className="text-left py-2">Date</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {editLogs.map((log) => (
-                                    <tr
-                                      key={log.id}
-                                      className="border-b border-slate-100 hover:bg-white"
-                                    >
-                                      <td className="py-2 pr-4">
-                                        <div className="font-medium text-slate-800">
-                                          {log.product_name}
-                                        </div>
-                                        <div className="text-slate-400">
-                                          {log.mpn}
-                                        </div>
-                                      </td>
-                                      <td className="py-2 pr-4 font-medium">
-                                        {log.attribute_name}
-                                      </td>
-                                      <td className="py-2 pr-4 text-center">
-                                        <span className="px-2 py-0.5 bg-slate-100 rounded-full text-xs font-medium">
-                                          {attributeEditCounts[
-                                            log.attribute_name
-                                          ] || 1}
-                                        </span>
-                                      </td>
-                                      <td className="py-2 pr-4 text-slate-500 line-through">
-                                        {log.old_value || "—"}
-                                      </td>
-                                      <td className="py-2 pr-4 text-slate-800">
-                                        {log.new_value || "—"}
-                                        {log.old_value &&
-                                          log.new_value &&
-                                          log.old_value !== log.new_value && (
-                                          <TrendingUp className="w-3 h-3 inline ml-1 text-blue-500" />
-                                        )}
-                                      </td>
-                                      <td className="py-2 pr-4">
-                                        <span
-                                          className={`px-2 py-0.5 rounded-full text-xs ${
-                                            log.edit_source === "ai_cleaning"
-                                              ? "bg-blue-50 text-blue-600"
-                                              : "bg-amber-50 text-amber-600"
-                                          }`}
-                                        >
-                                          {log.edit_source === "ai_cleaning"
-                                            ? "AI"
-                                            : "Manual"}
-                                        </span>
-                                      </td>
-                                      <td className="py-2 pr-4 text-slate-500">
-                                        {log.algorithm_used || "—"}
-                                      </td>
-                                      <td className="py-2 text-slate-400 whitespace-nowrap">
-                                        {log.created_at
-                                          ? new Date(
-                                            log.created_at,
-                                          ).toLocaleDateString()
-                                          : ""}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                      </div>
-                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${getBarColor(
+                        row.avg_quality_score,
+                      )}`}
+                      style={{ width: `${row.avg_quality_score}%` }}
+                    />
+                  </div>
+
+                  {expandedProject === row.project_id && (
+                    <div className="mt-3 ml-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <h5 className="text-sm font-semibold text-slate-700 mb-3">
+                        Recent Edit History
+                      </h5>
+                      {logLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : editLogs.length === 0 ? (
+                        <p className="text-xs text-slate-500">No edits found</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-slate-500 border-b border-slate-200">
+                                <th className="text-left py-2 pr-4">Product</th>
+                                <th className="text-left py-2 pr-4">
+                                  Attribute
+                                </th>
+                                <th className="text-center py-2 pr-4">Edits</th>
+                                <th className="text-left py-2 pr-4">
+                                  Old Value
+                                </th>
+                                <th className="text-left py-2 pr-4">
+                                  New Value
+                                </th>
+                                <th className="text-left py-2 pr-4">Type</th>
+                                <th className="text-left py-2 pr-4">
+                                  Algorithm
+                                </th>
+                                <th className="text-left py-2">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {editLogs.map((log) => (
+                                <tr
+                                  key={log.id}
+                                  className="border-b border-slate-100 hover:bg-white"
+                                >
+                                  <td className="py-2 pr-4">
+                                    <div className="font-medium text-slate-800">
+                                      {log.product_name}
+                                    </div>
+                                    <div className="text-slate-400">
+                                      {log.mpn}
+                                    </div>
+                                  </td>
+                                  <td className="py-2 pr-4 font-medium">
+                                    {log.attribute_name}
+                                  </td>
+                                  <td className="py-2 pr-4 text-center">
+                                    <span className="px-2 py-0.5 bg-slate-100 rounded-full text-xs font-medium">
+                                      {attributeEditCounts[
+                                        log.attribute_name
+                                      ] || 1}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 pr-4 text-slate-500 line-through">
+                                    {log.old_value || "—"}
+                                  </td>
+                                  <td className="py-2 pr-4 text-slate-800">
+                                    {log.new_value || "—"}
+                                    {log.old_value &&
+                                      log.new_value &&
+                                      log.old_value !== log.new_value && (
+                                        <TrendingUp className="w-3 h-3 inline ml-1 text-blue-500" />
+                                      )}
+                                  </td>
+                                  <td className="py-2 pr-4">
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-xs ${
+                                        log.edit_source === "ai_cleaning"
+                                          ? "bg-blue-50 text-blue-600"
+                                          : "bg-amber-50 text-amber-600"
+                                      }`}
+                                    >
+                                      {log.edit_source === "ai_cleaning"
+                                        ? "AI"
+                                        : "Manual"}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 pr-4 text-slate-500">
+                                    {log.algorithm_used || "—"}
+                                  </td>
+                                  <td className="py-2 text-slate-400 whitespace-nowrap">
+                                    {log.created_at
+                                      ? new Date(
+                                          log.created_at,
+                                        ).toLocaleDateString()
+                                      : ""}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -59,10 +59,13 @@ export default function BusinessRulesTab() {
   const [rules, setRules] = useState<BusinessRule[]>([]);
   const [allRules, setAllRules] = useState<BusinessRule[]>([]);
   const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
-
+  const [brandPromptBrandFilter, setBrandPromptBrandFilter] = useState("");
+const [brandsList, setBrandsList] = useState<string[]>([]);
   const [promptNameFilter, setPromptNameFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryPromptCategoryFilter, setCategoryPromptCategoryFilter] = useState("");
+const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<RuleCategory | "all">(
     "all",
   );
@@ -127,7 +130,15 @@ export default function BusinessRulesTab() {
     }
     setRules(filteredRules);
   }, [allRules, promptNameFilter]);
+  useEffect(() => {
+  loadCategoriesList();
+}, []);
 
+const loadCategoriesList = async () => {
+  const data = await businessRulesService.getCategoryPrompts() || [];
+  const uniqueCats = [...new Set(data.map((cp: any) => cp.category_name).filter(Boolean))];
+  setCategoriesList(uniqueCats.sort());
+};
   useEffect(() => {
     loadRules();
   }, [loadRules]);
@@ -174,6 +185,15 @@ export default function BusinessRulesTab() {
       console.error("Failed to load brand prompts:", error);
     }
   };
+  useEffect(() => {
+  loadBrandsList();
+}, []);
+
+const loadBrandsList = async () => {
+  const data = await businessRulesService.getBrandPrompts() || [];
+  const uniqueBrands = [...new Set(data.map((bp: any) => bp.brand_name).filter(Boolean))];
+  setBrandsList(uniqueBrands.sort());
+};
   const handleUpdatePromptStatus = async (
     prompt: RulePrompt,
     status: RuleStatus,
@@ -595,6 +615,16 @@ export default function BusinessRulesTab() {
             <h4 className="font-semibold text-slate-900">
               Category-Specific Prompts
             </h4>
+            <select
+          value={categoryPromptCategoryFilter}
+          onChange={(e) => setCategoryPromptCategoryFilter(e.target.value)}
+          className="h-9 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+        >
+          <option value="">All Categories</option>
+          {categoriesList.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
             <button
               onClick={() => {
                 setSelectedCategoryPrompt(null);
@@ -615,7 +645,9 @@ export default function BusinessRulesTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {categoryPrompts.map((cp) => (
+              {categoryPrompts
+  .filter((cp) => !categoryPromptCategoryFilter || cp.category_name === categoryPromptCategoryFilter)
+  .map((cp) =>(
                 <tr key={cp.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium">{cp.category_name}</td>
                   <td className="px-4 py-3">{cp.prompt_name}</td>
@@ -662,6 +694,16 @@ export default function BusinessRulesTab() {
             <h4 className="font-semibold text-slate-900">
               Brand-Specific Prompts
             </h4>
+            <select
+          value={brandPromptBrandFilter}
+          onChange={(e) => setBrandPromptBrandFilter(e.target.value)}
+          className="h-9 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+        >
+          <option value="">All Brands</option>
+          {brandsList.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
             <button
               onClick={() => {
                 setSelectedBrandPrompt(null);
@@ -682,57 +724,48 @@ export default function BusinessRulesTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {brandPrompts.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    No brand prompts found
-                  </td>
-                </tr>
-              ) : (
-                brandPrompts.map((bp) => (
-                  <tr key={bp.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium">{bp.brand_name}</td>
-
-                    <td className="px-4 py-3">{bp.prompt_name}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          bp.status === "active"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {bp.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => {
-                          setSelectedBrandPrompt(bp);
-                          setShowBrandPromptModal(true);
-                        }}
-                        className="p-1 hover:bg-slate-100 rounded"
-                      >
-                        <Edit className="w-4 h-4 text-slate-500" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await businessRulesService.deleteBrandPrompt(bp.id);
-                          loadBrandPrompts();
-                          notify.success("Brand prompt deleted");
-                        }}
-                        className="p-1 hover:bg-red-50 rounded ml-1"
-                      >
-                        <X className="w-4 h-4 text-red-500" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+  {brandPrompts.length === 0 ? (
+    <tr>
+      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+        No brand prompts found
+      </td>
+    </tr>
+  ) : (
+    brandPrompts
+      .filter((bp) => !brandPromptBrandFilter || bp.brand_name === brandPromptBrandFilter)
+      .map((bp) => (
+        <tr key={bp.id} className="hover:bg-slate-50">
+          <td className="px-4 py-3 font-medium">{bp.brand_name}</td>
+          <td className="px-4 py-3">{bp.prompt_name}</td>
+          <td className="px-4 py-3 text-center">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              bp.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+            }`}>
+              {bp.status}
+            </span>
+          </td>
+          <td className="px-4 py-3 text-center">
+            <button
+              onClick={() => { setSelectedBrandPrompt(bp); setShowBrandPromptModal(true); }}
+              className="p-1 hover:bg-slate-100 rounded"
+            >
+              <Edit className="w-4 h-4 text-slate-500" />
+            </button>
+            <button
+              onClick={async () => {
+                await businessRulesService.deleteBrandPrompt(bp.id);
+                loadBrandPrompts();
+                notify.success("Brand prompt deleted");
+              }}
+              className="p-1 hover:bg-red-50 rounded ml-1"
+            >
+              <X className="w-4 h-4 text-red-500" />
+            </button>
+          </td>
+        </tr>
+      ))
+  )}
+</tbody>
           </table>
         </div>
       )}

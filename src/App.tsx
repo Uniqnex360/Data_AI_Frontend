@@ -23,7 +23,7 @@ import LoginPage from "./components/LoginPage.tsx";
 import RegisterPage from "./components/RegisterPage.tsx";
 import UnauthorizedPage from "./components/UnauthorizedPage.tsx";
 import ReportingTab from "./components/ReportingTab.tsx";
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from "lucide-react";
 type TabId =
   | "dashboard"
   | "sources"
@@ -94,17 +94,20 @@ const tabs: Tab[] = [
 ];
 function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
-  const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
+  const [selectedProject, setSelectedProject] = useState<string | undefined>(
+    undefined,
+  );
   const [resetKey, setResetKey] = useState(0);
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);  // ← ADD
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // ← ADD
   const { user, logout } = useAuth();
 
   const allowedTabs = tabs.filter(
     (tab) => !tab.roles || (user && tab.roles.includes(user.role)),
   );
   const fallbackTab = allowedTabs[0]?.id || "dashboard";
-  const currentTab = allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
+  const currentTab =
+    allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
   const ActiveComponent = currentTab?.component;
 
   const handleProjectSelect = (projectId: string) => {
@@ -129,13 +132,14 @@ function AppShell() {
           <div
             className={`${
               sidebarCollapsed ? "w-16" : "w-48"
-            } px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center justify-center transition-all duration-300`}
-          >
+            } px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center justify-center transition-all duration-300`}>
             <img
               src={logo}
               alt="Logo"
               className={`${
-                sidebarCollapsed ? "h-10 w-10 object-contain" : "w-full h-16 object-cover"
+                sidebarCollapsed
+                  ? "h-10 w-10 object-contain"
+                  : "w-full h-16 object-cover"
               } transition-all duration-300`}
             />
           </div>
@@ -160,8 +164,12 @@ function AppShell() {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-slate-900">{user?.full_name}</p>
-                <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
+                <p className="text-sm font-medium text-slate-900">
+                  {user?.full_name}
+                </p>
+                <p className="text-xs text-slate-500 capitalize">
+                  {user?.role}
+                </p>
               </div>
               <button
                 onClick={logout}
@@ -232,7 +240,10 @@ function AppShell() {
                         <>
                           {tab.label
                             .split(" ")
-                            .slice(0, Math.ceil(tab.label.split(" ").length / 2))
+                            .slice(
+                              0,
+                              Math.ceil(tab.label.split(" ").length / 2),
+                            )
                             .join(" ")}
                           <br />
                           {tab.label

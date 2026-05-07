@@ -1025,6 +1025,62 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
       </div>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-blue-600" /> Timeline Overview
+          </h4>
+          <div className="flex items-center gap-2">
+            {(["day", "week", "month"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setSelectedPeriod(p)}
+                className={`px-3 py-1 rounded-md text-xs font-bold ${
+                  selectedPeriod === p
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-slate-200">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+              <tr>
+                <th className="px-4 py-3">Period</th>
+                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">Aggregated</th>
+                <th className="px-4 py-3">Moved to Enrichment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {timelineStats.length > 0 ? (
+                timelineStats.map((row: any, idx: number) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-3">{row.period}</td>
+                    <td className="px-4 py-3">{row.totalProducts}</td>
+                    <td className="px-4 py-3">{row.aggregatedProducts}</td>
+                    <td className="px-4 py-3">{row.movedToEnrichment}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-6 text-center text-slate-400"
+                  >
+                    No timeline data available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {!projectId &&
         (projectsLoading ? (
           <div className="flex justify-center py-8">
@@ -1210,62 +1266,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-blue-600" /> Timeline Overview
-          </h4>
-          <div className="flex items-center gap-2">
-            {(["day", "week", "month"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setSelectedPeriod(p)}
-                className={`px-3 py-1 rounded-md text-xs font-bold ${
-                  selectedPeriod === p
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-xl border border-slate-200">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
-              <tr>
-                <th className="px-4 py-3">Period</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Aggregated</th>
-                <th className="px-4 py-3">Moved to Enrichment</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {timelineStats.length > 0 ? (
-                timelineStats.map((row: any, idx: number) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-3">{row.period}</td>
-                    <td className="px-4 py-3">{row.totalProducts}</td>
-                    <td className="px-4 py-3">{row.aggregatedProducts}</td>
-                    <td className="px-4 py-3">{row.movedToEnrichment}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-center text-slate-400"
-                  >
-                    No timeline data available.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      
     </div>
   );
 }

@@ -371,10 +371,13 @@ export default function ProjectsOverviewTab({
   );
 
   return (
-    <div
-      className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
-      style={{ maxHeight: "calc(100vh - 220px)" }}
-    >
+   <div
+  className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
+  style={{ 
+    maxHeight: "calc(100vh - 140px)", 
+    minHeight: "600px" // This forces it to stay tall
+  }}
+>
       <div className="shrink-0 bg-white">
         <div className="px-5 pt-4 pb-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">

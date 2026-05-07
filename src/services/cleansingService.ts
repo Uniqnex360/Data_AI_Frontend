@@ -92,6 +92,7 @@ export const cleansingService = {
   project_id?: string;
   brand_name?: string;
   algorithm?: string;
+  category_name?:string
 }): Promise<any[]> {
   try {
     const { data } = await api.get("/reporting/data-quality", { params });
