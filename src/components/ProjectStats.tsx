@@ -670,191 +670,184 @@ export function ProjectStats({
             />
           </div>
           <div className="flex-1 overflow-auto px-6">
-            <table className="w-full text-xs text-left border-separate border-spacing-0">
-              <thead className="sticky top-0 bg-white z-10">
-                <tr className="text-[13px] font-semibold text-slate-500">
-                  <th className="py-2 border-b border-slate-200 text-center w-12">
-                    <input
-                      type="checkbox"
-                      checked={
-                        filtered.length > 0 &&
-                        selectedProductIds.size === filtered.length
-                      }
-                      onChange={toggleSelectAll}
-                      className="rounded border-slate-600"
-                    />
-                  </th>
-                  <th className="py-2 border-b border-slate-200">
-                    Product Name & MPN
-                  </th>
-                  <th className="py-2 border-b border-slate-200">Brand</th>
-                  <th className="py-2 border-b border-slate-200">Category</th>
-                  <th className="py-2 border-b border-slate-200 text-center">
-                    No. of Attributes
-                  </th>
-                  <th className="py-2 border-b border-slate-200 text-center">
-                    Completeness
-                  </th>
-                  <th className="py-2 border-b border-slate-200 text-center">
-                    Data Quality
-                  </th>
-                  <th className="py-2 border-b border-slate-200 text-center">
-                    Status
-                  </th>
-                  <th className="py-2 border-b border-slate-200 text-right w-32">
-                    Last Updated
-                  </th>
-                  <th className="py-2 border-b border-slate-200 text-center w-16">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={9} className="py-10 text-center">
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto mb-2" />
-                      <span className="text-slate-400">Loading...</span>
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="py-10 text-center text-slate-400"
-                    >
-                      No products found
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="group hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <td
-                        className="py-2 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedProductIds.has(p.id)}
-                          onChange={() => toggleProductSelection(p.id)}
-                          className="rounded border-slate-600"
-                        />
-                      </td>
-                      <td className="py-2">
-                        <div className="flex items-center gap-3">
-                          {p.image_url_1 ? (
-                            <img
-                              src={p.image_url_1}
-                              className="w-10 h-10 rounded-lg object-cover bg-slate-100 p-1"
-                              alt=""
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                              <FileText className="w-4 h-4 text-slate-600" />
-                            </div>
-                          )}
-                          <div>
-                            <div
-                              className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
-                              title={p.product_name}
-                              onClick={() => {
-                                setSelectedProductIds(new Set([p.id]));
-                                setShowDetailView(true);
-                              }}
-                            >
-                              {p.product_name ||
-                                p.product_code ||
-                                "Unnamed Product"}
-                            </div>
-                            <span
-                              className="text-[10px] text-blue-600 font-mono font-medium truncate"
-                              title={p.product_code}
-                            >
-                              MPN: {p.product_code}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2 text-slate-500">
-                        {p.brand_name || "—"}
-                      </td>
-                      <td className="py-2 text-slate-500">
-                        {p.category_3 || "—"}
-                      </td>
-                      <td className="py-2 text-center text-slate-600 font-medium">
-                        {(p as any).attribute_count ?? "—"}
-                      </td>
-                      <td className="py-2">
-                        <div className="flex items-center gap-3 justify-center">
-                          <div className="flex-1 max-w-[100px] h-1.5  bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                (p.completeness_score || 0) > 80
-                                  ? "bg-emerald-500"
-                                  : (p.completeness_score || 0) > 50
-                                    ? "bg-amber-500"
-                                    : "bg-red-500"
-                              }`}
-                              style={{ width: `${p.completeness_score || 0}%` }}
-                            />
-                          </div>
-                          <span className="font-bold text-slate-700">
-                            {p.completeness_score || 0}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-2 text-center">
-  <span
-    className={`px-2 py-1 rounded-full text-xs font-bold ${
-      ((p as any).data_quality_score ?? 100) >= 90
-        ? "bg-emerald-100 text-emerald-700"
-        : ((p as any).data_quality_score ?? 100) >= 70
-          ? "bg-amber-100 text-amber-700"
-          : "bg-red-100 text-red-700"
-    }`}
+  <table
+    className="w-full text-xs text-left border-separate border-spacing-x-2 border-spacing-y-0"
+    style={{ tableLayout: "fixed" }}
   >
-    {(p as any).data_quality_score ?? 100}%
-  </span>
-</td>
-                      <td className="py-2 text-center">
-                        {getStatusBadge(p.enrichment_status || "pending", true)}
-                      </td>
-                      <td className="py-2 text-right text-slate-400 w-32">
-                        {p.updated_at
-                          ? new Date(p.updated_at + "Z").toLocaleDateString(
-                              "en-US",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                timeZone: "Asia/Kolkata",
-                              },
-                            )
-                          : "—"}
-                      </td>
-                      <td className="py-2 text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedProductIds(new Set([p.id]));
-                            setShowDetailView(true);
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-400 transition-colors"
-                          title="View Attributes"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+    <thead className="sticky top-0 bg-white z-10">
+      <tr className="text-[13px] font-semibold text-slate-500">
+        <th className="py-2 border-b border-slate-200 text-center" style={{ width: 40 }}>
+          <input
+            type="checkbox"
+            checked={filtered.length > 0 && selectedProductIds.size === filtered.length}
+            onChange={toggleSelectAll}
+            className="rounded border-slate-600"
+          />
+        </th>
+        <th className="py-2 border-b border-slate-200" style={{ width: 280 }}>
+          Product Name & MPN
+        </th>
+        <th className="py-2 border-b border-slate-200 whitespace-nowrap" style={{ width: 120 }}>
+          Brand
+        </th>
+        <th className="py-2 border-b border-slate-200 whitespace-nowrap" style={{ width: 120 }}>
+          Category
+        </th>
+        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 90 }}>
+          Attributes
+        </th>
+        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 140 }}>
+          Completeness
+        </th>
+        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 100 }}>
+          Data Quality
+        </th>
+        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 90 }}>
+          Status
+        </th>
+        <th className="py-2 border-b border-slate-200 text-right whitespace-nowrap" style={{ width: 110 }}>
+          Last Updated
+        </th>
+        <th className="py-2 border-b border-slate-200 text-center" style={{ width: 60 }}>
+          Action
+        </th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-slate-100">
+      {loading ? (
+        <tr>
+          <td colSpan={10} className="py-10 text-center">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto mb-2" />
+            <span className="text-slate-400">Loading...</span>
+          </td>
+        </tr>
+      ) : pageRows.length === 0 ? (
+        <tr>
+          <td colSpan={10} className="py-10 text-center text-slate-400">
+            No products found
+          </td>
+        </tr>
+      ) : (
+        pageRows.map((p) => (
+          <tr
+            key={p.id}
+            className="group hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+            <td className="py-2 text-center" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={selectedProductIds.has(p.id)}
+                onChange={() => toggleProductSelection(p.id)}
+                className="rounded border-slate-600"
+              />
+            </td>
+            <td className="py-2">
+              <div className="flex items-center gap-3 min-w-0">
+                {p.image_url_1 ? (
+                  <img
+                    src={p.image_url_1}
+                    className="w-10 h-10 rounded-lg object-cover bg-slate-100 p-1 shrink-0"
+                    alt=""
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-slate-600" />
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
+                    title={p.product_name}
+                    onClick={() => {
+                      setSelectedProductIds(new Set([p.id]));
+                      setShowDetailView(true);
+                    }}
+                  >
+                    {p.product_name || p.product_code || "Unnamed Product"}
+                  </div>
+                  <span
+                    className="text-[10px] text-blue-600 font-mono font-medium truncate block"
+                    title={p.product_code}
+                  >
+                    MPN: {p.product_code}
+                  </span>
+                </div>
+              </div>
+            </td>
+            <td className="py-2 text-slate-500 truncate" title={p.brand_name}>
+              {p.brand_name || "—"}
+            </td>
+            <td className="py-2 text-slate-500 truncate" title={p.category_3}>
+              {p.category_3 || "—"}
+            </td>
+            <td className="py-2 text-center text-slate-600 font-medium">
+              {(p as any).attribute_count ?? "—"}
+            </td>
+            <td className="py-2">
+              <div className="flex items-center gap-3 justify-center">
+                <div className="flex-1 max-w-[80px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      (p.completeness_score || 0) > 80
+                        ? "bg-emerald-500"
+                        : (p.completeness_score || 0) > 50
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                    }`}
+                    style={{ width: `${p.completeness_score || 0}%` }}
+                  />
+                </div>
+                <span className="font-bold text-slate-700">
+                  {p.completeness_score || 0}%
+                </span>
+              </div>
+            </td>
+            <td className="py-2 text-center">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-bold ${
+                  ((p as any).data_quality_score ?? 100) >= 90
+                    ? "bg-emerald-100 text-emerald-700"
+                    : ((p as any).data_quality_score ?? 100) >= 70
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-red-100 text-red-700"
+                }`}
+              >
+                {(p as any).data_quality_score ?? 100}%
+              </span>
+            </td>
+            <td className="py-2 text-center">
+              {getStatusBadge(p.enrichment_status || "pending", true)}
+            </td>
+            <td className="py-2 text-right text-slate-400">
+              {p.updated_at
+                ? new Date(p.updated_at + "Z").toLocaleDateString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Kolkata",
+                  })
+                : "—"}
+            </td>
+            <td className="py-2 text-center">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedProductIds(new Set([p.id]));
+                  setShowDetailView(true);
+                }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-400 transition-colors"
+                title="View Attributes"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
           {isDrawerOpen && selectedProduct && (
             <div className="fixed inset-0 z-50 flex justify-end">
               <div
