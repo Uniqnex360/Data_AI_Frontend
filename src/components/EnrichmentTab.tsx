@@ -67,7 +67,7 @@ export default function EnrichmentTab({
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [statsProjectId, setStatsProjectId] = useState<string | null>(null);
-const [statsProject, setStatsProject] = useState<Project | null>(null);
+  const [statsProject, setStatsProject] = useState<Project | null>(null);
   const [attributes, setAttributes] = useState<AggregatedAttribute[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -105,20 +105,20 @@ const [statsProject, setStatsProject] = useState<Project | null>(null);
     }
   }, [projectId]);
   const openProjectStats = useCallback(
-  (pid: string) => {
-    setIsDrawerOpen(false);
-    setSelectedProduct(null);
-    setStatsProjectId(pid);
-    const proj = projects.find((p) => p.id === pid) || null;
-    setStatsProject(proj);
-  },
-  [projects],
-);
+    (pid: string) => {
+      setIsDrawerOpen(false);
+      setSelectedProduct(null);
+      setStatsProjectId(pid);
+      const proj = projects.find((p) => p.id === pid) || null;
+      setStatsProject(proj);
+    },
+    [projects],
+  );
 
-const closeProjectStats = useCallback(() => {
-  setStatsProjectId(null);
-  setStatsProject(null);
-}, []);
+  const closeProjectStats = useCallback(() => {
+    setStatsProjectId(null);
+    setStatsProject(null);
+  }, []);
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -801,15 +801,15 @@ const closeProjectStats = useCallback(() => {
     return [];
   }, []);
   if (statsProjectId) {
-  return (
-    <ProjectStats
-      projectId={statsProjectId}
-      project={statsProject ?? undefined}
-      onClose={closeProjectStats}
-      onNavigateProject={onNavigate}
-    />
-  );
-}
+    return (
+      <ProjectStats
+        projectId={statsProjectId}
+        project={statsProject ?? undefined}
+        onClose={closeProjectStats}
+        onNavigateProject={onNavigate}
+      />
+    );
+  }
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -1213,9 +1213,11 @@ const closeProjectStats = useCallback(() => {
                   Completeness
                 </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
+                  Data Quality
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
                   Status
                 </th>
-                
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -1259,18 +1261,18 @@ const closeProjectStats = useCallback(() => {
                           disabled={enrichingProjects.has(project.id)}
                         />
                       </td>
-                       <td className="px-4 py-3">
-    <button
-      type="button"
-      className="font-semibold text-slate-900 hover:underline text-left"
-      onClick={(e) => {
-        e.stopPropagation();
-        openProjectStats(project.id);
-      }}
-    >
-      {project.name}
-    </button>
-  </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          className="font-semibold text-slate-900 hover:underline text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openProjectStats(project.id);
+                          }}
+                        >
+                          {project.name}
+                        </button>
+                      </td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
                           {(project as any).aggregation_type ||
@@ -1343,6 +1345,23 @@ const closeProjectStats = useCallback(() => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
+                        {(project as any).data_quality_score != null ? (
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-bold ${
+                              (project as any).data_quality_score >= 90
+                                ? "bg-emerald-100 text-emerald-700"
+                                : (project as any).data_quality_score >= 70
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {(project as any).data_quality_score}%
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
                         <span
                           title={project.source_status || "NA"}
                           className="cursor-default"
@@ -1350,7 +1369,6 @@ const closeProjectStats = useCallback(() => {
                           {getStatusBadge(project.source_status || "NA", true)}
                         </span>
                       </td>
-                      
                     </tr>
                     {expandedProjectId === project.id && (
                       <tr>

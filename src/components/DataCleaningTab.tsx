@@ -332,10 +332,10 @@ export default function DataCleaningTab() {
   useEffect(() => {
     if (selectedProjectId) loadProducts();
   }, [selectedProjectId, page, pageSize]);
-  const loadProjects = async () => {
+ const loadProjects = async () => {
     setProjectsLoading(true);
     try {
-      const data = await projectService.getAllProjects();
+      const data = await projectService.getAllProjects({ operation_mode: "cleaning" });
       setProjects(data.filter((p: Project) => p.operation_mode === "cleaning"));
     } catch {
       notify.error("Failed to load projects");
@@ -1368,6 +1368,9 @@ export default function DataCleaningTab() {
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
+                   <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Select
+                  </th>
                   <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Project Name
                   </th>
@@ -1385,6 +1388,9 @@ export default function DataCleaningTab() {
                   </th>
                   <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Completeness
+                  </th>
+                  <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                    Data Quality
                   </th>
                   <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Status
@@ -1406,7 +1412,7 @@ export default function DataCleaningTab() {
                   </tr>
                 ) : paginatedProjects.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-500">
+                    <td colSpan={10} className="p-8 text-center text-slate-500">
                       No cleaning projects found
                     </td>
                   </tr>
@@ -1419,7 +1425,9 @@ export default function DataCleaningTab() {
                       <tr
                         key={project.id}
                         className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                          selectedProjectIds.has(project.id)?'bg-blue-50/50':""
+                          selectedProjectIds.has(project.id)
+                            ? "bg-blue-50/50"
+                            : ""
                         }`}
                         onClick={async () => {
                           setProjectSwitching(true);
@@ -1528,6 +1536,23 @@ export default function DataCleaningTab() {
                               %
                             </span>
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {(project as any).data_quality_score != null ? (
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                (project as any).data_quality_score >= 90
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : (project as any).data_quality_score >= 70
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {(project as any).data_quality_score}%
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {getStatusBadge(project.source_status || "NA", true)}

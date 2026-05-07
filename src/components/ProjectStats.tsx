@@ -29,9 +29,7 @@ import { useRef } from "react";
 import { productService } from "../services/productService.ts";
 import { Pagination } from "./Pagination.tsx";
 import { SearchableDropdown } from "../utils/SearchableDropdown";
-
 type TabKey = "listing" | "aggregated" | "enrichment";
-
 interface ProjectStatsProps {
   projectId: string;
   project?: Project;
@@ -39,9 +37,7 @@ interface ProjectStatsProps {
   onAggregateProducts?: (productId: string) => Promise<void>;
   onNavigateProject?: (tab: string, projectId: string) => void;
 }
-
 const ITEMS_PER_PAGE = 10;
-
 export function ProjectStats({
   projectId,
   project: projectProp,
@@ -64,21 +60,17 @@ export function ProjectStats({
   );
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
-
   const [tab, setTab] = useState<TabKey>("listing");
   const [search, setSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [page, setPage] = useState(1);
-
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDetailView, setShowDetailView] = useState(false);
-
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [attributes, setAttributes] = useState<any[]>([]);
   const [attributesLoading, setAttributesLoading] = useState(false);
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -87,13 +79,11 @@ export function ProjectStats({
         aggregationService.getProductsWithMovement(projectId),
         extractionService.getSourcesByProject(projectId),
       ]);
-
       const matched = stats.find((s) => s.id === projectId) || null;
       setProjectStats(matched);
       setAggregationProducts(movement.aggregation_products || []);
       setEnrichmentProducts(movement.enrichment_products || []);
       setLastUpdated(movement.last_updated || null);
-
       if (sources && sources.length > 0) {
         setProjectSource(sources[0]);
       }
@@ -104,11 +94,10 @@ export function ProjectStats({
       setLoading(false);
     }
   }, [projectId]);
-
   useEffect(() => {
     loadData();
   }, [loadData]);
-  // Poll for completion of aggregating products
+
   useEffect(() => {
     if (aggregatingProducts.size === 0) {
       if (pollingIntervalRef.current) {
@@ -117,7 +106,6 @@ export function ProjectStats({
       }
       return;
     }
-
     pollingIntervalRef.current = setInterval(async () => {
       try {
         const result = await productService.getProductsByProject(
@@ -127,9 +115,7 @@ export function ProjectStats({
         const products = Array.isArray(result)
           ? result
           : (result?.products ?? []);
-
         const stillProcessing = new Set(aggregatingProducts);
-
         for (const id of aggregatingProducts) {
           const product = products.find((p: Product) => p.id === id);
           if (
@@ -140,7 +126,6 @@ export function ProjectStats({
             stillProcessing.delete(id);
           }
         }
-
         if (stillProcessing.size === 0) {
           clearInterval(pollingIntervalRef.current!);
           pollingIntervalRef.current = null;
@@ -153,7 +138,6 @@ export function ProjectStats({
         console.error("Polling error:", e);
       }
     }, 3000);
-
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -180,23 +164,19 @@ export function ProjectStats({
       setAttributesLoading(false);
     }
   }, []);
-
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setIsDrawerOpen(true);
     loadAttributes(product.id);
   };
-
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
   };
-
   const baseProducts = useMemo(() => {
     if (tab === "enrichment") return enrichmentProducts;
     return aggregationProducts;
   }, [tab, aggregationProducts, enrichmentProducts]);
-
   const filtered = useMemo(() => {
     let arr = [...baseProducts];
     if (search.trim()) {
@@ -219,11 +199,9 @@ export function ProjectStats({
       arr = arr.filter((p) => p.enrichment_status === "completed");
     return arr;
   }, [baseProducts, search, brandFilter, categoryFilter, statusFilter, tab]);
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const start = (page - 1) * ITEMS_PER_PAGE;
   const pageRows = filtered.slice(start, start + ITEMS_PER_PAGE);
-
   const completeness = parseFloat(
     String(
       projectProp?.completeness_score || projectStats?.completeness_score || 0,
@@ -244,7 +222,6 @@ export function ProjectStats({
   const movedToEnrichment = enrichmentProducts.filter(
     (p) => p.workflow_stage === "enrichment",
   ).length;
-
   const projectName = projectProp?.name ?? projectStats?.name ?? "Project";
   const handleDownloadSelected = async () => {
     if (selectedProductIds.size === 0) {
@@ -281,7 +258,6 @@ export function ProjectStats({
       setSelectedProductIds(new Set(filtered.map((p) => p.id)));
     }
   };
-
   const toggleProductSelection = (productId: string) => {
     setSelectedProductIds((prev) => {
       const newSet = new Set(prev);
@@ -311,7 +287,6 @@ export function ProjectStats({
       setDownloading(false);
     }
   };
-
   return (
     <div className="h-full flex flex-col bg-white text-slate-900">
       {showDetailView ? (
@@ -331,23 +306,19 @@ export function ProjectStats({
               >
                 <ChevronLeft className="w-3 h-3" /> Back
               </button>
-
               <h1 className="text-xl font-bold tracking-tight">
                 {projectName}
               </h1>
             </div>
-
-            
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
           <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-200">
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
               <div>
@@ -385,7 +356,6 @@ export function ProjectStats({
                 </svg>
               </div>
             </div>
-
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                 Project Status
@@ -411,7 +381,6 @@ export function ProjectStats({
                 </p>
               </div>
             </div>
-
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
@@ -457,7 +426,6 @@ export function ProjectStats({
               </button>
             </div>
           </div>
-
           <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 border-b border-slate-200">
             <MetricPill label="Total Products" value={totalProducts} />
             <MetricPill
@@ -487,7 +455,6 @@ export function ProjectStats({
               color="text-rose-400"
             />
           </div>
-
           <div className="px-6 pt-4 border-b border-slate-200">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-6">
@@ -604,7 +571,6 @@ export function ProjectStats({
                   </button>
                 )}
               </div>
-
               <SearchableDropdown
                 label="All Brands"
                 options={(() => {
@@ -635,7 +601,6 @@ export function ProjectStats({
                   setPage(1);
                 }}
               />
-
               <SearchableDropdown
                 label="All Categories"
                 options={(() => {
@@ -666,7 +631,6 @@ export function ProjectStats({
                   setPage(1);
                 }}
               />
-
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -681,7 +645,6 @@ export function ProjectStats({
                 <option value="processing">In Progress</option>
                 <option value="failed">Failed</option>
               </select>
-
               {(search || brandFilter || categoryFilter || statusFilter) && (
                 <button
                   onClick={() => {
@@ -721,7 +684,6 @@ export function ProjectStats({
                       className="rounded border-slate-600"
                     />
                   </th>
-
                   <th className="py-2 border-b border-slate-200">
                     Product Name & MPN
                   </th>
@@ -732,6 +694,9 @@ export function ProjectStats({
                   </th>
                   <th className="py-2 border-b border-slate-200 text-center">
                     Completeness
+                  </th>
+                  <th className="py-2 border-b border-slate-200 text-center">
+                    Data Quality
                   </th>
                   <th className="py-2 border-b border-slate-200 text-center">
                     Status
@@ -778,7 +743,6 @@ export function ProjectStats({
                           className="rounded border-slate-600"
                         />
                       </td>
-
                       <td className="py-2">
                         <div className="flex items-center gap-3">
                           {p.image_url_1 ? (
@@ -843,6 +807,19 @@ export function ProjectStats({
                         </div>
                       </td>
                       <td className="py-2 text-center">
+  <span
+    className={`px-2 py-1 rounded-full text-xs font-bold ${
+      ((p as any).data_quality_score ?? 100) >= 90
+        ? "bg-emerald-100 text-emerald-700"
+        : ((p as any).data_quality_score ?? 100) >= 70
+          ? "bg-amber-100 text-amber-700"
+          : "bg-red-100 text-red-700"
+    }`}
+  >
+    {(p as any).data_quality_score ?? 100}%
+  </span>
+</td>
+                      <td className="py-2 text-center">
                         {getStatusBadge(p.enrichment_status || "pending", true)}
                       </td>
                       <td className="py-2 text-right text-slate-400 w-32">
@@ -878,7 +855,6 @@ export function ProjectStats({
               </tbody>
             </table>
           </div>
-
           {isDrawerOpen && selectedProduct && (
             <div className="fixed inset-0 z-50 flex justify-end">
               <div
@@ -1053,7 +1029,6 @@ export function ProjectStats({
               </div>
             </div>
           )}
-
           <div className="px-6 py-2 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
             <Pagination
               page={page}
@@ -1066,7 +1041,6 @@ export function ProjectStats({
     </div>
   );
 }
-
 function MetricPill({
   label,
   value,
@@ -1098,7 +1072,6 @@ function MetricPill({
     </div>
   );
 }
-
 function TabButton({
   label,
   active,

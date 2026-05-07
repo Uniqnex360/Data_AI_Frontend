@@ -1421,6 +1421,9 @@ export default function AggregationTab({
                   Completeness
                 </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  Data Quality
+                </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                   Status
                 </th>
               </tr>
@@ -1437,7 +1440,7 @@ export default function AggregationTab({
                 </tr>
               ) : filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-500">
+                  <td colSpan={10} className="p-8 text-center text-slate-500">
                     No projects found
                   </td>
                 </tr>
@@ -1549,6 +1552,23 @@ export default function AggregationTab({
                           {project.completeness_score || 0}%
                         </span>
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {(project as any).data_quality_score != null ? (
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            (project as any).data_quality_score >= 90
+                              ? "bg-emerald-100 text-emerald-700"
+                              : (project as any).data_quality_score >= 70
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {(project as any).data_quality_score}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
