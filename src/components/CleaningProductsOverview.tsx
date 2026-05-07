@@ -56,13 +56,12 @@ export function CleaningProductsOverview({
   onSelectAllAcrossPages,
 }: CleaningProductsOverviewProps) {
   const getProcessedCount = (product: Product): number => {
-  return product.attribute_count || 0;
-};
+    return product.attribute_count || 0;
+  };
 
-  
-const getTotalAttributes = (product: Product): number => {
-  return product.attribute_count || 0;
-};
+  const getTotalAttributes = (product: Product): number => {
+    return product.attribute_count || 0;
+  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -100,11 +99,12 @@ const getTotalAttributes = (product: Product): number => {
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
           />
           {searchTerm && (
-            <button onClick={()=>onSearchChange('')}
-           className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
-            <X className="w-3.5 h-3.5"/>
-           </button>
-
+            <button
+              onClick={() => onSearchChange("")}
+              className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </div>
@@ -171,10 +171,13 @@ const getTotalAttributes = (product: Product): number => {
                 No. of Attributes
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
-                 Cleansed
+                Cleansed
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
                 Completeness
+              </th>
+              <th className="px-4 py-3 border-b border-slate-200 text-center">
+                Data Quality
               </th>
               <th className="px-4 py-3 border-b border-slate-200 text-center">
                 Status
@@ -228,20 +231,26 @@ const getTotalAttributes = (product: Product): number => {
                       </div>
                     )}
                   </td>
-                 <td className="px-4 py-3">
-  <div className="flex flex-col gap-0.5">
-    <span className="text-sm font-medium text-slate-900 line-clamp-2" title={product.product_name}>
-      {product.product_name || "Unnamed Product"}
-    </span>
-    <span className="text-[10px] text-blue-600 font-mono font-medium truncate" title={product.product_code}>
-      MPN: {product.product_code}
-    </span>
-  </div>
-</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span
+                        className="text-sm font-medium text-slate-900 line-clamp-2"
+                        title={product.product_name}
+                      >
+                        {product.product_name || "Unnamed Product"}
+                      </span>
+                      <span
+                        className="text-[10px] text-blue-600 font-mono font-medium truncate"
+                        title={product.product_code}
+                      >
+                        MPN: {product.product_code}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {product.brand_name || "—"}
                   </td>
-                  
+
                   <td className="px-4 py-3 text-center text-sm">
                     {getTotalAttributes(product)}
                   </td>
@@ -268,6 +277,23 @@ const getTotalAttributes = (product: Product): number => {
                         {product.completeness_score || 0}%
                       </span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {(product as any).data_quality_score != null ? (
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          (product as any).data_quality_score >= 90
+                            ? "bg-emerald-100 text-emerald-700"
+                            : (product as any).data_quality_score >= 70
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {(product as any).data_quality_score}%
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {getStatusBadge(

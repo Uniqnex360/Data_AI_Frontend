@@ -242,54 +242,60 @@ export default function BusinessRulesTab() {
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px_280px_auto] gap-3 items-center">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search rules or prompts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-11 ${inputBase}`}
-            />
-          </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as any)}
-            className={inputBase}
-          >
-            <option value="all">All Scenarios</option>
-            <option value="enrichment">Enrichment</option>
-            <option value="aggregation">Aggregation</option>
-            <option value="extraction">PDF Extraction</option>
-            <option value="standardization">Standardization</option>
-          </select>
-          <select
-            value={promptNameFilter}
-            onChange={(e) => setPromptNameFilter(e.target.value)}
-            disabled={uniquePromptNames.length === 0}
-            className={inputBase}
-          >
-            <option value="">All Prompts</option>
-            {uniquePromptNames.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-          {hasActiveFilters ? (
-            <button
-              onClick={resetFilters}
-              className="h-12 px-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold inline-flex items-center gap-2"
-            >
-              <X className="w-4 h-4" />
-              Clear
-            </button>
-          ) : (
-            <div />
-          )}
+  <div className="flex items-end justify-between gap-4 flex-wrap">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+      <div>
+        <label className="block text-sm text-slate-700 mb-2">Search</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search rules or prompts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-lg bg-white text-sm"
+          />
         </div>
       </div>
+      <div>
+        <label className="block text-sm text-slate-700 mb-2">Scenario</label>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value as any)}
+          className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+        >
+          <option value="all">All Scenarios</option>
+          <option value="enrichment">Enrichment</option>
+          <option value="aggregation">Aggregation</option>
+          <option value="extraction">PDF Extraction</option>
+          <option value="standardization">Standardization</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm text-slate-700 mb-2">Prompt</label>
+        <select
+          value={promptNameFilter}
+          onChange={(e) => setPromptNameFilter(e.target.value)}
+          disabled={uniquePromptNames.length === 0}
+          className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+        >
+          <option value="">All Prompts</option>
+          {uniquePromptNames.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+    {hasActiveFilters && (
+      <button
+        onClick={resetFilters}
+        className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        Clear
+      </button>
+    )}
+  </div>
+</div>
       <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit">
         <button
           onClick={() => setActiveTab("rules")}
