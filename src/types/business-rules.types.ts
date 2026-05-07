@@ -216,6 +216,8 @@ export interface DashboardStats {
   totalProducts: number;
   publishedProducts: number;
   catalogHealth: number;
+  totalBrands?: number;
+totalCategories?: number;
 }
 export interface TimelineParams {
   projectId?: string;

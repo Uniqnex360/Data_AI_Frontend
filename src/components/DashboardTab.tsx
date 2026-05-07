@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -20,8 +19,12 @@ import {
 import { dashboardService, type DateField } from "../services/dashboardService";
 import { aggregationService } from "../services/aggregationService";
 import ProjectsOverviewTab from "./ProjectsOverviewTab.tsx";
-import { DashboardStats, Product, ProjectOverview } from "../types/business-rules.types.ts";
-import { productService } from '../services/productService';
+import {
+  DashboardStats,
+  Product,
+  ProjectOverview,
+} from "../types/business-rules.types.ts";
+import { productService } from "../services/productService";
 
 interface Props {
   projectId?: string;
@@ -43,9 +46,8 @@ const endOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 
 const startOfWeek = (d: Date) => {
-  
   const date = startOfDay(d);
-  const day = date.getDay(); 
+  const day = date.getDay();
   const diff = (day + 6) % 7;
   date.setDate(date.getDate() - diff);
   return date;
@@ -59,7 +61,8 @@ const endOfWeek = (d: Date) => {
 };
 
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
-const endOfMonth = (d: Date) => endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+const endOfMonth = (d: Date) =>
+  endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 
 const clampPercent = (n: number) => Math.max(0, Math.min(100, n));
 
@@ -150,7 +153,9 @@ function StatCard({
     >
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-slate-600">{title}</p>
-        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${iconBg}`}>
+        <div
+          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${iconBg}`}
+        >
           <span className={iconColor}>{icon}</span>
         </div>
       </div>
@@ -209,16 +214,21 @@ function ProgressCard({
 
 export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
-  const [projectsOverview, setProjectsOverview] = useState<ProjectOverview[]>([]);
-const [projectsLoading, setProjectsLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>("week"); 
+  const [projectsOverview, setProjectsOverview] = useState<ProjectOverview[]>(
+    [],
+  );
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("week");
   const [preset, setPreset] = useState<Preset>("month");
-  const [startDate, setStartDate] = useState<string>(toYMD(startOfMonth(new Date())));
+  const [startDate, setStartDate] = useState<string>(
+    toYMD(startOfMonth(new Date())),
+  );
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
-  
-  const [dateField, setDateField] = useState<DateField>("updated_at"); 
-    const [totalProjectCount, setTotalProjectCount] = useState(0);
-  
+  const [attributeSummary, setAttributeSummary] = useState<any[]>([]);
+
+  const [dateField, setDateField] = useState<DateField>("updated_at");
+  const [totalProjectCount, setTotalProjectCount] = useState(0);
+
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [metrics, setMetrics] = useState<any[]>([]);
 
@@ -241,27 +251,26 @@ const [projectsLoading, setProjectsLoading] = useState(true);
 
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
-  
   const [prevStats, setPrevStats] = useState<DashboardStats | null>(null);
 
   const todayYMD = useMemo(() => toYMD(new Date()), []);
   const loadProjectsOverview = async () => {
-  setProjectsLoading(true);
-  try {
-    const data = await dashboardService.getProjectsOverview();
-    setProjectsOverview(data.projects || []); 
-    setTotalProjectCount(data.total || 0);    
-  } catch (error) {
-    console.error("Failed to load projects overview:", error);
-  } finally {
-    setProjectsLoading(false);
-  }
-};
-useEffect(() => {
-  if (!projectId) {
-    loadProjectsOverview();
-  }
-}, [projectId]);
+    setProjectsLoading(true);
+    try {
+      const data = await dashboardService.getProjectsOverview();
+      setProjectsOverview(data.projects || []);
+      setTotalProjectCount(data.total || 0);
+    } catch (error) {
+      console.error("Failed to load projects overview:", error);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (!projectId) {
+      loadProjectsOverview();
+    }
+  }, [projectId]);
   useEffect(() => {
     const now = new Date();
     if (preset === "today") {
@@ -288,8 +297,13 @@ useEffect(() => {
 
   useEffect(() => {
     loadData();
-    
-  }, [projectId, selectedPeriod, rangeParams.start_date, rangeParams.end_date, rangeParams.date_field]);
+  }, [
+    projectId,
+    selectedPeriod,
+    rangeParams.start_date,
+    rangeParams.end_date,
+    rangeParams.date_field,
+  ]);
 
   const getMetricValue = (type: string): number =>
     metrics.find((m) => m.metric_type === type)?.metric_value || 0;
@@ -297,13 +311,16 @@ useEffect(() => {
   const loadData = async () => {
     setLoading(true);
     try {
-      
       const data = projectId
         ? await dashboardService.getProjectMetrics(projectId, rangeParams)
         : await dashboardService.getGlobalMetrics(rangeParams);
       setGlobalStats(data);
 
-      
+      const attrSummary = await dashboardService.getAttributeSummary({
+        project_id: projectId,
+        ...rangeParams,
+      } as any);
+      setAttributeSummary(attrSummary);
       const prev = shiftRangeBack(startDate, endDate);
       const prevData = projectId
         ? await dashboardService.getProjectMetrics(projectId, {
@@ -319,7 +336,6 @@ useEffect(() => {
 
       setPrevStats(prevData);
 
-      
       const timeline = await dashboardService.getTimeline({
         projectId,
         period: selectedPeriod,
@@ -327,7 +343,6 @@ useEffect(() => {
       } as any);
       setTimelineStats(timeline);
 
-      
       const brandFlow = await dashboardService.getBrandFlow({
         projectId,
         ...rangeParams,
@@ -340,7 +355,6 @@ useEffect(() => {
       } as any);
       setCategoryFlowStats(categoryFlow);
 
-      
       const na = await dashboardService.getNeedsAttention({
         projectId,
         ...rangeParams,
@@ -354,7 +368,6 @@ useEffect(() => {
       } as any);
       setRecentActivity(ra);
 
-      
       if (projectId) {
         const failedRes = await productService.getProductsByProject(
           projectId,
@@ -380,15 +393,35 @@ useEffect(() => {
         setProblemProducts([]);
       }
 
-      
       setMetrics([
-        { metric_type: "total_products", metric_value: data.totalProducts || 0 },
-        { metric_type: "aggregated", metric_value: (data as any).aggregatedProducts || 0 },
-        { metric_type: "cleaned", metric_value: (data as any).cleanedProducts || 0 },
-        { metric_type: "enriched", metric_value: (data as any).enrichedProducts || 0 },
-        { metric_type: "failed", metric_value: (data as any).failedProducts || 0 },
-        { metric_type: "pending", metric_value: (data as any).pendingProducts || 0 },
-        { metric_type: "catalog_health", metric_value: (data as any).catalogHealth || 0 },
+        {
+          metric_type: "total_products",
+          metric_value: data.totalProducts || 0,
+        },
+        {
+          metric_type: "aggregated",
+          metric_value: (data as any).aggregatedProducts || 0,
+        },
+        {
+          metric_type: "cleaned",
+          metric_value: (data as any).cleanedProducts || 0,
+        },
+        {
+          metric_type: "enriched",
+          metric_value: (data as any).enrichedProducts || 0,
+        },
+        {
+          metric_type: "failed",
+          metric_value: (data as any).failedProducts || 0,
+        },
+        {
+          metric_type: "pending",
+          metric_value: (data as any).pendingProducts || 0,
+        },
+        {
+          metric_type: "catalog_health",
+          metric_value: (data as any).catalogHealth || 0,
+        },
       ]);
 
       setLastRefreshedAt(new Date());
@@ -407,35 +440,36 @@ useEffect(() => {
   const failed = getMetricValue("failed");
   const avgCompleteness = getMetricValue("catalog_health");
 
-  
-  const totalDelta = (globalStats?.totalProducts ?? 0) - (prevStats?.totalProducts ?? 0);
+  const totalDelta =
+    (globalStats?.totalProducts ?? 0) - (prevStats?.totalProducts ?? 0);
   const processedPct = prevStats?.aggregatedProducts
-    ? ((globalStats?.aggregatedProducts ?? 0) - (prevStats?.aggregatedProducts ?? 0)) /
-      (prevStats?.aggregatedProducts || 1) *
+    ? (((globalStats?.aggregatedProducts ?? 0) -
+        (prevStats?.aggregatedProducts ?? 0)) /
+        (prevStats?.aggregatedProducts || 1)) *
       100
     : 0;
   const enrichedPct = prevStats?.enrichedProducts
-    ? ((globalStats?.enrichedProducts ?? 0) - (prevStats?.enrichedProducts ?? 0)) /
-      (prevStats?.enrichedProducts || 1) *
+    ? (((globalStats?.enrichedProducts ?? 0) -
+        (prevStats?.enrichedProducts ?? 0)) /
+        (prevStats?.enrichedProducts || 1)) *
       100
     : 0;
   const cleanedPct = prevStats?.cleanedProducts
-    ? ((globalStats?.cleanedProducts ?? 0) - (prevStats?.cleanedProducts ?? 0)) /
-      (prevStats?.cleanedProducts || 1) *
+    ? (((globalStats?.cleanedProducts ?? 0) -
+        (prevStats?.cleanedProducts ?? 0)) /
+        (prevStats?.cleanedProducts || 1)) *
       100
     : 0;
 
-  
   const enrichmentRatePct = total > 0 ? (enriched / total) * 100 : 0;
   const uncategorized = needsAttention?.uncategorized ?? 0;
-  const categoryCoveragePct = total > 0 ? ((total - uncategorized) / total) * 100 : 0;
+  const categoryCoveragePct =
+    total > 0 ? ((total - uncategorized) / total) * 100 : 0;
 
-  
-  
   const invalidAttributes = needsAttention?.invalidAttributes ?? 0;
-  const attrValidityPct = total > 0 ? ((total - invalidAttributes) / total) * 100 : 100;
+  const attrValidityPct =
+    total > 0 ? ((total - invalidAttributes) / total) * 100 : 100;
 
-  
   const activityAgg = processed;
   const activityEnrich = enriched;
   const activityClean = cleaned;
@@ -461,13 +495,16 @@ useEffect(() => {
     };
   }, [projectId, total, enriched, failed]);
 
-  
   const ActivityIcon = ({ type }: { type: string }) => {
     const t = (type || "").toLowerCase();
-    if (t.includes("completed")) return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
-    if (t.includes("failed")) return <XCircle className="w-4 h-4 text-red-600" />;
-    if (t.includes("clean")) return <Filter className="w-4 h-4 text-teal-600" />;
-    if (t.includes("enrich")) return <Sparkles className="w-4 h-4 text-amber-600" />;
+    if (t.includes("completed"))
+      return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
+    if (t.includes("failed"))
+      return <XCircle className="w-4 h-4 text-red-600" />;
+    if (t.includes("clean"))
+      return <Filter className="w-4 h-4 text-teal-600" />;
+    if (t.includes("enrich"))
+      return <Sparkles className="w-4 h-4 text-amber-600" />;
     return <Activity className="w-4 h-4 text-slate-600" />;
   };
 
@@ -496,22 +533,35 @@ useEffect(() => {
             )}
           </div>
           <p className="text-sm text-slate-600">
-            Product intelligence overview — projects, brands, categories & pipeline health
+            Product intelligence overview — projects, brands, categories &
+            pipeline health
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-            <PillButton active={preset === "today"} onClick={() => setPreset("today")}>
+            <PillButton
+              active={preset === "today"}
+              onClick={() => setPreset("today")}
+            >
               Today
             </PillButton>
-            <PillButton active={preset === "week"} onClick={() => setPreset("week")}>
+            <PillButton
+              active={preset === "week"}
+              onClick={() => setPreset("week")}
+            >
               This Week
             </PillButton>
-            <PillButton active={preset === "month"} onClick={() => setPreset("month")}>
+            <PillButton
+              active={preset === "month"}
+              onClick={() => setPreset("month")}
+            >
               This Month
             </PillButton>
-            <PillButton active={preset === "custom"} onClick={() => setPreset("custom")}>
+            <PillButton
+              active={preset === "custom"}
+              onClick={() => setPreset("custom")}
+            >
               <span className="inline-flex items-center gap-2">
                 <CalendarDays className="w-4 h-4" />
                 Custom
@@ -578,7 +628,9 @@ useEffect(() => {
             </span>
           }
           footerRight={
-            projectId ? "Custom Range" : `${globalStats?.totalProjects ?? 0} projects`
+            projectId
+              ? "Custom Range"
+              : `${globalStats?.totalProjects ?? 0} projects`
           }
           onClick={() => onNavigate?.("aggregation", "all")}
         />
@@ -591,7 +643,9 @@ useEffect(() => {
           iconColor="text-emerald-600"
           footerLeft={
             <span className="text-emerald-600 font-semibold">
-              {processedPct >= 0 ? `↗ +${Math.round(processedPct)}%` : `↘ ${Math.round(processedPct)}%`}
+              {processedPct >= 0
+                ? `↗ +${Math.round(processedPct)}%`
+                : `↘ ${Math.round(processedPct)}%`}
             </span>
           }
           footerRight="Custom Range"
@@ -606,7 +660,9 @@ useEffect(() => {
           iconColor="text-amber-600"
           footerLeft={
             <span className="text-emerald-600 font-semibold">
-              {enrichedPct >= 0 ? `↗ +${Math.round(enrichedPct)}%` : `↘ ${Math.round(enrichedPct)}%`}
+              {enrichedPct >= 0
+                ? `↗ +${Math.round(enrichedPct)}%`
+                : `↘ ${Math.round(enrichedPct)}%`}
             </span>
           }
           footerRight="Custom Range"
@@ -621,7 +677,9 @@ useEffect(() => {
           iconColor="text-teal-600"
           footerLeft={
             <span className="text-emerald-600 font-semibold">
-              {cleanedPct >= 0 ? `↗ +${Math.round(cleanedPct)}%` : `↘ ${Math.round(cleanedPct)}%`}
+              {cleanedPct >= 0
+                ? `↗ +${Math.round(cleanedPct)}%`
+                : `↘ ${Math.round(cleanedPct)}%`}
             </span>
           }
           footerRight="Custom Range"
@@ -649,17 +707,35 @@ useEffect(() => {
           iconBg="bg-red-50 border border-red-100"
           iconColor="text-red-600"
           footerLeft={
-            <span className={`${failed > 0 ? "text-red-600" : "text-slate-500"} font-semibold`}>
+            <span
+              className={`${failed > 0 ? "text-red-600" : "text-slate-500"} font-semibold`}
+            >
               {failed > 0 ? "↘ -5%" : "0%"}
             </span>
           }
           footerRight="need attention"
           onClick={() => onNavigate?.("aggregation", "failed")}
         />
-      </div>
-     
+        <StatCard
+          title="Total Brands"
+          value={globalStats?.totalBrands ?? 0}
+          icon={<Tag className="w-5 h-5" />}
+          iconBg="bg-purple-50 border border-purple-100"
+          iconColor="text-purple-600"
+          footerRight="unique brands"
+        />
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Categories"
+          value={globalStats?.totalCategories ?? 0}
+          icon={<Layers className="w-5 h-5" />}
+          iconBg="bg-cyan-50 border border-cyan-100"
+          iconColor="text-cyan-600"
+          footerRight="unique categories"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <ProgressCard
           title="Enrichment Rate"
           valuePct={enrichmentRatePct}
@@ -692,6 +768,43 @@ useEffect(() => {
           icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
         />
       </div>
+      {attributeSummary.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h4 className="text-sm font-bold text-slate-900 mb-4">
+            Attribute Sets
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {attributeSummary.map((attr) => (
+              <div
+                key={attr.attribute_name}
+                className="p-4 bg-slate-50 rounded-xl border border-slate-200"
+              >
+                <div className="text-sm font-semibold text-slate-800 truncate">
+                  {attr.attribute_name}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-2xl font-bold text-slate-900">
+                    {attr.unique_values}
+                  </span>
+                  <span className="text-xs text-slate-500">unique values</span>
+                </div>
+                {attr.uoms?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {attr.uoms.slice(0, 5).map((uom: string) => (
+                      <span
+                        key={uom}
+                        className="px-2 py-0.5 bg-white border border-slate-200 rounded-full text-xs text-slate-600"
+                      >
+                        {uom || "—"}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -708,10 +821,11 @@ useEffect(() => {
             {brandFlowStats.slice(0, 10).map((row: any, idx: number) => {
               const pct =
                 row.totalProducts > 0
-                  ? Math.round((row.enrichmentProducts / row.totalProducts) * 100)
+                  ? Math.round(
+                      (row.enrichmentProducts / row.totalProducts) * 100,
+                    )
                   : 0;
 
-              
               const delta = 0;
 
               return (
@@ -721,21 +835,33 @@ useEffect(() => {
                       <span className="w-5 text-xs text-slate-400 text-right">
                         {idx + 1}
                       </span>
-                      <span className="font-semibold text-slate-900 truncate" title={row.brand}>
+                      <span
+                        className="font-semibold text-slate-900 truncate"
+                        title={row.brand}
+                      >
                         {row.brand}
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 whitespace-nowrap">
                       {row.totalProducts} products{" "}
-                      <span className={`ml-2 font-semibold ${delta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {delta === 0 ? "0%" : delta > 0 ? `+${delta}%` : `${delta}%`}
+                      <span
+                        className={`ml-2 font-semibold ${delta >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                      >
+                        {delta === 0
+                          ? "0%"
+                          : delta > 0
+                            ? `+${delta}%`
+                            : `${delta}%`}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                      <div
+                        className="h-full bg-emerald-500"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                     <div className="w-10 text-right text-xs font-semibold text-slate-700">
                       {pct}%
@@ -767,7 +893,9 @@ useEffect(() => {
             {categoryFlowStats.slice(0, 10).map((row: any, idx: number) => {
               const pct =
                 row.totalProducts > 0
-                  ? Math.round((row.enrichmentProducts / row.totalProducts) * 100)
+                  ? Math.round(
+                      (row.enrichmentProducts / row.totalProducts) * 100,
+                    )
                   : 0;
 
               return (
@@ -777,7 +905,10 @@ useEffect(() => {
                       <span className="w-5 text-xs text-slate-400 text-right">
                         {idx + 1}
                       </span>
-                      <span className="font-semibold text-slate-900 truncate" title={row.category}>
+                      <span
+                        className="font-semibold text-slate-900 truncate"
+                        title={row.category}
+                      >
                         {row.category}
                       </span>
                     </div>
@@ -791,7 +922,10 @@ useEffect(() => {
 
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
+                      <div
+                        className="h-full bg-orange-500"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                     <div className="w-10 text-right text-xs font-semibold text-slate-700">
                       {pct}%
@@ -848,7 +982,10 @@ useEffect(() => {
                 ...rows.map((r: any) => Number(r.totalProducts || 0)),
               );
 
-              const padded = rows.length < 7 ? new Array(7 - rows.length).fill(null).concat(rows) : rows;
+              const padded =
+                rows.length < 7
+                  ? new Array(7 - rows.length).fill(null).concat(rows)
+                  : rows;
 
               return padded.map((r: any, i: number) => {
                 const v = r ? Number(r.totalProducts || 0) : 0;
@@ -868,32 +1005,37 @@ useEffect(() => {
 
           <div className="mt-6 grid grid-cols-3 gap-3 text-center">
             <div>
-              <div className="text-2xl font-black text-blue-600">{activityAgg}</div>
+              <div className="text-2xl font-black text-blue-600">
+                {activityAgg}
+              </div>
               <div className="text-xs text-slate-500">Aggregated</div>
             </div>
             <div>
-              <div className="text-2xl font-black text-orange-600">{activityEnrich}</div>
+              <div className="text-2xl font-black text-orange-600">
+                {activityEnrich}
+              </div>
               <div className="text-xs text-slate-500">Enriched</div>
             </div>
             <div>
-              <div className="text-2xl font-black text-emerald-600">{activityClean}</div>
+              <div className="text-2xl font-black text-emerald-600">
+                {activityClean}
+              </div>
               <div className="text-xs text-slate-500">Cleansed</div>
             </div>
           </div>
         </div>
       </div>
-             {!projectId && (
-        projectsLoading ? (
+      {!projectId &&
+        (projectsLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : (
-          <ProjectsOverviewTab 
-            projects={projectsOverview} 
-            onOpenProject={(id) => onNavigate?.("aggregation", "all")} 
+          <ProjectsOverviewTab
+            projects={projectsOverview}
+            onOpenProject={(id) => onNavigate?.("aggregation", "all")}
           />
-        )
-      )}
+        ))}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-8" />
 
@@ -940,7 +1082,8 @@ useEffect(() => {
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600" /> Needs Attention
+              <AlertTriangle className="w-4 h-4 text-amber-600" /> Needs
+              Attention
             </h4>
 
             <div className="space-y-2">
@@ -970,7 +1113,8 @@ useEffect(() => {
                 className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors"
               >
                 <span className="text-sm font-semibold text-blue-700">
-                  {needsAttention?.pendingAggregation ?? pending} pending aggregation
+                  {needsAttention?.pendingAggregation ?? pending} pending
+                  aggregation
                 </span>
                 <ArrowRight className="w-4 h-4 text-blue-700" />
               </button>
@@ -983,7 +1127,8 @@ useEffect(() => {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-red-500" /> Not Run / Failed Details
+              <XCircle className="w-4 h-4 text-red-500" /> Not Run / Failed
+              Details
             </h5>
             {failed > 0 && (
               <button
@@ -1023,11 +1168,13 @@ useEffect(() => {
                         <td className="px-4 py-3">
                           {isFailed ? (
                             <span className="flex items-center gap-1.5 text-red-600 font-bold text-[11px] uppercase tracking-wide">
-                              <XCircle className="w-3.5 h-3.5" /> AI Aggregation Failed
+                              <XCircle className="w-3.5 h-3.5" /> AI Aggregation
+                              Failed
                             </span>
                           ) : (
                             <span className="flex items-center gap-1.5 text-amber-600 font-bold text-[11px] uppercase tracking-wide">
-                              <Clock className="w-3.5 h-3.5" /> Not Run / Pending
+                              <Clock className="w-3.5 h-3.5" /> Not Run /
+                              Pending
                             </span>
                           )}
                         </td>
@@ -1049,7 +1196,10 @@ useEffect(() => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                    <td
+                      colSpan={3}
+                      className="px-4 py-8 text-center text-slate-500"
+                    >
                       Loading details...
                     </td>
                   </tr>
@@ -1104,7 +1254,10 @@ useEffect(() => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                  <td
+                    colSpan={4}
+                    className="px-4 py-6 text-center text-slate-400"
+                  >
                     No timeline data available.
                   </td>
                 </tr>

@@ -60,7 +60,23 @@ export const dashboardService = {
     const { data } = await api.get("/dashboard/timeline", { params });
     return data;
   },
-
+async getAttributeSummary(params?: {
+  project_id?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<any[]> {
+  try {
+    const { data } = await api.get("/dashboard/attribute-summary", { params });
+    return data || [];
+  } catch (error: any) {
+    console.error("Error fetching attribute summary:", error);
+    throw (
+      error?.response?.data ||
+      error?.message ||
+      "Failed to fetch attribute summary"
+    );
+  }
+},
   async getBrandFlow(params: BrandFlowParams & DateRangeParams) {
     const { data } = await api.get("/dashboard/brand-flow", { params });
     return data;

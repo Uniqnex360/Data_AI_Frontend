@@ -67,6 +67,8 @@ export default function AggregationTab({
     { value: "openai", label: "Datavio Algo-1" },
     { value: "gemini", label: "Datavio Algo-2" },
     { value: "claude", label: "Datavio Algo-3" },
+     { value: "openai_gemini", label: "Algo 1 & 2" },  
+     { value: "gemini_openai", label: "Algo 2 & 1" },
   ]);
   const [projectSearch, setProjectSearch] = useState("");
   const [projectOptions, setProjectOptions] = useState<
@@ -651,13 +653,23 @@ export default function AggregationTab({
   const handleAggregate = useCallback(
     async (productId: string) => {
       try {
+         let primaryLLM = selectedLLM;
+        let missingLLM = selectedLLM;
+        if (selectedLLM === "openai_gemini") {
+    primaryLLM = "openai";
+    missingLLM = "gemini";
+  } else if (selectedLLM === "gemini_openai") {
+    primaryLLM = "gemini";
+    missingLLM = "openai";
+  }
+  
         setExpandedProjectProducts((prev) =>
           prev.map((p) =>
             p.id === productId ? { ...p, enrichment_status: "processing" } : p,
           ),
         );
         trackProcessingProduct(productId);
-        await aggregationService.aggregateProduct(productId, selectedLLM);
+         await aggregationService.aggregateProduct(productId, primaryLLM, missingLLM);
         setPollingProductIds((prev) => new Set(prev).add(productId));
         notify.success("Aggregation started");
       } catch (error: any) {

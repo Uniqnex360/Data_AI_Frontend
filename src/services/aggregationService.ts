@@ -79,14 +79,11 @@ export const aggregationService = {
     throw new Error("Export failed");
   }
 },
-  async aggregateProduct(
-    productId: string,
-    llmProvider: string,
-  ): Promise<ProductAggregationResponse> {
+  async aggregateProduct(productId: string, llmProvider: string, missingLlmProvider?: string): Promise<ProductAggregationResponse> {
     try {
       const { data } = await api.post<ProductAggregationResponse>(
         `/aggregation/run/${productId}`,
-        { llm_provider: llmProvider },
+        { llm_provider: llmProvider,missing_llm_provider: missingLlmProvider || llmProvider }
       );
       return data;
     } catch (error:any) {
