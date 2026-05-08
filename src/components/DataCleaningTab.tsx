@@ -951,7 +951,7 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-<div className="absolute inset-0 p-4 bg-slate-50 font-sans flex flex-col overflow-hidden">
+<div className="p-4 bg-slate-50 font-sans space-y-4">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -1363,9 +1363,8 @@ export default function DataCleaningTab() {
               </div>
             </div>
           </div>
-          <div
-            className="overflow-auto relative border-t border-slate-100"
-          >
+          <div className="overflow-x-auto relative border-t border-slate-100">
+
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
@@ -1657,9 +1656,8 @@ export default function DataCleaningTab() {
               </span>
             </div>
           </div>
-          <div
-            className="overflow-auto relative border-t border-slate-100 flex-1"
-          >
+          <div className="overflow-x-auto relative border-t border-slate-100">
+
             <table
               className="border-separate border-spacing-0"
               style={{
