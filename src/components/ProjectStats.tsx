@@ -361,15 +361,14 @@ export function ProjectStats({
                 <p className="text-[10px] text-slate-400">
                   Last updated:{" "}
                   {lastUpdated
-                    ? new Date(lastUpdated).toLocaleDateString("en-US", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                        timeZone: "Asia/Kolkata",
-                      })
-                    : "Just now"}
+  ? new Date(lastUpdated).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })
+  : "Just now"}
                 </p>
               </div>
             </div>
@@ -859,17 +858,13 @@ export function ProjectStats({
                       </td>
                       <td className="py-2 text-right text-slate-400">
                         {p.updated_at
-                          ? new Date(p.updated_at + "Z").toLocaleDateString(
-                              "en-US",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                timeZone: "Asia/Kolkata",
-                              },
-                            )
-                          : "—"}
+  ? new Date(p.updated_at).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  : "—"}
                       </td>
                       <td className="py-2 text-center">
                         <button

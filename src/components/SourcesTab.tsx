@@ -535,11 +535,11 @@ export default function SourcesTab({
       setBulkFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       notify.success(
-        "Upload Successful",
-        result?.summary
-          ? `${result.summary.valid_rows} valid rows • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
-          : "File uploaded successfully",
-      );
+  "Products imported successfully",
+  result?.summary
+    ? `${result.summary.valid_rows} products imported${result.summary.rejected_rows > 0 ? `, ${result.summary.rejected_rows} rejected` : ''} • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
+    : "Products imported",
+);
       pollBatchStatus(result.batch_id, async () => {
         await loadSources();
         await loadProjects();

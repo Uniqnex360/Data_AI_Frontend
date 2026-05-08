@@ -307,6 +307,7 @@ export default function DataCleaningTab() {
   const [projectsPage, setProjectsPage] = useState(1);
   const PROJECTS_PER_PAGE = 10;
   const filteredProjects = projects;
+  const [cleaningProjects, setCleaningProjects] = useState<Set<string>>(new Set());
 
   const [colSorts, setColSorts] = useState<ColSort[]>([]);
   const [colFilters, setColFilters] = useState<ColFilter[]>([]);
@@ -325,26 +326,28 @@ export default function DataCleaningTab() {
     { value: "gemini", label: "Datavio Algo-2" },
     { value: "claude", label: "Datavio Algo-3" },
   ];
-  useEffect(() => {
-    loadProjects();
-    loadProjectFilters();
-  }, [loadProjectFilters]);
-  useEffect(() => {
-    if (selectedProjectId) loadProducts();
-  }, [selectedProjectId, page, pageSize]);
-  const loadProjects = async () => {
-    setProjectsLoading(true);
+   const loadProjects = useCallback(async (silent = false) => {
+    if (!silent) setProjectsLoading(true);
     try {
       const data = await projectService.getAllProjects({
         operation_mode: "cleaning",
       });
       setProjects(data.filter((p: Project) => p.operation_mode === "cleaning"));
     } catch {
-      notify.error("Failed to load projects");
+      if (!silent) notify.error("Failed to load projects");
     } finally {
-      setProjectsLoading(false);
+      if (!silent) setProjectsLoading(false);
     }
-  };
+  }, []);
+    useEffect(() => {
+    loadProjects();
+    loadProjectFilters();
+  }, [loadProjects, loadProjectFilters]);
+  useEffect(() => {
+    if (selectedProjectId) loadProducts();
+  }, [selectedProjectId, page, pageSize]);
+
+  
   const loadProducts = async () => {
     if (!selectedProjectId) return;
     setLoading(true);
@@ -760,7 +763,7 @@ export default function DataCleaningTab() {
         if (status.status === "completed") {
           clearInterval(iv);
           await loadProducts();
-          await loadProjects();
+          await loadProjects(true);
           notify.success("Cleaning completed");
           setCleaning(false);
         } else if (status.status === "failed") {
@@ -772,7 +775,7 @@ export default function DataCleaningTab() {
                 : p,
             ),
           );
-          await loadProjects();
+          await loadProjects(true);
           notify.error("Cleaning failed");
           setCleaning(false);
         }
@@ -923,6 +926,87 @@ export default function DataCleaningTab() {
     setBulkSearch("");
     loadProjectFilters();
   };
+  const handleCleanSelectedProjects = async () => {
+    if (selectedProjectIds.size === 0) return;
+    const projectIds = Array.from(selectedProjectIds);
+    setCleaning(true);
+    setCleaningProjects(new Set(projectIds)); 
+    try {
+      for (const projectId of projectIds) {
+        await cleansingService.runCleaning(projectId, selectedLLM, []);
+      }
+      setSelectedProjectIds(new Set());
+      notify.success(`Cleaning started for ${projectIds.length} project(s)`);
+      loadProjects(true);
+    } catch (error: any) {
+      notify.error("Failed to start cleaning", error.message);
+      setCleaningProjects(new Set());
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  const pollCleaningProjects = useCallback(async () => {
+    if (cleaningProjects.size === 0) return;
+    const newCleaningProjects = new Set(cleaningProjects);
+    let changed = false;
+    
+    for (const projectId of cleaningProjects) {
+      try {
+        const tasks = await (cleansingService as any).getCleaningTasks?.(projectId);
+        if (tasks && tasks.length > 0) {
+          const allDone = tasks.every((t: any) => 
+            t.status === "completed" || t.status === "failed"
+          );
+          if (allDone) {
+            newCleaningProjects.delete(projectId);
+            changed = true;
+            const projectName = projects.find(p => p.id === projectId)?.name || projectId;
+            notify.success(`Cleaning completed for "${projectName}"`);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to poll project ${projectId}:`, error);
+      }
+    }
+    
+    if (changed) {
+      setCleaningProjects(newCleaningProjects);
+      loadProjects(true);
+    }
+  }, [cleaningProjects, projects, loadProjects]);
+
+  useEffect(() => {
+    if (cleaningProjects.size > 0) {
+      const interval = setInterval(pollCleaningProjects, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [cleaningProjects, pollCleaningProjects]);
+
+  const handleDownloadSelectedProjects = async () => {
+    if (selectedProjectIds.size === 0) return;
+    setDownloading(true);
+    try {
+      const blob = await cleansingService.downloadSelected({
+        project_ids: Array.from(selectedProjectIds),
+        product_ids: [],
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "cleaning_projects_export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      notify.success("Download started");
+      setSelectedProjectIds(new Set());
+    } catch {
+      notify.error("Failed to download");
+    } finally {
+      setDownloading(false);
+    }
+  };
   const pageSizeOptions = useMemo(() => {
     if (!total) return [pageSize];
     return Array.from(
@@ -951,7 +1035,7 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-<div className="p-4 bg-slate-50 h-[calc(100vh-64px)] overflow-hidden flex flex-col font-sans">
+    <div className="p-4 bg-slate-50 h-[calc(100vh-64px)] overflow-hidden flex flex-col font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -961,44 +1045,74 @@ export default function DataCleaningTab() {
             Select a project, then clean and standardise product attributes
           </p>
         </div>
-        {selectedProjectId && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCleanSelected}
-              disabled={!canClean}
-              className="h-10 flex items-center gap-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 text-sm font-medium transition-colors"
-            >
-              {cleaning ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-              {allProductsSelected
-                ? `Clean All (${total})`
-                : `Clean (${selectedProductIds.size})`}
-            </button>
-            <button
-              onClick={handleDownloadSelected}
-              disabled={downloading || !canDownload}
-              className="h-10 flex items-center gap-2 px-4 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-40 text-sm font-medium transition-colors"
-            >
-              {downloading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              Download
-            </button>
-            {viewMode === "progress" && (
+        <div className="flex items-center gap-2">
+          {selectedProjectIds.size > 0 && (
+            <>
               <button
-                onClick={() => setViewMode("advanced")}
-                className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50"
+                onClick={handleCleanSelectedProjects}
+                disabled={cleaning}
+                className="h-9 flex items-center gap-1.5 px-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-40 text-sm font-medium"
               >
-                Advanced Edit
+                {cleaning ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
+                Clean ({selectedProjectIds.size})
               </button>
-            )}
-          </div>
-        )}
+              <button
+                onClick={handleDownloadSelectedProjects}
+                disabled={downloading}
+                className="h-9 flex items-center gap-1.5 px-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-40 text-sm font-medium"
+              >
+                {downloading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                Download
+              </button>
+            </>
+          )}
+          {selectedProjectId && (
+            <>
+              <button
+                onClick={handleCleanSelected}
+                disabled={!canClean}
+                className="h-9 flex items-center gap-1.5 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 text-sm font-medium"
+              >
+                {cleaning ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
+                {allProductsSelected
+                  ? `Clean All (${total})`
+                  : `Clean (${selectedProductIds.size})`}
+              </button>
+              <button
+                onClick={handleDownloadSelected}
+                disabled={downloading || !canDownload}
+                className="h-9 flex items-center gap-1.5 px-3 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-40 text-sm font-medium"
+              >
+                {downloading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                Download
+              </button>
+              {viewMode === "progress" && (
+                <button
+                  onClick={() => setViewMode("advanced")}
+                  className="h-9 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-50"
+                >
+                  Advanced Edit
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-3">
         <div className="p-4">
@@ -1181,8 +1295,8 @@ export default function DataCleaningTab() {
           </div>
 
           {selectedProjectId && availableAttributes.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden shrink-0">
-<div className="p-3 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
+            <div className="bg-white border border-slate-200 rounded-xl mb-3 shrink-0 max-h-48 overflow-y-auto">
+              <div className="p-2 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
                     Bulk Update Attributes
@@ -1244,7 +1358,7 @@ export default function DataCleaningTab() {
                     className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
                   />
                 </div>
-<div className="max-h-24 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-white">
+                <div className="max-h-16 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-white">
                   <div className="flex flex-wrap gap-2">
                     {filteredBulkAttributes.length === 0 ? (
                       <p className="text-sm text-slate-500 py-2">
@@ -1289,12 +1403,12 @@ export default function DataCleaningTab() {
                   </div>
                 </div>
                 {selectedBulkAttributes.length > 0 && (
-<div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="mt-3 pt-3 border-t border-slate-100">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Set values for selected attributes (
                       {selectedBulkAttributes.length} selected)
                     </p>
-  <div className="max-h-32 overflow-y-auto bg-white rounded-lg p-2 border border-slate-100">
+                    <div className="max-h-24 overflow-y-auto bg-white rounded-lg p-2 border border-slate-100">
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
                         {selectedBulkAttributes.map((attr) => (
                           <div key={attr} className="space-y-1">
@@ -1751,18 +1865,19 @@ export default function DataCleaningTab() {
                 className="rounded border-slate-300"
               />
               <span className="text-xs text-slate-500">
-      {selectedProjectIds.size === filteredProjects.length && filteredProjects.length > 0
-        ? "Deselect All"
-        : "Select All"}
-    </span>
-    {selectedProjectIds.size > 0 && (
-      <button
-        onClick={() => setSelectedProjectIds(new Set())}
-        className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
-      >
-        Clear selection
-      </button>
-    )}
+                {selectedProjectIds.size === filteredProjects.length &&
+                filteredProjects.length > 0
+                  ? "Deselect All"
+                  : "Select All"}
+              </span>
+              {selectedProjectIds.size > 0 && (
+                <button
+                  onClick={() => setSelectedProjectIds(new Set())}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
+                >
+                  Clear selection
+                </button>
+              )}
             </div>
             <div className="flex items-center justify-end gap-4 text-xs text-slate-500">
               <span className="text-sm font-semibold text-slate-900">
@@ -1840,13 +1955,11 @@ export default function DataCleaningTab() {
                     const cnsProducts = project.cleaned_count ?? 0;
                     const failedProducts = project.failed_count ?? 0;
                     return (
-                      <tr
+                                            <tr
                         key={project.id}
                         className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                          selectedProjectIds.has(project.id)
-                            ? "bg-blue-50/50"
-                            : ""
-                        }`}
+                          selectedProjectIds.has(project.id) ? "bg-blue-50/50" : ""
+                        } ${cleaningProjects.has(project.id) ? "bg-blue-50/30" : ""}`}
                         onClick={async () => {
                           setProjectSwitching(true);
                           setSelectedProjectId(project.id);
@@ -1862,7 +1975,7 @@ export default function DataCleaningTab() {
                           }
                         }}
                       >
-                        <td
+                                                <td
                           className="px-4 py-3"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1872,27 +1985,33 @@ export default function DataCleaningTab() {
                             onChange={() => {
                               setSelectedProjectIds((prev) => {
                                 const next = new Set(prev);
-                                if (next.has(project.id)) {
-                                  next.delete(project.id);
-                                } else {
-                                  next.add(project.id);
-                                }
+                                if (next.has(project.id)) next.delete(project.id);
+                                else next.add(project.id);
                                 return next;
                               });
                             }}
                             className="rounded border-slate-300"
+                            disabled={cleaningProjects.has(project.id)}
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`font-semibold text-sm ${
-                              selectedProjectId === project.id
-                                ? "text-blue-600 underline"
-                                : "text-slate-900"
-                            }`}
-                          >
-                            {project.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`font-semibold text-sm ${
+                                selectedProjectId === project.id
+                                  ? "text-blue-600 underline"
+                                  : "text-slate-900"
+                              }`}
+                            >
+                              {project.name}
+                            </span>
+                            {cleaningProjects.has(project.id) && (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Processing
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {project.use_case ? (
@@ -1995,7 +2114,7 @@ export default function DataCleaningTab() {
             </div>
           </div>
         </div>
-            ) : viewMode === "progress" ? (
+      ) : viewMode === "progress" ? (
         <CleaningProductsOverview
           project={selectedProject!}
           products={filteredSortedProducts}
