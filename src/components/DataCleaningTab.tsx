@@ -949,7 +949,7 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-<div className="p-4 bg-slate-50 h-full font-sans">
+<div className="p-4 bg-slate-50 h-[calc(100vh-120px)] overflow-hidden font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
