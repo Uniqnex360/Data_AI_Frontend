@@ -949,7 +949,7 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-<div className="p-4 bg-slate-50 h-[calc(100vh-120px)] overflow-hidden font-sans">
+<div className="p-4 bg-slate-50 h-[calc(100vh-120px)] overflow-hidden flex flex-col font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -1629,7 +1629,7 @@ export default function DataCleaningTab() {
           <p className="text-slate-500">No products found</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+<div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col flex-1">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
             <div className="flex items-center gap-3">
               <span className="text-slate-700 font-medium">
