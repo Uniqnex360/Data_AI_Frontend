@@ -332,12 +332,10 @@ export default function DataCleaningTab() {
   useEffect(() => {
     if (selectedProjectId) loadProducts();
   }, [selectedProjectId, page, pageSize]);
-  const loadProjects = async () => {
+ const loadProjects = async () => {
     setProjectsLoading(true);
     try {
-      const data = await projectService.getAllProjects({
-        operation_mode: "cleaning",
-      });
+      const data = await projectService.getAllProjects({ operation_mode: "cleaning" });
       setProjects(data.filter((p: Project) => p.operation_mode === "cleaning"));
     } catch {
       notify.error("Failed to load projects");
@@ -951,7 +949,7 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-<div className="p-4 bg-slate-50 font-sans space-y-4">
+    <div className="p-4 bg-slate-50 min-h-screen font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -1363,12 +1361,14 @@ export default function DataCleaningTab() {
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto relative border-t border-slate-100">
-
+          <div
+            className="overflow-auto"
+            style={{ maxHeight: "calc(100vh - 250px)" }}
+          >
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                   <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Select
                   </th>
                   <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
@@ -1656,7 +1656,7 @@ export default function DataCleaningTab() {
               </span>
             </div>
           </div>
-          <div className="overflow-x-auto relative border-t border-slate-100">
+          <div className="relative overflow-auto h-[65vh]">
 
             <table
               className="border-separate border-spacing-0"
