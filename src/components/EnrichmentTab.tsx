@@ -1161,7 +1161,19 @@ export default function EnrichmentTab({
               onChange={toggleSelectAllProjects}
               className="rounded border-slate-300"
             />
-            <span className="text-xs text-slate-500">Select All</span>
+            <span className="text-xs text-slate-500">
+      {selectedProjectIds.size === filteredProjects.length && filteredProjects.length > 0
+        ? "Deselect All"
+        : "Select All"}
+    </span>
+    {selectedProjectIds.size > 0 && (
+      <button
+        onClick={() => setSelectedProjectIds(new Set())}
+        className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
+      >
+        Clear selection
+      </button>
+    )}
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold text-slate-900">

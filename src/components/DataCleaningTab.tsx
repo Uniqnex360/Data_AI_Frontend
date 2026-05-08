@@ -1750,7 +1750,19 @@ export default function DataCleaningTab() {
                 }}
                 className="rounded border-slate-300"
               />
-              <span className="text-xs text-slate-500">Select All</span>
+              <span className="text-xs text-slate-500">
+      {selectedProjectIds.size === filteredProjects.length && filteredProjects.length > 0
+        ? "Deselect All"
+        : "Select All"}
+    </span>
+    {selectedProjectIds.size > 0 && (
+      <button
+        onClick={() => setSelectedProjectIds(new Set())}
+        className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
+      >
+        Clear selection
+      </button>
+    )}
             </div>
             <div className="flex items-center justify-end gap-4 text-xs text-slate-500">
               <span className="text-sm font-semibold text-slate-900">

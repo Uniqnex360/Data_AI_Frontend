@@ -67,8 +67,8 @@ export default function AggregationTab({
     { value: "openai", label: "Datavio Algo-1" },
     { value: "gemini", label: "Datavio Algo-2" },
     { value: "claude", label: "Datavio Algo-3" },
-     { value: "openai_gemini", label: "Algo 1 & 2" },  
-     { value: "gemini_openai", label: "Algo 2 & 1" },
+    { value: "openai_gemini", label: "Algo 1 & 2" },
+    { value: "gemini_openai", label: "Algo 2 & 1" },
   ]);
   const [projectSearch, setProjectSearch] = useState("");
   const [projectOptions, setProjectOptions] = useState<
@@ -653,23 +653,27 @@ export default function AggregationTab({
   const handleAggregate = useCallback(
     async (productId: string) => {
       try {
-         let primaryLLM = selectedLLM;
+        let primaryLLM = selectedLLM;
         let missingLLM = selectedLLM;
         if (selectedLLM === "openai_gemini") {
-    primaryLLM = "openai";
-    missingLLM = "gemini";
-  } else if (selectedLLM === "gemini_openai") {
-    primaryLLM = "gemini";
-    missingLLM = "openai";
-  }
-  
+          primaryLLM = "openai";
+          missingLLM = "gemini";
+        } else if (selectedLLM === "gemini_openai") {
+          primaryLLM = "gemini";
+          missingLLM = "openai";
+        }
+
         setExpandedProjectProducts((prev) =>
           prev.map((p) =>
             p.id === productId ? { ...p, enrichment_status: "processing" } : p,
           ),
         );
         trackProcessingProduct(productId);
-         await aggregationService.aggregateProduct(productId, primaryLLM, missingLLM);
+        await aggregationService.aggregateProduct(
+          productId,
+          primaryLLM,
+          missingLLM,
+        );
         setPollingProductIds((prev) => new Set(prev).add(productId));
         notify.success("Aggregation started");
       } catch (error: any) {
@@ -1371,36 +1375,58 @@ export default function AggregationTab({
       </div>
       <div className="bg-white border border-slate-200 rounded-lg">
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={
-                filteredProjects.length > 0 &&
-                selectedProjectIds.size === filteredProjects.length
-              }
-              onChange={toggleSelectAllProjects}
-              className="rounded border-slate-300"
-            />
-            <span className="text-xs text-slate-500">Select All</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold text-slate-900">
-              {filteredProjects.length} Projects
-            </span>
-            {selectedProjectIds.size > 0 && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                {selectedProjectIds.size} selected
-              </span>
-            )}
-            <div className="flex items-center justify-end text-xs text-slate-500">
-              <Pagination
-                page={projectsPage}
-                totalPages={projectsTotalPages}
-                onPageChange={setProjectsPage}
-              />
-            </div>
-          </div>
-        </div>
+  <div className="flex items-center gap-3">
+    <input
+      type="checkbox"
+      checked={
+        filteredProjects.length > 0 &&
+        selectedProjectIds.size === filteredProjects.length
+      }
+      onChange={toggleSelectAllProjects}
+      className="rounded border-slate-300 cursor-pointer"
+    />
+    <span className="text-xs text-slate-500">
+      {selectedProjectIds.size === filteredProjects.length && filteredProjects.length > 0
+        ? "Deselect All"
+        : "Select All"}
+    </span>
+    {selectedProjectIds.size > 0 && (
+      <button
+        onClick={() => setSelectedProjectIds(new Set())}
+        className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
+      >
+        Clear selection
+      </button>
+    )}
+  </div>
+  <div className="flex items-center gap-4">
+    <span className="text-sm font-semibold text-slate-900">
+      {filteredProjects.length} Projects
+    </span>
+    {selectedProjectIds.size > 0 && (
+      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1.5">
+        {selectedProjectIds.size} selected
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedProjectIds(new Set());
+          }}
+          className="hover:bg-blue-200 rounded-full p-0.5"
+          title="Clear all selections"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </span>
+    )}
+    <div className="flex items-center justify-end text-xs text-slate-500">
+      <Pagination
+        page={projectsPage}
+        totalPages={projectsTotalPages}
+        onPageChange={setProjectsPage}
+      />
+    </div>
+  </div>
+</div>
         <div
           className="overflow-auto"
           style={{ height: "calc(100vh - 400px)" }}
