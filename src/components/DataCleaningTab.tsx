@@ -1566,14 +1566,15 @@ export default function DataCleaningTab() {
                 )}
               </tbody>
             </table>
-          </div>
-          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+            <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
             <Pagination
               page={projectsPage}
               totalPages={projectsTotalPages}
               onPageChange={setProjectsPage}
             />
           </div>
+          </div>
+          
         </div>
       ) : viewMode === "progress" ? (
         <CleaningProductsOverview
