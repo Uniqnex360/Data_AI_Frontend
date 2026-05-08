@@ -215,7 +215,15 @@ export default function ProjectsOverviewTab({
       }
     });
   }, [filtered, loadSources, projectSources, loadingSources]);
+  const resetFilters = useCallback(() => {
+    setBrandFilter("all");
+    setCategoryFilter("all");
+    setSearch("");
 
+    onFilterChange?.("all");
+    onSearchChange?.("");
+    onPageChange?.(1);
+  }, [onFilterChange, onSearchChange, onPageChange]);
   const getImportFileName = (projectId: string): string | null => {
     const sources = projectSources[projectId];
     if (!sources || sources.length === 0) return null;
@@ -392,13 +400,16 @@ export default function ProjectsOverviewTab({
             <div className="flex items-center gap-3 flex-wrap">
               <select
                 value={currentFilter}
-                onChange={(e) => onFilterChange?.(e.target.value)}
+                onChange={(e) => {
+                  onFilterChange?.(e.target.value);
+                  onPageChange?.(1);
+                }}
                 className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
               >
                 <option value="all">All Status</option>
                 {availableStatuses.map((s) => (
                   <option key={s} value={s}>
-                   {s ? s.charAt(0).toUpperCase() + s.slice(1) : ""}
+                    {s ? s.charAt(0).toUpperCase() + s.slice(1) : ""}
                   </option>
                 ))}
               </select>
@@ -433,11 +444,14 @@ export default function ProjectsOverviewTab({
                 <input
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                     onSearchChange?.(newValue); 
+                    onPageChange?.(1);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") onSearchChange?.(search);
                   }}
-                  onBlur={() => onSearchChange?.(search)}
                   placeholder="Search projects..."
                   className="w-full pl-9 pr-8 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -446,7 +460,8 @@ export default function ProjectsOverviewTab({
                     type="button"
                     onClick={() => {
                       setSearch("");
-                      onSearchChange?.("");
+                      onSearchChange?.(""); 
+                      onPageChange?.(1);
                     }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                   >
@@ -454,6 +469,18 @@ export default function ProjectsOverviewTab({
                   </button>
                 )}
               </div>
+              {(brandFilter !== "all" ||
+                categoryFilter !== "all" ||
+                currentFilter !== "all" ||
+                search.trim()) && (
+                <button
+                  onClick={resetFilters}
+                  className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Clear
+                </button>
+              )}
+
               <Pagination />
             </div>
           </div>

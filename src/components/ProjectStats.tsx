@@ -1,17 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   Loader2,
   X,
   FileText,
-  Calendar,
   ChevronLeft,
-  ChevronRight,
   AlertTriangle,
   Box,
   List,
   Play,
-  RefreshCw,
   Eye,
 } from "lucide-react";
 import { aggregationService } from "../services/aggregationService";
@@ -298,29 +295,24 @@ export function ProjectStats({
         />
       ) : (
         <>
-          <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-            <div>
-              <button
-                onClick={onClose}
-                className="text-xs text-indigo-400 hover:text-indigo-300 mb-1 flex items-center gap-1"
-              >
-                <ChevronLeft className="w-3 h-3" /> Back
-              </button>
-              <h1 className="text-xl font-bold tracking-tight">
-                {projectName}
-              </h1>
-            </div>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-          <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-200">
-            <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
+          <div className="px-6 py-2 flex items-center justify-between border-b border-slate-200 bg-slate-50/30">
+  <div className="flex flex-col justify-center">
+    <button onClick={onClose} className="text-[10px] text-indigo-500 hover:text-indigo-400 font-bold uppercase flex items-center gap-1 mb-1">
+      <ChevronLeft className="w-3 h-3" /> Back
+    </button>
+    <h1 className="text-lg font-bold tracking-tight truncate" title={projectName}>{projectName}</h1>
+  </div>
+  {onClose && (
+    <button
+      onClick={onClose}
+      className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+    >
+      <X className="w-5 h-5" />
+    </button>
+  )}
+</div>
+          <div className="px-6 py-2 grid grid-cols-1 md:grid-cols-3 gap-3 border-b border-slate-200 bg-slate-50/30">
+            <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                   Total Completeness
@@ -332,7 +324,7 @@ export function ProjectStats({
                   Avg. completeness across all products
                 </p>
               </div>
-              <div className="relative w-14 h-14">
+              <div className="relative w-10 h-10">
                 <svg className="w-full h-full" viewBox="0 0 36 36">
                   <circle
                     cx="18"
@@ -356,7 +348,7 @@ export function ProjectStats({
                 </svg>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <div className="bg-white border border-slate-200 rounded-lg p-3">
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                 Project Status
               </p>
@@ -381,7 +373,7 @@ export function ProjectStats({
                 </p>
               </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between">
+            <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                   Imported File Name
@@ -426,7 +418,7 @@ export function ProjectStats({
               </button>
             </div>
           </div>
-          <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 border-b border-slate-200">
+          <div className="px-6 py-2 grid grid-cols-2 md:grid-cols-5 gap-2 border-b border-slate-200 bg-white">
             <MetricPill label="Total Products" value={totalProducts} />
             <MetricPill
               label="Aggregated"
@@ -455,7 +447,7 @@ export function ProjectStats({
               color="text-rose-400"
             />
           </div>
-          <div className="px-6 pt-4 border-b border-slate-200">
+          <div className="px-6 pt-2 border-b border-slate-200">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-6">
                 <TabButton
@@ -551,7 +543,7 @@ export function ProjectStats({
                 )}
               </div>
             </div>
-            <div className="py-2 flex flex-wrap gap-2 items-center">
+            <div className="py-1 flex flex-wrap gap-2 items-center">
               <div className="relative flex-1 min-w-[200px]">
                 <input
                   value={search}
@@ -670,184 +662,234 @@ export function ProjectStats({
             />
           </div>
           <div className="flex-1 overflow-auto px-6">
-  <table
-    className="w-full text-xs text-left border-separate border-spacing-x-2 border-spacing-y-0"
-    style={{ tableLayout: "fixed" }}
-  >
-    <thead className="sticky top-0 bg-white z-10">
-      <tr className="text-[13px] font-semibold text-slate-500">
-        <th className="py-2 border-b border-slate-200 text-center" style={{ width: 40 }}>
-          <input
-            type="checkbox"
-            checked={filtered.length > 0 && selectedProductIds.size === filtered.length}
-            onChange={toggleSelectAll}
-            className="rounded border-slate-600"
-          />
-        </th>
-        <th className="py-2 border-b border-slate-200" style={{ width: 280 }}>
-          Product Name & MPN
-        </th>
-        <th className="py-2 border-b border-slate-200 whitespace-nowrap" style={{ width: 120 }}>
-          Brand
-        </th>
-        <th className="py-2 border-b border-slate-200 whitespace-nowrap" style={{ width: 120 }}>
-          Category
-        </th>
-        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 90 }}>
-          Attributes
-        </th>
-        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 140 }}>
-          Completeness
-        </th>
-        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 100 }}>
-          Data Quality
-        </th>
-        <th className="py-2 border-b border-slate-200 text-center whitespace-nowrap" style={{ width: 90 }}>
-          Status
-        </th>
-        <th className="py-2 border-b border-slate-200 text-right whitespace-nowrap" style={{ width: 110 }}>
-          Last Updated
-        </th>
-        <th className="py-2 border-b border-slate-200 text-center" style={{ width: 60 }}>
-          Action
-        </th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-slate-100">
-      {loading ? (
-        <tr>
-          <td colSpan={10} className="py-10 text-center">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto mb-2" />
-            <span className="text-slate-400">Loading...</span>
-          </td>
-        </tr>
-      ) : pageRows.length === 0 ? (
-        <tr>
-          <td colSpan={10} className="py-10 text-center text-slate-400">
-            No products found
-          </td>
-        </tr>
-      ) : (
-        pageRows.map((p) => (
-          <tr
-            key={p.id}
-            className="group hover:bg-slate-50 transition-colors cursor-pointer"
-          >
-            <td className="py-2 text-center" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="checkbox"
-                checked={selectedProductIds.has(p.id)}
-                onChange={() => toggleProductSelection(p.id)}
-                className="rounded border-slate-600"
-              />
-            </td>
-            <td className="py-2">
-              <div className="flex items-center gap-3 min-w-0">
-                {p.image_url_1 ? (
-                  <img
-                    src={p.image_url_1}
-                    className="w-10 h-10 rounded-lg object-cover bg-slate-100 p-1 shrink-0"
-                    alt=""
-                  />
+            <table
+              className="w-full text-xs text-left border-separate border-spacing-x-2 border-spacing-y-0"
+              style={{ tableLayout: "fixed" }}
+            >
+              <thead className="sticky top-0 bg-white z-10">
+                <tr className="text-[11px] font-bold tracking-wider text-slate-400">
+                  <th
+                    className="py-2 border-b border-slate-200 text-center"
+                    style={{ width: 40 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        filtered.length > 0 &&
+                        selectedProductIds.size === filtered.length
+                      }
+                      onChange={toggleSelectAll}
+                      className="rounded border-slate-600"
+                    />
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200"
+                    style={{ width: 280 }}
+                  >
+                    Product Name & MPN
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 whitespace-nowrap"
+                    style={{ width: 120 }}
+                  >
+                    Brand
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 whitespace-nowrap"
+                    style={{ width: 120 }}
+                  >
+                    Category
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 text-center whitespace-nowrap"
+                    style={{ width: 90 }}
+                  >
+                    Attributes
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 text-center whitespace-nowrap"
+                    style={{ width: 140 }}
+                  >
+                    Completeness
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 text-center whitespace-nowrap"
+                    style={{ width: 100 }}
+                  >
+                    Data Quality
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 text-center whitespace-nowrap"
+                    style={{ width: 90 }}
+                  >
+                    Status
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 text-right whitespace-nowrap"
+                    style={{ width: 110 }}
+                  >
+                    Last Updated
+                  </th>
+                  <th
+                    className="py-2 border-b border-slate-200 text-center"
+                    style={{ width: 60 }}
+                  >
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={10} className="py-10 text-center">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto mb-2" />
+                      <span className="text-slate-400">Loading...</span>
+                    </td>
+                  </tr>
+                ) : pageRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={10}
+                      className="py-10 text-center text-slate-400"
+                    >
+                      No products found
+                    </td>
+                  </tr>
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-slate-600" />
-                  </div>
+                  pageRows.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="group hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      <td
+                        className="py-2 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.has(p.id)}
+                          onChange={() => toggleProductSelection(p.id)}
+                          className="rounded border-slate-600"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {p.image_url_1 ? (
+                            <img
+                              src={p.image_url_1}
+                              className="w-10 h-10 rounded-lg object-cover bg-slate-100 p-1 shrink-0"
+                              alt=""
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4 text-slate-600" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
+                              title={p.product_name}
+                              onClick={() => {
+                                setSelectedProductIds(new Set([p.id]));
+                                setShowDetailView(true);
+                              }}
+                            >
+                              {p.product_name ||
+                                p.product_code ||
+                                "Unnamed Product"}
+                            </div>
+                            <span
+                              className="text-[10px] text-blue-600 font-mono font-medium truncate block"
+                              title={p.product_code}
+                            >
+                              MPN: {p.product_code}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        className="py-2 text-slate-500 truncate"
+                        title={p.brand_name}
+                      >
+                        {p.brand_name || "—"}
+                      </td>
+                      <td
+                        className="py-2 text-slate-500 truncate"
+                        title={p.category_3}
+                      >
+                        {p.category_3 || "—"}
+                      </td>
+                      <td className="py-2 text-center text-slate-600 font-medium">
+                        {(p as any).attribute_count ?? "—"}
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-3 justify-center">
+                          <div className="flex-1 max-w-[80px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                (p.completeness_score || 0) > 80
+                                  ? "bg-emerald-500"
+                                  : (p.completeness_score || 0) > 50
+                                    ? "bg-amber-500"
+                                    : "bg-red-500"
+                              }`}
+                              style={{ width: `${p.completeness_score || 0}%` }}
+                            />
+                          </div>
+                          <span className="font-bold text-slate-700">
+                            {p.completeness_score || 0}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2 text-center">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            ((p as any).data_quality_score ?? 100) >= 90
+                              ? "bg-emerald-100 text-emerald-700"
+                              : ((p as any).data_quality_score ?? 100) >= 70
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {(p as any).data_quality_score ?? 100}%
+                        </span>
+                      </td>
+                      <td className="py-2 text-center">
+                        {getStatusBadge(p.enrichment_status || "pending", true)}
+                      </td>
+                      <td className="py-2 text-right text-slate-400">
+                        {p.updated_at
+                          ? new Date(p.updated_at + "Z").toLocaleDateString(
+                              "en-US",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "Asia/Kolkata",
+                              },
+                            )
+                          : "—"}
+                      </td>
+                      <td className="py-2 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProductIds(new Set([p.id]));
+                            setShowDetailView(true);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-400 transition-colors"
+                          title="View Attributes"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
-                <div className="min-w-0 flex-1">
-                  <div
-                    className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
-                    title={p.product_name}
-                    onClick={() => {
-                      setSelectedProductIds(new Set([p.id]));
-                      setShowDetailView(true);
-                    }}
-                  >
-                    {p.product_name || p.product_code || "Unnamed Product"}
-                  </div>
-                  <span
-                    className="text-[10px] text-blue-600 font-mono font-medium truncate block"
-                    title={p.product_code}
-                  >
-                    MPN: {p.product_code}
-                  </span>
-                </div>
-              </div>
-            </td>
-            <td className="py-2 text-slate-500 truncate" title={p.brand_name}>
-              {p.brand_name || "—"}
-            </td>
-            <td className="py-2 text-slate-500 truncate" title={p.category_3}>
-              {p.category_3 || "—"}
-            </td>
-            <td className="py-2 text-center text-slate-600 font-medium">
-              {(p as any).attribute_count ?? "—"}
-            </td>
-            <td className="py-2">
-              <div className="flex items-center gap-3 justify-center">
-                <div className="flex-1 max-w-[80px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      (p.completeness_score || 0) > 80
-                        ? "bg-emerald-500"
-                        : (p.completeness_score || 0) > 50
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                    }`}
-                    style={{ width: `${p.completeness_score || 0}%` }}
-                  />
-                </div>
-                <span className="font-bold text-slate-700">
-                  {p.completeness_score || 0}%
-                </span>
-              </div>
-            </td>
-            <td className="py-2 text-center">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-bold ${
-                  ((p as any).data_quality_score ?? 100) >= 90
-                    ? "bg-emerald-100 text-emerald-700"
-                    : ((p as any).data_quality_score ?? 100) >= 70
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-red-100 text-red-700"
-                }`}
-              >
-                {(p as any).data_quality_score ?? 100}%
-              </span>
-            </td>
-            <td className="py-2 text-center">
-              {getStatusBadge(p.enrichment_status || "pending", true)}
-            </td>
-            <td className="py-2 text-right text-slate-400">
-              {p.updated_at
-                ? new Date(p.updated_at + "Z").toLocaleDateString("en-US", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "Asia/Kolkata",
-                  })
-                : "—"}
-            </td>
-            <td className="py-2 text-center">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedProductIds(new Set([p.id]));
-                  setShowDetailView(true);
-                }}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-400 transition-colors"
-                title="View Attributes"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-            </td>
-          </tr>
-        ))
-      )}
-    </tbody>
-  </table>
-</div>
+              </tbody>
+            </table>
+          </div>
           {isDrawerOpen && selectedProduct && (
             <div className="fixed inset-0 z-50 flex justify-end">
               <div
@@ -855,7 +897,7 @@ export function ProjectStats({
                 onClick={closeDrawer}
               />
               <div className="relative w-full max-w-2xl  bg-white border-l border-slate-200 shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
-                <div className="px-6 py-4 border-b border-slate-200 flex items-start justify-between">
+                <div className="px-6 py-4 border-b border-slate-200 flex items-start justify-between bg-white">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 leading-tight">
                       {selectedProduct.product_name ||
@@ -1050,18 +1092,16 @@ function MetricPill({
   return (
     <div
       onClick={clickable ? onClick : undefined}
-      className={`bg-white border border-slate-200 rounded-xl p-4 ${
+      className={`bg-white border border-slate-200 rounded-lg px-3 py-1.5 flex items-center justify-between gap-3 ${
         clickable
           ? "cursor-pointer hover:border-amber-300 hover:bg-amber-50/50 transition-colors"
           : ""
       }`}
     >
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
         {label}
       </p>
-      <p className={`text-2xl font-black mt-1 ${color}`}>
-        {value.toLocaleString()}
-      </p>
+      <p className={`text-sm font-black ${color}`}>{value.toLocaleString()}</p>
     </div>
   );
 }
@@ -1077,7 +1117,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`pb-4 text-[11px] font-bold uppercase tracking-widest transition-all border-b-2 ${
+      className={`pb-2 text-[10px] font-bold uppercase tracking-widest transition-all border-b-2 ${
         active
           ? "border-indigo-500 text-indigo-400"
           : "border-transparent text-slate-400 hover:text-slate-600"

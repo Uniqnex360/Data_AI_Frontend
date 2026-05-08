@@ -1403,7 +1403,7 @@ export default function AggregationTab({
         </div>
         <div
           className="overflow-auto"
-          style={{ height: "calc(100vh - 420px)" }}
+          style={{ height: "calc(100vh - 400px)" }}
         >
           <table className="w-full">
             <thead className="sticky top-0 z-30 bg-slate-50">

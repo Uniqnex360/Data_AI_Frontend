@@ -1182,9 +1182,10 @@ export default function EnrichmentTab({
           </div>
         </div>
         <div
-          className="overflow-auto"
-          style={{ maxHeight: "calc(100vh - 350px)" }}
-        >
+  className="overflow-auto border-t border-slate-100"
+  style={{ height: "calc(100vh - 450px)" }} 
+>
+
           <table className="w-full">
             <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
               <tr>
@@ -1449,10 +1450,10 @@ export default function EnrichmentTab({
                               </button>
                             )}
                           </div>
-                          <div
-                            className="overflow-auto"
-                            style={{ maxHeight: "600px" }}
-                          >
+                         <div
+  className="overflow-auto border-b border-slate-200"
+  style={{ maxHeight: "350px" }}
+>
                             <table className="w-full">
                               <thead className="sticky top-0 z-10 bg-slate-100">
                                 <tr className="text-left text-[13px] font-semibold text-slate-500">
