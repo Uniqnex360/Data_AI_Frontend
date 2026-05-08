@@ -21,7 +21,6 @@ export const projectService = {
     }
   },
  async searchProjects(q: string, operationMode?: string) {
-    // Use the existing list endpoint with search query
     const params: any = { q };
     if (operationMode) params.operation_mode = operationMode;
     const { data } = await api.get<Project[]>("/projects/", { params });

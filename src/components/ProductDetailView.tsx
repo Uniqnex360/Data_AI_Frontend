@@ -65,23 +65,26 @@ export function ProductDetailView({
   const [brandFilter, setBrandFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const parseValue = (str: string) => {
-    if (!str) return "—";
-    if (!str.startsWith("{") || !str.includes("'value'")) {
-      return str;
-    }
-    try {
-      const jsonStr = str
-        .replace(/'/g, '"')
-        .replace(/None/g, "null")
-        .replace(/True/g, "true")
-        .replace(/False/g, "false");
-      const parsed = JSON.parse(jsonStr);
-      return parsed.value || str;
-    } catch (e) {
-      return str;
-    }
-  };
+ const parseValueAndUnit = (str: string) => {
+  if (!str) return { value: "—", unit: null };
+  if (!str.startsWith("{") || !str.includes("'value'")) {
+    return { value: str, unit: null };
+  }
+  try {
+    const jsonStr = str
+      .replace(/'/g, '"')
+      .replace(/None/g, "null")
+      .replace(/True/g, "true")
+      .replace(/False/g, "false");
+    const parsed = JSON.parse(jsonStr);
+    return {
+      value: parsed.value || str,
+      unit: parsed.unit || null
+    };
+  } catch (e) {
+    return { value: str, unit: null };
+  }
+};
 
   const viewLabel = useMemo(() => {
     if (products.length === 1)
@@ -92,45 +95,44 @@ export function ProductDetailView({
   }, [products]);
 
   const loadViewData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const sources = await extractionService.getSourcesByProject(projectId);
-      if (sources && sources.length > 0) {
-        setProjectSource(sources[0]);
-      }
+  setLoading(true);
+  try {
+    const sources = await extractionService.getSourcesByProject(projectId);
+    if (sources && sources.length > 0) {
+      setProjectSource(sources[0]);
+    }
 
-      const attrResults = await Promise.all(
-        products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
-      );
+    const attrResults = await Promise.all(
+      products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
+    );
 
-      const newMap: Record<string, Record<string, string>> = {};
-      const newUomMap: Record<string, Record<string, string>> = {};
+    const newMap: Record<string, Record<string, string>> = {};
+    const newUomMap: Record<string, Record<string, string>> = {};
 
-      products.forEach((p, index) => {
-        const productAttrs: Record<string, string> = {};
-        const productUoms: Record<string, string> = {};
+    products.forEach((p, index) => {
+      const productAttrs: Record<string, string> = {};
+      const productUoms: Record<string, string> = {};
 
-        attrResults[index].forEach((a) => {
-          productAttrs[a.attribute_name] = parseValue(a.values?.[0]?.value);
-
-          const dynAttr = (p as any).attributes_dict?.[a.attribute_name];
-          if (dynAttr?.uom || dynAttr?.unit) {
-            productUoms[a.attribute_name] = dynAttr.uom || dynAttr.unit;
-          }
-        });
-
-        newMap[p.id] = productAttrs;
-        newUomMap[p.id] = productUoms;
+      attrResults[index].forEach((a) => {
+        const { value, unit } = parseValueAndUnit(a.values?.[0]?.value);
+        productAttrs[a.attribute_name] = value;
+        if (unit) {
+          productUoms[a.attribute_name] = unit;
+        }
       });
 
-      setAttrMap(newMap);
-      setAttrUomMap(newUomMap);
-    } catch (err) {
-      console.error("Failed to load view data", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, products]);
+      newMap[p.id] = productAttrs;
+      newUomMap[p.id] = productUoms;
+    });
+
+    setAttrMap(newMap);
+    setAttrUomMap(newUomMap);
+  } catch (err) {
+    console.error("Failed to load view data", err);
+  } finally {
+    setLoading(false);
+  }
+}, [projectId, products]);
 
   useEffect(() => {
     loadViewData();
