@@ -112,19 +112,18 @@ export default function ProjectsOverviewTab({
 
     return list;
   }, [currentFilter, projects, search, brandFilter, categoryFilter]);
-  
+
   const availableOperationModes = useMemo(() => {
     let list = [...projects];
 
-    
     if (currentFilter !== "all") {
       list = list.filter((p) => p.status === currentFilter);
     }
-    
+
     if (categoryFilter !== "all") {
       list = list.filter((p) => p.useCase === categoryFilter);
     }
-    
+
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -371,12 +370,12 @@ export default function ProjectsOverviewTab({
   );
 
   return (
-   <div
-  className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
-  style={{ 
-    height: "calc(100vh - 190px)", 
-  }}
->
+    <div
+      className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
+      style={{
+        height: "calc(100vh - 190px)",
+      }}
+    >
       <div className="shrink-0 bg-white">
         <div className="px-5 pt-4 pb-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -399,7 +398,7 @@ export default function ProjectsOverviewTab({
                 <option value="all">All Status</option>
                 {availableStatuses.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                   {s ? s.charAt(0).toUpperCase() + s.slice(1) : ""}
                   </option>
                 ))}
               </select>
@@ -412,7 +411,7 @@ export default function ProjectsOverviewTab({
                 <option value="all">All Modes</option>
                 {availableOperationModes.map((b) => (
                   <option key={b} value={b}>
-                    {b}
+                    {b ? b.charAt(0).toUpperCase() + b.slice(1) : ""}
                   </option>
                 ))}
               </select>
