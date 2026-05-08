@@ -1321,7 +1321,7 @@ export default function DataCleaningTab() {
           </div>
         )}
       {viewMode === "projects" && !selectedProjectId ? (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-0">
           <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <input
@@ -1361,10 +1361,8 @@ export default function DataCleaningTab() {
               </div>
             </div>
           </div>
-          <div
-            className="overflow-auto"
-            style={{ maxHeight: "calc(100vh - 250px)" }}
-          >
+          <div className="overflow-auto flex-1 min-h-0">
+
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
