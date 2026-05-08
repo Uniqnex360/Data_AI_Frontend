@@ -1658,7 +1658,7 @@ export default function DataCleaningTab() {
           </div>
           <div
             className="overflow-auto relative"
-            style={{ maxHeight: "calc(100vh - 280px)" }}
+           style={{ height: "calc(100vh - 380px)" }} 
           >
             <table
               className="border-separate border-spacing-0"
