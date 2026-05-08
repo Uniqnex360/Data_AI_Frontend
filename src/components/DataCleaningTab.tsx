@@ -1362,9 +1362,9 @@ export default function DataCleaningTab() {
             </div>
           </div>
           <div
-            className="overflow-auto"
-            style={{ maxHeight: "calc(100vh - 250px)" }}
-          >
+  className="overflow-auto border-t border-slate-100"
+  style={{ height: "calc(100vh - 380px)" }} 
+>
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
