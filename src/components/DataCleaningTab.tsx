@@ -332,10 +332,12 @@ export default function DataCleaningTab() {
   useEffect(() => {
     if (selectedProjectId) loadProducts();
   }, [selectedProjectId, page, pageSize]);
- const loadProjects = async () => {
+  const loadProjects = async () => {
     setProjectsLoading(true);
     try {
-      const data = await projectService.getAllProjects({ operation_mode: "cleaning" });
+      const data = await projectService.getAllProjects({
+        operation_mode: "cleaning",
+      });
       setProjects(data.filter((p: Project) => p.operation_mode === "cleaning"));
     } catch {
       notify.error("Failed to load projects");
@@ -949,7 +951,7 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-<div className="p-4 bg-slate-50 h-[calc(100vh-120px)] overflow-hidden flex flex-col font-sans">
+<div className="p-4 bg-slate-50 h-[calc(100vh-64px)] overflow-hidden flex flex-col font-sans">
       <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
@@ -1165,163 +1167,570 @@ export default function DataCleaningTab() {
           </div>
         )}
       </div>
+
       {viewMode === "advanced" && (
-        <div className="mb-3">
-          <button
-            onClick={() => setViewMode("progress")}
-            className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-          >
-            ← Back to Products
-          </button>
-        </div>
-      )}
-      {viewMode === "advanced" &&
-        selectedProjectId &&
-        availableAttributes.length > 0 && (
-          <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  Bulk Update Attributes
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Select attributes and values to apply to selected products
-                </p>
+        <div className="flex flex-col flex-1 min-h-0">
+          {/* Back button */}
+          <div className="mb-3 shrink-0">
+            <button
+              onClick={() => setViewMode("progress")}
+              className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+            >
+              ← Back to Products
+            </button>
+          </div>
+
+          {selectedProjectId && availableAttributes.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden shrink-0">
+<div className="p-3 flex items-center justify-between gap-3 flex-wrap border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    Bulk Update Attributes
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Select attributes and values to apply to selected products
+                  </p>
+                  {selectedBulkAttributes.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
+                        Showing {filteredSortedProducts.length} products on this
+                        page with selected attributes
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedBulkAttributes([]);
+                      setBulkAttributeValues({});
+                    }}
+                    disabled={selectedBulkAttributes.length === 0}
+                    className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={handleBulkUpdate}
+                    disabled={
+                      bulkUpdating ||
+                      (!allProductsSelected && selectedProductIds.size === 0) ||
+                      selectedBulkAttributes.length === 0
+                    }
+                    className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
+                  >
+                    {bulkUpdating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Updating…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />{" "}
+                        {allProductsSelected
+                          ? `Update All (${total})`
+                          : `Update ${selectedProductIds.size} selected`}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="p-2">
+                <div className="relative mb-3 max-w-2xl">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={bulkSearch}
+                    onChange={(e) => setBulkSearch(e.target.value)}
+                    placeholder="Search attributes..."
+                    className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+<div className="max-h-24 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-white">
+                  <div className="flex flex-wrap gap-2">
+                    {filteredBulkAttributes.length === 0 ? (
+                      <p className="text-sm text-slate-500 py-2">
+                        No attributes found
+                      </p>
+                    ) : (
+                      filteredBulkAttributes.map((attr) => {
+                        const active = selectedBulkAttributes.includes(attr);
+                        return (
+                          <button
+                            key={attr}
+                            type="button"
+                            onClick={() => {
+                              if (active) {
+                                setSelectedBulkAttributes((p) =>
+                                  p.filter((a) => a !== attr),
+                                );
+                                setBulkAttributeValues((p) => {
+                                  const n = { ...p };
+                                  delete n[attr];
+                                  return n;
+                                });
+                              } else {
+                                setSelectedBulkAttributes((p) => [...p, attr]);
+                              }
+                            }}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                              active
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                            title={attr}
+                          >
+                            {active && <Check className="w-4 h-4 shrink-0" />}
+                            <span className="truncate max-w-[260px]">
+                              {attr}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
                 {selectedBulkAttributes.length > 0 && (
-                  <div className="mt-2">
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
-                      Showing {filteredSortedProducts.length} products on this
-                      page with selected attributes
-                    </span>
+<div className="mt-3 pt-3 border-t border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Set values for selected attributes (
+                      {selectedBulkAttributes.length} selected)
+                    </p>
+  <div className="max-h-32 overflow-y-auto bg-white rounded-lg p-2 border border-slate-100">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
+                        {selectedBulkAttributes.map((attr) => (
+                          <div key={attr} className="space-y-1">
+                            <label
+                              className="text-sm font-medium text-slate-800 truncate block"
+                              title={attr}
+                            >
+                              {attr}
+                            </label>
+                            <input
+                              value={bulkAttributeValues[attr] || ""}
+                              onChange={(e) =>
+                                setBulkAttributeValues((p) => ({
+                                  ...p,
+                                  [attr]: e.target.value,
+                                }))
+                              }
+                              placeholder="Enter value"
+                              className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedBulkAttributes([]);
-                    setBulkAttributeValues({});
+            </div>
+          )}
+
+          {/* Product Table */}
+          {loading || projectSwitching ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : filteredSortedProducts.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+              <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <p className="text-slate-500">No products found</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm shrink-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-700 font-medium">
+                    {allProductsSelected
+                      ? `All ${total} products selected`
+                      : selectedProductIds.size > 0
+                        ? `${selectedProductIds.size} product(s) selected`
+                        : ""}
+                  </span>
+                  {!allProductsSelected &&
+                    selectedProductIds.size > 0 &&
+                    total > filteredSortedProducts.length && (
+                      <button
+                        onClick={() => setAllProductsSelected(true)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Select all {total} products across all pages
+                      </button>
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">
+                    MPN: {selectedDetailProduct?.product_code}
+                  </span>
+                </div>
+              </div>
+              <div className="relative overflow-auto flex-1 min-h-0">
+                <table
+                  className="border-separate border-spacing-0"
+                  style={{
+                    tableLayout: "fixed",
+                    width:
+                      COL_CHECKBOX +
+                      COL_STATUS +
+                      COL_THUMB +
+                      COL_NAME +
+                      COL_BRAND +
+                      COL_CATEGORY +
+                      COL_ACTION +
+                      availableAttributes.length * COL_ATTR,
                   }}
-                  disabled={selectedBulkAttributes.length === 0}
-                  className="h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-2"
                 >
-                  Clear
-                </button>
-                <button
-                  onClick={handleBulkUpdate}
-                  disabled={
-                    bulkUpdating ||
-                    (!allProductsSelected && selectedProductIds.size === 0) ||
-                    selectedBulkAttributes.length === 0
-                  }
-                  className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 inline-flex items-center gap-2"
-                >
-                  {bulkUpdating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Updating…
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      {allProductsSelected
-                        ? `Update All (${total})`
-                        : `Update ${selectedProductIds.size} selected`}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-            <div className="p-4">
-              <div className="relative mb-3 max-w-2xl">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={bulkSearch}
-                  onChange={(e) => setBulkSearch(e.target.value)}
-                  placeholder="Search attributes..."
-                  className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-white">
-                <div className="flex flex-wrap gap-2">
-                  {filteredBulkAttributes.length === 0 ? (
-                    <p className="text-sm text-slate-500 py-2">
-                      No attributes found
-                    </p>
-                  ) : (
-                    filteredBulkAttributes.map((attr) => {
-                      const active = selectedBulkAttributes.includes(attr);
-                      return (
-                        <button
+                  <thead className="sticky top-0 z-40">
+                    <tr className="text-left text-[13px] font-semibold text-slate-500 bg-slate-50">
+                      <th
+                        style={{
+                          width: COL_CHECKBOX,
+                          minWidth: COL_CHECKBOX,
+                          left: LEFT_CHECKBOX,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            allProductsSelected || isCurrentPageFullySelected
+                          }
+                          onChange={toggleAll}
+                          className="rounded border-slate-300 text-blue-600"
+                        />
+                      </th>
+                      <th
+                        style={{
+                          width: COL_STATUS,
+                          minWidth: COL_STATUS,
+                          left: LEFT_STATUS,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
+                      >
+                        Status
+                      </th>
+                      <th
+                        style={{
+                          width: COL_THUMB,
+                          minWidth: COL_THUMB,
+                          left: LEFT_STATUS + COL_STATUS,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
+                      >
+                        Image
+                      </th>
+                      <th
+                        style={{
+                          width: COL_NAME,
+                          minWidth: COL_NAME,
+                          left: LEFT_NAME,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                      >
+                        Product Name
+                      </th>
+                      <th
+                        style={{
+                          width: COL_BRAND,
+                          minWidth: COL_BRAND,
+                          left: LEFT_MPN,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                      >
+                        Brand
+                      </th>
+                      <th
+                        style={{
+                          width: COL_CATEGORY,
+                          minWidth: COL_CATEGORY,
+                          left: LEFT_MPN + COL_BRAND,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
+                      >
+                        Category
+                      </th>
+                      {availableAttributes.map((attr) => (
+                        <AttrHeader
                           key={attr}
-                          type="button"
-                          onClick={() => {
-                            if (active) {
-                              setSelectedBulkAttributes((p) =>
-                                p.filter((a) => a !== attr),
-                              );
-                              setBulkAttributeValues((p) => {
-                                const n = { ...p };
-                                delete n[attr];
-                                return n;
-                              });
-                            } else {
-                              setSelectedBulkAttributes((p) => [...p, attr]);
-                            }
-                          }}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                            active
-                              ? "bg-blue-600 text-white border-blue-600"
-                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                          }`}
-                          title={attr}
-                        >
-                          {active && <Check className="w-4 h-4 shrink-0" />}
-                          <span className="truncate max-w-[260px]">{attr}</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-              {selectedBulkAttributes.length > 0 && (
-                <div className="mt-5 pt-5 border-t border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Set values for selected attributes (
-                    {selectedBulkAttributes.length} selected)
-                  </p>
-                  <div className="mt-3 max-h-64 overflow-y-auto bg-white rounded-lg p-3 border border-slate-100">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
-                      {selectedBulkAttributes.map((attr) => (
-                        <div key={attr} className="space-y-1">
-                          <label
-                            className="text-sm font-medium text-slate-800 truncate block"
-                            title={attr}
-                          >
-                            {attr}
-                          </label>
-                          <input
-                            value={bulkAttributeValues[attr] || ""}
-                            onChange={(e) =>
-                              setBulkAttributeValues((p) => ({
-                                ...p,
-                                [attr]: e.target.value,
-                              }))
-                            }
-                            placeholder="Enter value"
-                            className="h-10 w-full px-3 border border-slate-200 rounded-lg text-sm focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none"
-                          />
-                        </div>
+                          attr={attr}
+                          sort={getSort(attr)}
+                          filter={getFilter(attr)}
+                          onSort={() => toggleSort(attr)}
+                          onFilter={(v) => setColFilter(attr, v)}
+                        />
                       ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+                      <th
+                        style={{
+                          width: COL_ACTION,
+                          minWidth: COL_ACTION,
+                          right: 0,
+                          position: "sticky",
+                          zIndex: 50,
+                        }}
+                        className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center"
+                      >
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSortedProducts
+                      .filter(
+                        (p) =>
+                          allProductsSelected || selectedProductIds.has(p.id),
+                      )
+                      .map((product) => (
+                        <tr
+                          key={product.id}
+                          className="border-b border-slate-100 hover:bg-slate-50/70 align-top group"
+                        >
+                          <td
+                            style={{
+                              width: COL_CHECKBOX,
+                              position: "sticky",
+                              left: LEFT_CHECKBOX,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                allProductsSelected ||
+                                selectedProductIds.has(product.id)
+                              }
+                              onChange={() => toggleProduct(product.id)}
+                              className="rounded border-slate-300 text-blue-600"
+                            />
+                          </td>
+                          <td
+                            style={{
+                              width: COL_STATUS,
+                              position: "sticky",
+                              left: LEFT_STATUS,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                          >
+                            <div className="flex justify-center">
+                              <StatusPill status={product.enrichment_status} />
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              width: COL_THUMB,
+                              position: "sticky",
+                              left: LEFT_STATUS + COL_STATUS,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                          >
+                            <div className="flex justify-center">
+                              <ProductThumbnail
+                                src={(product as any).image_url_1}
+                                alt={product.product_name}
+                              />
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              width: COL_NAME,
+                              position: "sticky",
+                              left: LEFT_NAME,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <span
+                                className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
+                                title={product.product_name}
+                              >
+                                {product.product_name}
+                              </span>
+                              <span
+                                className="text-[10px] text-blue-600 font-mono font-medium truncate"
+                                title={product.product_code}
+                              >
+                                MPN: {product.product_code}
+                              </span>
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              width: COL_BRAND,
+                              position: "sticky",
+                              left: LEFT_MPN,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
+                          >
+                            <span className="text-sm text-slate-600">
+                              {product.brand_name}
+                            </span>
+                          </td>
+                          <td
+                            style={{
+                              width: COL_CATEGORY,
+                              position: "sticky",
+                              left: LEFT_MPN + COL_BRAND,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-r border-slate-200 bg-white group-hover:bg-slate-50/70"
+                          >
+                            <span className="text-sm text-slate-600">
+                              {product.category_3}
+                            </span>
+                          </td>
+                          {availableAttributes.map((attr) => {
+                            const dynAttr = (product as any).attributes_dict?.[
+                              attr
+                            ];
+                            const edited =
+                              editingAttributes[product.id]?.[attr];
+                            const currentValues = getAttrValues(product, attr);
+                            const curVal =
+                              edited?.value ?? (dynAttr?.value as any) ?? "";
+                            const curUom =
+                              edited?.uom ??
+                              (dynAttr as any)?.unit ??
+                              (dynAttr as any)?.uom ??
+                              "";
+                            const conflict =
+                              product.validation_conflicts?.[attr];
+                            return (
+                              <td
+                                key={attr}
+                                style={{ width: COL_ATTR, minWidth: COL_ATTR }}
+                                className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}
+                              >
+                                <div className="px-2 py-3">
+                                  <div className="flex items-start gap-2">
+                                    <input
+                                      type="text"
+                                      value={curVal}
+                                      onChange={(e) =>
+                                        handleAttributeChange(
+                                          product.id,
+                                          attr,
+                                          "value",
+                                          e.target.value,
+                                        )
+                                      }
+                                      disabled={savingAttributes[product.id]}
+                                      placeholder="—"
+                                      className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-slate-900 outline-none focus:ring-0 placeholder:text-slate-300 disabled:opacity-40"
+                                    />
+                                    {conflict && (
+                                      <AlertCircle
+                                        className="w-4 h-4 text-amber-500 shrink-0 mt-0.5"
+                                        title="AI suggested correction"
+                                      />
+                                    )}
+                                  </div>
+                                  <AttributeValueTags
+                                    values={currentValues}
+                                    onRemove={(value) =>
+                                      handleRemoveAttributeValue(
+                                        product,
+                                        attr,
+                                        value,
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    type="text"
+                                    value={curUom}
+                                    onChange={(e) =>
+                                      handleAttributeChange(
+                                        product.id,
+                                        attr,
+                                        "uom",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="unit (e.g. kg, V)"
+                                    className="mt-3 h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:bg-white focus:border-blue-300 transition-colors"
+                                  />
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td
+                            style={{
+                              width: COL_ACTION,
+                              position: "sticky",
+                              right: 0,
+                              zIndex: 20,
+                            }}
+                            className="px-3 py-4 border-l border-slate-200 bg-white group-hover:bg-slate-50/70 text-center"
+                          >
+                            <div className="flex flex-col gap-2 items-center">
+                              <button
+                                onClick={() => handleCleanProduct(product.id)}
+                                disabled={
+                                  cleaning ||
+                                  product.enrichment_status === "processing"
+                                }
+                                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40 hover:underline"
+                              >
+                                {product.enrichment_status === "processing" ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                                    Cleaning
+                                  </>
+                                ) : product.enrichment_status ===
+                                  "completed" ? (
+                                  "Re-clean"
+                                ) : (
+                                  "Clean"
+                                )}
+                              </button>
+                              {Object.keys(editingAttributes[product.id] || {})
+                                .length > 0 && (
+                                <button
+                                  onClick={() =>
+                                    handleSaveAttributes(product.id)
+                                  }
+                                  disabled={savingAttributes[product.id]}
+                                  className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium disabled:opacity-40 hover:underline"
+                                >
+                                  {savingAttributes[product.id] ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                                      Saving
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="w-4 h-4" /> Save
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      )}
       {viewMode === "projects" && !selectedProjectId ? (
-  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col flex-1 min-h-0">
           <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <input
@@ -1362,11 +1771,10 @@ export default function DataCleaningTab() {
             </div>
           </div>
           <div className="overflow-auto flex-1 min-h-0">
-
             <table className="w-full">
               <thead className="sticky top-0 z-30 bg-slate-50">
                 <tr>
-                   <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+                  <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                     Select
                   </th>
                   <th className="px-4 py-3 text-left text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
@@ -1567,16 +1975,15 @@ export default function DataCleaningTab() {
               </tbody>
             </table>
             <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
-            <Pagination
-              page={projectsPage}
-              totalPages={projectsTotalPages}
-              onPageChange={setProjectsPage}
-            />
+              <Pagination
+                page={projectsPage}
+                totalPages={projectsTotalPages}
+                onPageChange={setProjectsPage}
+              />
+            </div>
           </div>
-          </div>
-          
         </div>
-      ) : viewMode === "progress" ? (
+            ) : viewMode === "progress" ? (
         <CleaningProductsOverview
           project={selectedProject!}
           products={filteredSortedProducts}
@@ -1618,433 +2025,7 @@ export default function DataCleaningTab() {
           onToggleAll={toggleAll}
           onSelectAllAcrossPages={() => setAllProductsSelected(true)}
         />
-      ) : loading || projectSwitching ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        </div>
-      ) : filteredSortedProducts.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-          <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-slate-500">No products found</p>
-        </div>
-      ) : (
-<div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-white text-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-slate-700 font-medium">
-                {allProductsSelected
-                  ? `All ${total} products selected`
-                  : selectedProductIds.size > 0
-                    ? `${selectedProductIds.size} product(s) selected`
-                    : ""}
-              </span>
-              {!allProductsSelected &&
-                selectedProductIds.size > 0 &&
-                total > filteredSortedProducts.length && (
-                  <button
-                    onClick={() => setAllProductsSelected(true)}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Select all {total} products across all pages
-                  </button>
-                )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500">
-                MPN: {selectedDetailProduct?.product_code}
-              </span>
-            </div>
-          </div>
-          <div className="relative overflow-auto flex-1">
-
-            <table
-              className="border-separate border-spacing-0"
-              style={{
-                tableLayout: "fixed",
-                width:
-                  COL_CHECKBOX +
-                  COL_STATUS +
-                  COL_THUMB +
-                  COL_NAME +
-                  COL_BRAND +
-                  COL_CATEGORY +
-                  COL_ACTION +
-                  availableAttributes.length * COL_ATTR,
-              }}
-            >
-              <thead className="sticky top-0 z-40">
-                <tr className="text-left text-[13px] font-semibold text-slate-500 bg-slate-50">
-                  {/* Checkbox - sticky */}
-                  <th
-                    style={{
-                      width: COL_CHECKBOX,
-                      minWidth: COL_CHECKBOX,
-                      left: LEFT_CHECKBOX,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        allProductsSelected || isCurrentPageFullySelected
-                      }
-                      onChange={toggleAll}
-                      className="rounded border-slate-300 text-blue-600"
-                    />
-                  </th>
-
-                  {/* Status - sticky */}
-                  <th
-                    style={{
-                      width: COL_STATUS,
-                      minWidth: COL_STATUS,
-                      left: LEFT_STATUS,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
-                  >
-                    Status
-                  </th>
-
-                  <th
-                    style={{
-                      width: COL_THUMB,
-                      minWidth: COL_THUMB,
-                      left: LEFT_STATUS + COL_STATUS,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50 text-center"
-                  >
-                    Image
-                  </th>
-
-                  <th
-                    style={{
-                      width: COL_NAME,
-                      minWidth: COL_NAME,
-                      left: LEFT_NAME,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Product Name
-                  </th>
-
-                  {/* Brand - sticky */}
-                  <th
-                    style={{
-                      width: COL_BRAND,
-                      minWidth: COL_BRAND,
-                      left: LEFT_MPN,
-
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Brand
-                  </th>
-
-                  {/* Category - sticky */}
-                  <th
-                    style={{
-                      width: COL_CATEGORY,
-                      minWidth: COL_CATEGORY,
-                      left: LEFT_MPN + COL_BRAND,
-
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-r border-slate-200 bg-slate-50"
-                  >
-                    Category
-                  </th>
-
-                  {/* Dynamic Attributes */}
-                  {availableAttributes.map((attr) => (
-                    <AttrHeader
-                      key={attr}
-                      attr={attr}
-                      sort={getSort(attr)}
-                      filter={getFilter(attr)}
-                      onSort={() => toggleSort(attr)}
-                      onFilter={(v) => setColFilter(attr, v)}
-                    />
-                  ))}
-
-                  {/* Action - sticky right */}
-                  <th
-                    style={{
-                      width: COL_ACTION,
-                      minWidth: COL_ACTION,
-                      right: 0,
-                      position: "sticky",
-                      zIndex: 50,
-                    }}
-                    className="px-3 py-3 border-b border-l border-slate-200 bg-slate-50 text-center"
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSortedProducts
-                  .filter(
-                    (p) => allProductsSelected || selectedProductIds.has(p.id),
-                  )
-                  .map((product) => (
-                    <tr
-                      key={product.id}
-                      className="border-b border-slate-100 hover:bg-slate-50/70 align-top group"
-                    >
-                      {/* Checkbox */}
-                      <td
-                        style={{
-                          width: COL_CHECKBOX,
-                          position: "sticky",
-                          left: LEFT_CHECKBOX,
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={
-                            allProductsSelected ||
-                            selectedProductIds.has(product.id)
-                          }
-                          onChange={() => toggleProduct(product.id)}
-                          className="rounded border-slate-300 text-blue-600"
-                        />
-                      </td>
-
-                      {/* Status */}
-                      <td
-                        style={{
-                          width: COL_STATUS,
-                          position: "sticky",
-                          left: LEFT_STATUS,
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                      >
-                        <div className="flex justify-center">
-                          <StatusPill status={product.enrichment_status} />
-                        </div>
-                      </td>
-
-                      {/* Image */}
-                      <td
-                        style={{
-                          width: COL_THUMB,
-                          position: "sticky",
-                          left: LEFT_STATUS + COL_STATUS,
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                      >
-                        <div className="flex justify-center">
-                          <ProductThumbnail
-                            src={(product as any).image_url_1}
-                            alt={product.product_name}
-                          />
-                        </div>
-                      </td>
-
-                      <td
-                        style={{
-                          width: COL_NAME,
-                          position: "sticky",
-                          left: LEFT_NAME,
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <span
-                            className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2"
-                            title={product.product_name}
-                          >
-                            {product.product_name}
-                          </span>
-                          <span
-                            className="text-[10px] text-blue-600 font-mono font-medium truncate"
-                            title={product.product_code}
-                          >
-                            MPN: {product.product_code}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Brand */}
-                      <td
-                        style={{
-                          width: COL_BRAND,
-                          position: "sticky",
-                          left: LEFT_MPN,
-
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-r border-slate-100 bg-white group-hover:bg-slate-50/70"
-                      >
-                        <span className="text-sm text-slate-600">
-                          {product.brand_name}
-                        </span>
-                      </td>
-
-                      {/* Category */}
-                      <td
-                        style={{
-                          width: COL_CATEGORY,
-                          position: "sticky",
-                          left: LEFT_MPN + COL_BRAND,
-
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-r border-slate-200 bg-white group-hover:bg-slate-50/70"
-                      >
-                        <span className="text-sm text-slate-600">
-                          {product.category_3}
-                        </span>
-                      </td>
-
-                      {/* Dynamic Attributes - Keep existing code unchanged */}
-                      {availableAttributes.map((attr) => {
-                        const dynAttr = (product as any).attributes_dict?.[
-                          attr
-                        ];
-                        const edited = editingAttributes[product.id]?.[attr];
-                        const currentValues = getAttrValues(product, attr);
-                        const curVal =
-                          edited?.value ?? (dynAttr?.value as any) ?? "";
-                        const curUom =
-                          edited?.uom ??
-                          (dynAttr as any)?.unit ??
-                          (dynAttr as any)?.uom ??
-                          "";
-                        const conflict = product.validation_conflicts?.[attr];
-                        return (
-                          <td
-                            key={attr}
-                            style={{ width: COL_ATTR, minWidth: COL_ATTR }}
-                            className={`border-r border-slate-100 align-top ${conflict ? "bg-amber-50/30" : ""}`}
-                          >
-                            <div className="px-2 py-3">
-                              <div className="flex items-start gap-2">
-                                <input
-                                  type="text"
-                                  value={curVal}
-                                  onChange={(e) =>
-                                    handleAttributeChange(
-                                      product.id,
-                                      attr,
-                                      "value",
-                                      e.target.value,
-                                    )
-                                  }
-                                  disabled={savingAttributes[product.id]}
-                                  placeholder="—"
-                                  className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-slate-900 outline-none focus:ring-0 placeholder:text-slate-300 disabled:opacity-40"
-                                />
-                                {conflict && (
-                                  <AlertCircle
-                                    className="w-4 h-4 text-amber-500 shrink-0 mt-0.5"
-                                    title="AI suggested correction"
-                                  />
-                                )}
-                              </div>
-                              <AttributeValueTags
-                                values={currentValues}
-                                onRemove={(value) =>
-                                  handleRemoveAttributeValue(
-                                    product,
-                                    attr,
-                                    value,
-                                  )
-                                }
-                              />
-                              <input
-                                type="text"
-                                value={curUom}
-                                onChange={(e) =>
-                                  handleAttributeChange(
-                                    product.id,
-                                    attr,
-                                    "uom",
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="unit (e.g. kg, V)"
-                                className="mt-3 h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600 outline-none placeholder:text-slate-300 focus:bg-white focus:border-blue-300 transition-colors"
-                              />
-                            </div>
-                          </td>
-                        );
-                      })}
-
-                      {/* Action - sticky right */}
-                      <td
-                        style={{
-                          width: COL_ACTION,
-                          position: "sticky",
-                          right: 0,
-                          zIndex: 20,
-                        }}
-                        className="px-3 py-4 border-l border-slate-200 bg-white group-hover:bg-slate-50/70 text-center"
-                      >
-                        <div className="flex flex-col gap-2 items-center">
-                          <button
-                            onClick={() => handleCleanProduct(product.id)}
-                            disabled={
-                              cleaning ||
-                              product.enrichment_status === "processing"
-                            }
-                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-40 hover:underline"
-                          >
-                            {product.enrichment_status === "processing" ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />{" "}
-                                Cleaning
-                              </>
-                            ) : product.enrichment_status === "completed" ? (
-                              "Re-clean"
-                            ) : (
-                              "Clean"
-                            )}
-                          </button>
-                          {Object.keys(editingAttributes[product.id] || {})
-                            .length > 0 && (
-                            <button
-                              onClick={() => handleSaveAttributes(product.id)}
-                              disabled={savingAttributes[product.id]}
-                              className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium disabled:opacity-40 hover:underline"
-                            >
-                              {savingAttributes[product.id] ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />{" "}
-                                  Saving
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="w-4 h-4" /> Save
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
