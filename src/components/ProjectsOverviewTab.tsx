@@ -233,64 +233,109 @@ export default function ProjectsOverviewTab({
   };
 
   const getSourceStatusInfo = (projectId: string) => {
-    const project = projects.find((p) => p.id === projectId);
-    const sources = projectSources[projectId] || [];
-    const isCleaningProject = project?.operationMode === "cleaning";
-    const isEnrichmentProject = project?.operationMode === "enrichment";
-    const isPdfExtractionProject = project?.operationMode === "pdf_extraction";
+  const project = projects.find((p) => p.id === projectId);
+  const sources = projectSources[projectId] || [];
+  const isCleaningProject = project?.operationMode === "cleaning";
+  const isEnrichmentProject = project?.operationMode === "enrichment";
+  const isPdfExtractionProject = project?.operationMode === "pdf_extraction";
 
-    if (!sources.length) {
-      return {
-        isCompleted: false,
-        isProcessing: false,
-        isFailed: false,
-        pendingLabel: "",
-        processingLabel: "",
-      };
-    }
-
-    const completedSource = sources.find(
-      (s) => s.metadata?.processing_status === "completed",
-    );
-    const processingSource = sources.find(
-      (s) => s.metadata?.processing_status === "processing",
-    );
-    const failedSource = sources.find(
-      (s) => s.metadata?.processing_status === "failed",
-    );
-
-    const processStatus =
-      completedSource?.metadata?.processing_status ||
-      processingSource?.metadata?.processing_status ||
-      failedSource?.metadata?.processing_status ||
-      "pending";
-
-    const isCompleted = processStatus === "completed";
-    const isProcessing = processStatus === "processing";
-    const isFailed = processStatus === "failed";
-
-    const pendingLabel = isCleaningProject
-      ? "Needs Cleaning"
-      : isEnrichmentProject
-        ? "Needs Enrichment"
-        : isPdfExtractionProject
-          ? "Needs Extraction"
-          : "Needs Aggregation";
-
-    const processingLabel = isCleaningProject
-      ? "Cleaning..."
-      : isEnrichmentProject
-        ? "Enriching..."
-        : "Aggregating...";
-
+  // If project itself is completed, always show as completed
+  if (project?.status === "completed") {
     return {
-      isCompleted,
-      isProcessing,
-      isFailed,
-      pendingLabel,
-      processingLabel,
+      isCompleted: true,
+      isProcessing: false,
+      isFailed: false,
+      pendingLabel: "",
+      processingLabel: "",
     };
+  }
+
+  // If project status is failed
+  if (project?.status === "failed") {
+    return {
+      isCompleted: false,
+      isProcessing: false,
+      isFailed: true,
+      pendingLabel: "",
+      processingLabel: "",
+    };
+  }
+
+  // If project status is processing
+  if (project?.status === "processing") {
+    return {
+      isCompleted: false,
+      isProcessing: true,
+      isFailed: false,
+      pendingLabel: "",
+      processingLabel: isCleaningProject
+        ? "Cleaning..."
+        : isEnrichmentProject
+          ? "Enriching..."
+          : isPdfExtractionProject
+            ? "Extracting..."
+            : "Aggregating...",
+    };
+  }
+
+  if (!sources.length) {
+    return {
+      isCompleted: false,
+      isProcessing: false,
+      isFailed: false,
+      pendingLabel: isCleaningProject
+        ? "Needs Cleaning"
+        : isEnrichmentProject
+          ? "Needs Enrichment"
+          : isPdfExtractionProject
+            ? "Needs Extraction"
+            : "Needs Aggregation",
+      processingLabel: "",
+    };
+  }
+
+  const completedSource = sources.find(
+    (s) => s.metadata?.processing_status === "completed",
+  );
+  const processingSource = sources.find(
+    (s) => s.metadata?.processing_status === "processing",
+  );
+  const failedSource = sources.find(
+    (s) => s.metadata?.processing_status === "failed",
+  );
+
+  const processStatus =
+    completedSource?.metadata?.processing_status ||
+    processingSource?.metadata?.processing_status ||
+    failedSource?.metadata?.processing_status ||
+    "pending";
+
+  const isCompleted = processStatus === "completed";
+  const isProcessing = processStatus === "processing";
+  const isFailed = processStatus === "failed";
+
+  const pendingLabel = isCleaningProject
+    ? "Needs Cleaning"
+    : isEnrichmentProject
+      ? "Needs Enrichment"
+      : isPdfExtractionProject
+        ? "Needs Extraction"
+        : "Needs Aggregation";
+
+  const processingLabel = isCleaningProject
+    ? "Cleaning..."
+    : isEnrichmentProject
+      ? "Enriching..."
+      : "Aggregating...";
+
+  return {
+    isCompleted,
+    isProcessing,
+    isFailed,
+    pendingLabel,
+    processingLabel,
   };
+};
   const handleDownloadOutput = async (
     e: React.MouseEvent,
     projectId: string,

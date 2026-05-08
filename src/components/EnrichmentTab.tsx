@@ -7,10 +7,8 @@ import React, {
 } from "react";
 import {
   AlertTriangle,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Clock,
   Download,
   Loader2,
@@ -1162,18 +1160,19 @@ export default function EnrichmentTab({
               className="rounded border-slate-300"
             />
             <span className="text-xs text-slate-500">
-      {selectedProjectIds.size === filteredProjects.length && filteredProjects.length > 0
-        ? "Deselect All"
-        : "Select All"}
-    </span>
-    {selectedProjectIds.size > 0 && (
-      <button
-        onClick={() => setSelectedProjectIds(new Set())}
-        className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
-      >
-        Clear selection
-      </button>
-    )}
+              {selectedProjectIds.size === filteredProjects.length &&
+              filteredProjects.length > 0
+                ? "Deselect All"
+                : "Select All"}
+            </span>
+            {selectedProjectIds.size > 0 && (
+              <button
+                onClick={() => setSelectedProjectIds(new Set())}
+                className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
+              >
+                Clear selection
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold text-slate-900">
@@ -1194,10 +1193,9 @@ export default function EnrichmentTab({
           </div>
         </div>
         <div
-  className="overflow-auto border-t border-slate-100"
-  style={{ height: "calc(100vh - 450px)" }} 
->
-
+          className="overflow-auto border-t border-slate-100"
+          style={{ height: "calc(100vh - 450px)" }}
+        >
           <table className="w-full">
             <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
               <tr>
@@ -1462,10 +1460,10 @@ export default function EnrichmentTab({
                               </button>
                             )}
                           </div>
-                         <div
-  className="overflow-auto border-b border-slate-200"
-  style={{ maxHeight: "350px" }}
->
+                          <div
+                            className="overflow-auto border-b border-slate-200"
+                            style={{ maxHeight: "350px" }}
+                          >
                             <table className="w-full">
                               <thead className="sticky top-0 z-10 bg-slate-100">
                                 <tr className="text-left text-[13px] font-semibold text-slate-500">
@@ -1693,14 +1691,15 @@ export default function EnrichmentTab({
               )}
             </tbody>
           </table>
-        </div>
-        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
           <Pagination
             page={projectsPage}
             totalPages={projectsTotalPages}
             onPageChange={setProjectsPage}
           />
+        </div>  
         </div>
+        
       </div>
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">

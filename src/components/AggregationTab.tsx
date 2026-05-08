@@ -487,6 +487,7 @@ export default function AggregationTab({
     }
     if (completedProjects.length > 0) {
       setAggregatingProjects(newAggregatingProjects);
+       loadProjects(true);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
           const freshResult = await productService.getProductsByProject(
@@ -518,27 +519,27 @@ export default function AggregationTab({
     loadDefaultFilters();
   }, [loadDefaultFilters]);
 
-  const loadProjects = useCallback(async () => {
-    setProjectsLoading(true);
-    try {
-      const data = await projectService.getAllProjects({
-        operation_mode: "aggregation,pdf_extraction",
-        tab: "aggregation",
-      });
-      const aggregationData = data.filter(
-        (p: Project) =>
-          p.operation_mode === "aggregation" ||
-          p.operation_mode === "pdf_extraction",
-      );
-      setProjects(aggregationData);
-      await loadProjectEnrichmentCounts();
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-      notify.error("Failed to load projects");
-    } finally {
-      setProjectsLoading(false);
-    }
-  }, [loadProjectEnrichmentCounts]);
+  const loadProjects = useCallback(async (silent = false) => {
+  if (!silent) setProjectsLoading(true);
+  try {
+    const data = await projectService.getAllProjects({
+      operation_mode: "aggregation,pdf_extraction",
+      tab: "aggregation",
+    });
+    const aggregationData = data.filter(
+      (p: Project) =>
+        p.operation_mode === "aggregation" ||
+        p.operation_mode === "pdf_extraction",
+    );
+    setProjects(aggregationData);
+    await loadProjectEnrichmentCounts();
+  } catch (error) {
+    console.error("Failed to load projects:", error);
+    if (!silent) notify.error("Failed to load projects");
+  } finally {
+    if (!silent) setProjectsLoading(false);
+  }
+}, [loadProjectEnrichmentCounts]);
   useEffect(() => {
     console.time("initialLoad");
     loadProjects().then(() => {
@@ -676,6 +677,7 @@ export default function AggregationTab({
         );
         setPollingProductIds((prev) => new Set(prev).add(productId));
         notify.success("Aggregation started");
+        loadProjects(true);
       } catch (error: any) {
         console.error("Aggregation failed:", error);
         removeTrackingProduct(productId);
@@ -760,6 +762,7 @@ export default function AggregationTab({
       }
       if (successCount > 0) {
         notify.success(`Aggregation started for ${successCount} project(s)`);
+         loadProjects(true);  
       }
     } catch (error) {
       console.error("Failed to aggregate:", error);
@@ -853,6 +856,7 @@ export default function AggregationTab({
           completedOrFailed.forEach((id) => updated.delete(id));
           return updated;
         });
+        loadProjects(true);
       }
       if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
         await loadAttributes(selectedProduct);
@@ -860,7 +864,7 @@ export default function AggregationTab({
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes,loadProjects]);
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
     const selectedProducts = Array.from(selectedProductIds);
