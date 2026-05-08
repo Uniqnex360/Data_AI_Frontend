@@ -1656,7 +1656,7 @@ export default function DataCleaningTab() {
               </span>
             </div>
           </div>
-          <div className="relative overflow-auto h-[65vh]">
+          <div className="relative overflow-auto flex-1">
 
             <table
               className="border-separate border-spacing-0"
