@@ -48,12 +48,7 @@ export function ProductDetailView({
   const [attrMap, setAttrMap] = useState<
     Record<string, Record<string, string>>
   >({});
-  const [editingCell, setEditingCell] = useState<{
-    productId: string;
-    attrName: string;
-  } | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [saving, setSaving] = useState(false);
+ 
   const [projectSource, setProjectSource] = useState<Source | null>(null);
   const [attrUomMap, setAttrUomMap] = useState<
     Record<string, Record<string, string>>
@@ -215,7 +210,8 @@ const { value, unit } = parseValueAndUnit(rawAttr?.value ?? rawAttr);
         const productAttrs: Record<string, string> = {};
         const productUoms: Record<string, string> = {};
         attrs.forEach((a: any) => {
-          productAttrs[a.attribute_name] = parseValue(a.values?.[0]?.value);
+          const { value } = parseValueAndUnit(a.values?.[0]);
+productAttrs[a.attribute_name] = value;
         });
         setAttrMap(prev => ({
           ...prev,
@@ -268,13 +264,17 @@ const { value, unit } = parseValueAndUnit(rawAttr?.value ?? rawAttr);
     completenessFilter,
   ]);
 
-  const dynamicColumns = useMemo(() => {
-    const keys = new Set<string>();
-    Object.values(attrMap).forEach((obj) =>
-      Object.keys(obj).forEach((k) => keys.add(k)),
-    );
-    return Array.from(keys);
-  }, [attrMap]);
+ const dynamicColumns = useMemo(() => {
+  const keys = new Set<string>();
+  Object.values(attrMap).forEach((obj) =>
+    Object.keys(obj).forEach((k) => {
+      if (k && k.trim()) keys.add(k);
+    }),
+  );
+  return Array.from(keys).filter((col) =>
+    Object.values(attrMap).some((attrs) => attrs[col] && attrs[col] !== "—"),
+  );
+}, [attrMap]);
 
   const uniqueBrands = useMemo(
     () => [...new Set(products.map((p) => p.brand_name).filter(Boolean))],
