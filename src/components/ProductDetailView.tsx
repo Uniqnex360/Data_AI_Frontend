@@ -48,7 +48,6 @@ export function ProductDetailView({
   const [attrMap, setAttrMap] = useState<
     Record<string, Record<string, string>>
   >({});
- 
   const [projectSource, setProjectSource] = useState<Source | null>(null);
   const [attrUomMap, setAttrUomMap] = useState<
     Record<string, Record<string, string>>
@@ -63,34 +62,46 @@ export function ProductDetailView({
 const parseValueAndUnit = (raw: any): { value: string; unit: string | null } => {
   if (!raw) return { value: "—", unit: null };
   
-  if (typeof raw === "object" && raw !== null) {
+  // Case 1: Already a proper object with .value and .unit
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+    // Check if this is the attribute metadata object or a value wrapper
+    if (raw.hasOwnProperty("value") && typeof raw.value === "string" && raw.value.startsWith("{'")) {
+      // It's a double-wrapped Python dict string inside .value
+      return parsePythonDictString(raw.value);
+    }
     return {
       value: raw.value || "—",
       unit: raw.unit || null
     };
   }
   
+  // Case 2: String that might be a Python dict
   if (typeof raw === "string") {
-    if (raw.startsWith("{") && raw.includes("'value'")) {
-      try {
-        const jsonStr = raw
-          .replace(/'/g, '"')
-          .replace(/None/g, "null")
-          .replace(/True/g, "true")
-          .replace(/False/g, "false");
-        const parsed = JSON.parse(jsonStr);
-        return {
-          value: parsed.value || raw,
-          unit: parsed.unit || null
-        };
-      } catch {
-        return { value: raw, unit: null };
-      }
+    if (raw.startsWith("{'") && raw.includes("'value'")) {
+      return parsePythonDictString(raw);
     }
     return { value: raw, unit: null };
   }
   
   return { value: "—", unit: null };
+};
+
+// Helper to parse Python-style dict strings
+const parsePythonDictString = (str: string): { value: string; unit: string | null } => {
+  try {
+    const jsonStr = str
+      .replace(/'/g, '"')
+      .replace(/None/g, "null")
+      .replace(/True/g, "true")
+      .replace(/False/g, "false");
+    const parsed = JSON.parse(jsonStr);
+    return {
+      value: parsed.value || "—",
+      unit: parsed.unit || null
+    };
+  } catch {
+    return { value: "—", unit: null };
+  }
 };
 
   const viewLabel = useMemo(() => {
@@ -121,11 +132,7 @@ const parseValueAndUnit = (raw: any): { value: string; unit: string | null } => 
       const productUoms: Record<string, string> = {};
 
       attrResults[index].forEach((a) => {
-        console.log('Attribute:', a.attribute_name);
-  console.log('values[0]:', a.values?.[0]);
-  console.log('typeof values[0]:', typeof a.values?.[0]);
-        const rawAttr = a.values?.[0];
-const { value, unit } = parseValueAndUnit(rawAttr?.value ?? rawAttr);
+const { value, unit } = parseValueAndUnit(a.values?.[0]);
         productAttrs[a.attribute_name] = value;
         if (unit) {
           productUoms[a.attribute_name] = unit;
@@ -267,17 +274,13 @@ productAttrs[a.attribute_name] = value;
     completenessFilter,
   ]);
 
- const dynamicColumns = useMemo(() => {
-  const keys = new Set<string>();
-  Object.values(attrMap).forEach((obj) =>
-    Object.keys(obj).forEach((k) => {
-      if (k && k.trim()) keys.add(k);
-    }),
-  );
-  return Array.from(keys).filter((col) =>
-    Object.values(attrMap).some((attrs) => attrs[col] && attrs[col] !== "—"),
-  );
-}, [attrMap]);
+  const dynamicColumns = useMemo(() => {
+    const keys = new Set<string>();
+    Object.values(attrMap).forEach((obj) =>
+      Object.keys(obj).forEach((k) => keys.add(k)),
+    );
+    return Array.from(keys);
+  }, [attrMap]);
 
   const uniqueBrands = useMemo(
     () => [...new Set(products.map((p) => p.brand_name).filter(Boolean))],
