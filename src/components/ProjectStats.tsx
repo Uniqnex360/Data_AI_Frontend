@@ -296,21 +296,29 @@ export function ProjectStats({
       ) : (
         <>
           <div className="px-6 py-2 flex items-center justify-between border-b border-slate-200 bg-slate-50/30">
-  <div className="flex flex-col justify-center">
-    <button onClick={onClose} className="text-[10px] text-indigo-500 hover:text-indigo-400 font-bold uppercase flex items-center gap-1 mb-1">
-      <ChevronLeft className="w-3 h-3" /> Back
-    </button>
-    <h1 className="text-lg font-bold tracking-tight truncate" title={projectName}>{projectName}</h1>
-  </div>
-  {onClose && (
-    <button
-      onClick={onClose}
-      className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-    >
-      <X className="w-5 h-5" />
-    </button>
-  )}
-</div>
+            <div className="flex flex-col justify-center">
+              <button
+                onClick={onClose}
+                className="text-[10px] text-indigo-500 hover:text-indigo-400 font-bold uppercase flex items-center gap-1 mb-1"
+              >
+                <ChevronLeft className="w-3 h-3" /> Back
+              </button>
+              <h1
+                className="text-lg font-bold tracking-tight truncate"
+                title={projectName}
+              >
+                {projectName}
+              </h1>
+            </div>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
           <div className="px-6 py-2 grid grid-cols-1 md:grid-cols-3 gap-3 border-b border-slate-200 bg-slate-50/30">
             <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between">
               <div>
@@ -361,14 +369,14 @@ export function ProjectStats({
                 <p className="text-[10px] text-slate-400">
                   Last updated:{" "}
                   {lastUpdated
-  ? new Date(lastUpdated).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })
-  : "Just now"}
+                    ? new Date(lastUpdated).toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "Just now"}
                 </p>
               </div>
             </div>
@@ -653,13 +661,16 @@ export function ProjectStats({
               )}
             </div>
           </div>
-          <div className="px-6 py-2 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500">
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          </div>
+          <div className="px-6 py-2 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500 gap-3">
+  <span className="text-slate-400">
+    {filtered.length} product{filtered.length !== 1 ? 's' : ''} found
+  </span>
+  <Pagination
+    page={page}
+    totalPages={totalPages}
+    onPageChange={setPage}
+  />
+</div>
           <div className="flex-1 overflow-auto px-6">
             <table
               className="w-full text-xs text-left border-separate border-spacing-x-2 border-spacing-y-0"
@@ -858,13 +869,13 @@ export function ProjectStats({
                       </td>
                       <td className="py-2 text-right text-slate-400">
                         {p.updated_at
-  ? new Date(p.updated_at).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  : "—"}
+                          ? new Date(p.updated_at).toLocaleDateString("en-US", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
                       </td>
                       <td className="py-2 text-center">
                         <button
