@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { dashboardService, type DateField } from "../services/dashboardService";
+import { aggregationService } from "../services/aggregationService";
 import ProjectsOverviewTab from "./ProjectsOverviewTab.tsx";
 import {
   DashboardStats,
@@ -24,20 +25,26 @@ import {
   ProjectOverview,
 } from "../types/business-rules.types.ts";
 import { productService } from "../services/productService";
+
 interface Props {
   projectId?: string;
   onNavigate?: (tab: "aggregation" | "sources", filterStatus?: string) => void;
 }
+
 type Preset = "today" | "week" | "month" | "custom";
 type Period = "day" | "week" | "month";
+
 const toYMD = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),
   ).padStart(2, "0")}`;
+
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
 const endOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
 const startOfWeek = (d: Date) => {
   const date = startOfDay(d);
   const day = date.getDay();
@@ -45,26 +52,32 @@ const startOfWeek = (d: Date) => {
   date.setDate(date.getDate() - diff);
   return date;
 };
+
 const endOfWeek = (d: Date) => {
   const s = startOfWeek(d);
   const e = new Date(s);
   e.setDate(s.getDate() + 6);
   return endOfDay(e);
 };
+
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const endOfMonth = (d: Date) =>
   endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+
 const clampPercent = (n: number) => Math.max(0, Math.min(100, n));
+
 const parseYMD = (s: string) => {
   const [yy, mm, dd] = s.split("-").map(Number);
   return new Date(yy, (mm || 1) - 1, dd || 1);
 };
+
 const diffDaysInclusive = (startYmd: string, endYmd: string) => {
   const s = startOfDay(parseYMD(startYmd)).getTime();
   const e = startOfDay(parseYMD(endYmd)).getTime();
   const days = Math.round((e - s) / (24 * 3600 * 1000)) + 1;
   return Math.max(1, days);
 };
+
 const shiftRangeBack = (startYmd: string, endYmd: string) => {
   const days = diffDaysInclusive(startYmd, endYmd);
   const start = parseYMD(startYmd);
@@ -75,6 +88,7 @@ const shiftRangeBack = (startYmd: string, endYmd: string) => {
   prevEnd.setDate(prevEnd.getDate() - days);
   return { start: toYMD(prevStart), end: toYMD(prevEnd) };
 };
+
 const timeAgo = (iso: string) => {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return "";
@@ -87,6 +101,7 @@ const timeAgo = (iso: string) => {
   const d = Math.floor(h / 24);
   return `${d}d ago`;
 };
+
 function PillButton({
   active,
   children,
@@ -108,6 +123,7 @@ function PillButton({
     </button>
   );
 }
+
 function StatCard({
   title,
   value,
@@ -143,7 +159,9 @@ function StatCard({
           <span className={iconColor}>{icon}</span>
         </div>
       </div>
+
       <div className="mt-4 text-4xl font-black text-slate-900">{value}</div>
+
       {(footerLeft || footerRight) && (
         <div className="mt-3 flex items-center justify-between gap-2">
           <div className="text-xs text-slate-600">{footerLeft}</div>
@@ -153,6 +171,7 @@ function StatCard({
     </div>
   );
 }
+
 function ProgressCard({
   title,
   valuePct,
@@ -182,6 +201,7 @@ function ProgressCard({
           {icon}
         </div>
       </div>
+
       <div className="mt-5 w-full bg-slate-100 h-3 rounded-full overflow-hidden">
         <div
           className={`h-full ${barClass}`}
@@ -191,6 +211,7 @@ function ProgressCard({
     </div>
   );
 }
+
 export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [projectsOverview, setProjectsOverview] = useState<ProjectOverview[]>(
@@ -202,27 +223,36 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [startDate, setStartDate] = useState<string>(
     toYMD(startOfMonth(new Date())),
   );
-  const [endDate, setEndDate] = useState<string>(toYMD(endOfMonth(new Date())));
+  const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
   const [attributeSummary, setAttributeSummary] = useState<any[]>([]);
+
   const [dateField, setDateField] = useState<DateField>("updated_at");
   const [totalProjectCount, setTotalProjectCount] = useState(0);
+
   const [globalStats, setGlobalStats] = useState<DashboardStats | null>(null);
   const [metrics, setMetrics] = useState<any[]>([]);
+
   const [timelineStats, setTimelineStats] = useState<any[]>([]);
   const [brandFlowStats, setBrandFlowStats] = useState<any[]>([]);
   const [categoryFlowStats, setCategoryFlowStats] = useState<any[]>([]);
+
   const [problemProducts, setProblemProducts] = useState<Product[]>([]);
+
   const [needsAttention, setNeedsAttention] = useState<{
     uncategorized: number;
     invalidAttributes: number;
     pendingAggregation: number;
     failedJobs: number;
   } | null>(null);
+
   const [recentActivity, setRecentActivity] = useState<
     Array<{ type: string; title: string; subtitle?: string; ts: string }>
   >([]);
+
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+
   const [prevStats, setPrevStats] = useState<DashboardStats | null>(null);
+
   const todayYMD = useMemo(() => toYMD(new Date()), []);
   const loadProjectsOverview = async () => {
     setProjectsLoading(true);
@@ -254,14 +284,17 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       setEndDate(toYMD(endOfMonth(now)));
     }
   }, [preset]);
+
   useEffect(() => {
     if (!startDate || !endDate) return;
     if (startDate > endDate) setEndDate(startDate);
   }, [startDate, endDate]);
+
   const rangeParams = useMemo(
     () => ({ start_date: startDate, end_date: endDate, date_field: dateField }),
     [startDate, endDate, dateField],
   );
+
   useEffect(() => {
     loadData();
   }, [
@@ -271,73 +304,68 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     rangeParams.end_date,
     rangeParams.date_field,
   ]);
-    const getMetricValue = (type: string): number =>
+
+  const getMetricValue = (type: string): number =>
     metrics.find((m) => m.metric_type === type)?.metric_value || 0;
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const prev = shiftRangeBack(startDate, endDate);
-
-      const [
-        data,
-        attrSummary,
-        prevData,
-        timeline,
-        brandFlow,
-        categoryFlow,
-        na,
-        ra,
-      ] = await Promise.all([
-        projectId
-          ? dashboardService.getProjectMetrics(projectId, rangeParams)
-          : dashboardService.getGlobalMetrics(rangeParams),
-        dashboardService.getAttributeSummary({
-          project_id: projectId,
-          ...rangeParams,
-        } as any),
-        projectId
-          ? dashboardService.getProjectMetrics(projectId, {
-              ...rangeParams,
-              start_date: prev.start,
-              end_date: prev.end,
-            })
-          : dashboardService.getGlobalMetrics({
-              ...rangeParams,
-              start_date: prev.start,
-              end_date: prev.end,
-            }),
-        dashboardService.getTimeline({
-          projectId,
-          period: selectedPeriod,
-          ...rangeParams,
-        } as any),
-        dashboardService.getBrandFlow({
-          projectId,
-          ...rangeParams,
-        } as any),
-        dashboardService.getCategoryFlow({
-          projectId,
-          ...rangeParams,
-        } as any),
-        dashboardService.getNeedsAttention({
-          projectId,
-          ...rangeParams,
-        } as any),
-        dashboardService.getRecentActivity({
-          projectId,
-          ...rangeParams,
-          limit: 10,
-        } as any),
-      ]);
-
+      const data = projectId
+        ? await dashboardService.getProjectMetrics(projectId, rangeParams)
+        : await dashboardService.getGlobalMetrics(rangeParams);
       setGlobalStats(data);
+
+      const attrSummary = await dashboardService.getAttributeSummary({
+        project_id: projectId,
+        ...rangeParams,
+      } as any);
       setAttributeSummary(attrSummary);
+      const prev = shiftRangeBack(startDate, endDate);
+      const prevData = projectId
+        ? await dashboardService.getProjectMetrics(projectId, {
+            ...rangeParams,
+            start_date: prev.start,
+            end_date: prev.end,
+          })
+        : await dashboardService.getGlobalMetrics({
+            ...rangeParams,
+            start_date: prev.start,
+            end_date: prev.end,
+          });
+
       setPrevStats(prevData);
+
+      const timeline = await dashboardService.getTimeline({
+        projectId,
+        period: selectedPeriod,
+        ...rangeParams,
+      } as any);
       setTimelineStats(timeline);
+
+      const brandFlow = await dashboardService.getBrandFlow({
+        projectId,
+        ...rangeParams,
+      } as any);
       setBrandFlowStats(brandFlow);
+
+      const categoryFlow = await dashboardService.getCategoryFlow({
+        projectId,
+        ...rangeParams,
+      } as any);
       setCategoryFlowStats(categoryFlow);
+
+      const na = await dashboardService.getNeedsAttention({
+        projectId,
+        ...rangeParams,
+      } as any);
       setNeedsAttention(na);
+
+      const ra = await dashboardService.getRecentActivity({
+        projectId,
+        ...rangeParams,
+        limit: 10,
+      } as any);
       setRecentActivity(ra);
 
       if (projectId) {
@@ -364,6 +392,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       } else {
         setProblemProducts([]);
       }
+
       setMetrics([
         {
           metric_type: "total_products",
@@ -394,6 +423,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           metric_value: (data as any).catalogHealth || 0,
         },
       ]);
+
       setLastRefreshedAt(new Date());
     } catch (e) {
       console.error(e);
@@ -401,6 +431,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       setLoading(false);
     }
   };
+
   const total = getMetricValue("total_products");
   const processed = getMetricValue("aggregated");
   const enriched = getMetricValue("enriched");
@@ -408,6 +439,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const pending = getMetricValue("pending");
   const failed = getMetricValue("failed");
   const avgCompleteness = getMetricValue("catalog_health");
+
   const totalDelta =
     (globalStats?.totalProducts ?? 0) - (prevStats?.totalProducts ?? 0);
   const processedPct = prevStats?.aggregatedProducts
@@ -428,16 +460,20 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         (prevStats?.cleanedProducts || 1)) *
       100
     : 0;
+
   const enrichmentRatePct = total > 0 ? (enriched / total) * 100 : 0;
   const uncategorized = needsAttention?.uncategorized ?? 0;
   const categoryCoveragePct =
     total > 0 ? ((total - uncategorized) / total) * 100 : 0;
+
   const invalidAttributes = needsAttention?.invalidAttributes ?? 0;
   const attrValidityPct =
     total > 0 ? ((total - invalidAttributes) / total) * 100 : 100;
+
   const activityAgg = processed;
   const activityEnrich = enriched;
   const activityClean = cleaned;
+
   const statusObj = useMemo(() => {
     if (!projectId) return null;
     if (total === 0)
@@ -458,6 +494,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       icon: Clock,
     };
   }, [projectId, total, enriched, failed]);
+
   const ActivityIcon = ({ type }: { type: string }) => {
     const t = (type || "").toLowerCase();
     if (t.includes("completed"))
@@ -470,6 +507,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       return <Sparkles className="w-4 h-4 text-amber-600" />;
     return <Activity className="w-4 h-4 text-slate-600" />;
   };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-slate-500">
@@ -478,6 +516,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       </div>
     );
   }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -498,6 +537,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             pipeline health
           </p>
         </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <PillButton
@@ -528,6 +568,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </span>
             </PillButton>
           </div>
+
           <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
             <input
               type="date"
@@ -551,6 +592,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               className="text-sm outline-none bg-transparent"
             />
           </div>
+
           <select
             value={dateField}
             onChange={(e) => setDateField(e.target.value as DateField)}
@@ -560,6 +602,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             <option value="updated_at">Activity</option>
             <option value="created_at">Ingestion</option>
           </select>
+
           <button
             onClick={loadData}
             className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
@@ -571,6 +614,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </button>
         </div>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
         <StatCard
           title="Total Products"
@@ -590,6 +634,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           }
           onClick={() => onNavigate?.("aggregation", "all")}
         />
+
         <StatCard
           title="Aggregated"
           value={processed}
@@ -606,6 +651,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           footerRight="Custom Range"
           onClick={() => onNavigate?.("aggregation", "completed")}
         />
+
         <StatCard
           title="Enriched"
           value={enriched}
@@ -622,6 +668,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           footerRight="Custom Range"
           onClick={() => onNavigate?.("aggregation", "completed")}
         />
+
         <StatCard
           title="Cleansed"
           value={cleaned}
@@ -637,6 +684,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           }
           footerRight="Custom Range"
         />
+
         <StatCard
           title="Pending"
           value={pending}
@@ -651,6 +699,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           footerRight="across all stages"
           onClick={() => onNavigate?.("aggregation", "pending")}
         />
+
         <StatCard
           title="Failed Jobs"
           value={failed}
@@ -675,6 +724,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           iconColor="text-purple-600"
           footerRight="unique brands"
         />
+
         <StatCard
           title="Total Categories"
           value={globalStats?.totalCategories ?? 0}
@@ -684,6 +734,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           footerRight="unique categories"
         />
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <ProgressCard
           title="Enrichment Rate"
@@ -692,6 +743,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           barClass="bg-orange-500"
           icon={<Sparkles className="w-5 h-5 text-orange-600" />}
         />
+
         <ProgressCard
           title="Avg Completeness"
           valuePct={avgCompleteness}
@@ -699,6 +751,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           barClass="bg-blue-600"
           icon={<Activity className="w-5 h-5 text-blue-600" />}
         />
+
         <ProgressCard
           title="Category Coverage"
           valuePct={categoryCoveragePct}
@@ -706,6 +759,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           barClass="bg-emerald-500"
           icon={<Layers className="w-5 h-5 text-emerald-600" />}
         />
+
         <ProgressCard
           title="Attr Validity"
           valuePct={attrValidityPct}
@@ -751,6 +805,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
       )}
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -761,6 +816,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               View all
             </button>
           </div>
+
           <div className="space-y-5">
             {brandFlowStats.slice(0, 10).map((row: any, idx: number) => {
               const pct =
@@ -769,7 +825,9 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                       (row.enrichmentProducts / row.totalProducts) * 100,
                     )
                   : 0;
+
               const delta = 0;
+
               return (
                 <div key={`${row.brand}-${idx}`}>
                   <div className="flex items-center justify-between text-sm mb-2">
@@ -797,6 +855,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                       </span>
                     </div>
                   </div>
+
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
@@ -811,6 +870,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                 </div>
               );
             })}
+
             {brandFlowStats.length === 0 && (
               <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
                 No brand data for this range.
@@ -818,6 +878,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             )}
           </div>
         </div>
+
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -827,6 +888,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               View all
             </button>
           </div>
+
           <div className="space-y-5">
             {categoryFlowStats.slice(0, 10).map((row: any, idx: number) => {
               const pct =
@@ -835,6 +897,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                       (row.enrichmentProducts / row.totalProducts) * 100,
                     )
                   : 0;
+
               return (
                 <div key={`${row.category}-${idx}`}>
                   <div className="flex items-center justify-between text-sm mb-2">
@@ -856,6 +919,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                       </span>
                     </div>
                   </div>
+
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
@@ -870,6 +934,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                 </div>
               );
             })}
+
             {categoryFlowStats.length === 0 && (
               <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
                 No category data for this range.
@@ -877,6 +942,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             )}
           </div>
         </div>
+
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
@@ -899,6 +965,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </span>
             </div>
           </div>
+
           <div className="mt-6 grid grid-cols-7 gap-2 text-[11px] text-slate-400">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <div key={d} className="text-center">
@@ -906,6 +973,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </div>
             ))}
           </div>
+
           <div className="mt-3 grid grid-cols-7 gap-2 items-end h-24">
             {(() => {
               const rows = timelineStats.slice(-7);
@@ -913,10 +981,12 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                 1,
                 ...rows.map((r: any) => Number(r.totalProducts || 0)),
               );
+
               const padded =
                 rows.length < 7
                   ? new Array(7 - rows.length).fill(null).concat(rows)
                   : rows;
+
               return padded.map((r: any, i: number) => {
                 const v = r ? Number(r.totalProducts || 0) : 0;
                 const h = Math.round((v / max) * 100);
@@ -932,6 +1002,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               });
             })()}
           </div>
+
           <div className="mt-6 grid grid-cols-3 gap-3 text-center">
             <div>
               <div className="text-2xl font-black text-blue-600">
@@ -975,6 +1046,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             ))}
           </div>
         </div>
+
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
@@ -1022,11 +1094,13 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         ))}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-8" />
+
         <div className="xl:col-span-4 space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4 text-slate-700" /> Recent Activity
             </h4>
+
             {recentActivity.length === 0 ? (
               <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
                 No recent activity available.
@@ -1061,11 +1135,13 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </div>
             )}
           </div>
+
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" /> Needs
               Attention
             </h4>
+
             <div className="space-y-2">
               <button
                 type="button"
@@ -1076,6 +1152,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                 </span>
                 <ArrowRight className="w-4 h-4 text-amber-700" />
               </button>
+
               <button
                 type="button"
                 className="w-full flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100 hover:bg-red-100 transition-colors"
@@ -1085,6 +1162,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                 </span>
                 <ArrowRight className="w-4 h-4 text-red-700" />
               </button>
+
               <button
                 type="button"
                 onClick={() => onNavigate?.("aggregation", "pending")}
@@ -1100,6 +1178,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
       </div>
+
       {projectId && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -1116,6 +1195,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </button>
             )}
           </div>
+
           <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
@@ -1185,6 +1265,8 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
       )}
+
+      
     </div>
   );
 }

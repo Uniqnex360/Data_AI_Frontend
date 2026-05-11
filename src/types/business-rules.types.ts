@@ -252,6 +252,8 @@ export type ProjectStatus = "in_progress" | "partially_completed" | "completed" 
 export interface ProjectOverview {
   id: string;
   name: string;
+  import_file_name?: string;
+source_processing_status?: string;
   description?: string;
   totalProducts: number;
   aggregated: number;

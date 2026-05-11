@@ -87,7 +87,6 @@ export default function ProjectsOverviewTab({
   const [projectSources, setProjectSources] = useState<Record<string, any[]>>(
     {},
   );
-  const [loadingSources, setLoadingSources] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
   const [brandFilter, setBrandFilter] = useState("all");
@@ -193,33 +192,21 @@ export default function ProjectsOverviewTab({
   const displayedProjects = search.trim()
     ? filtered.slice((effectivePage - 1) * 20, effectivePage * 20)
     : filtered;
-  const loadSources = useCallback(
-    async (projectId: string) => {
-      if (projectSources[projectId]) return;
-      setLoadingSources((prev) => new Set(prev).add(projectId));
+  
+  const ensureSourcesLoaded = useCallback(
+    async (projectId: string): Promise<any[]> => {
+      if (projectSources[projectId]) return projectSources[projectId];
       try {
         const sources = await extractionService.getSourcesByProject(projectId);
         setProjectSources((prev) => ({ ...prev, [projectId]: sources || [] }));
-      } catch (error) {
-        console.error("Failed to load sources for project:", projectId);
-      } finally {
-        setLoadingSources((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(projectId);
-          return newSet;
-        });
+        return sources || [];
+      } catch {
+        return [];
       }
     },
     [projectSources],
   );
-
-  useEffect(() => {
-    filtered.forEach((p) => {
-      if (!projectSources[p.id] && !loadingSources.has(p.id)) {
-        loadSources(p.id);
-      }
-    });
-  }, [filtered, loadSources, projectSources, loadingSources]);
+  
   const resetFilters = useCallback(() => {
     setBrandFilter("all");
     setCategoryFilter("all");
@@ -229,22 +216,17 @@ export default function ProjectsOverviewTab({
     onSearchChange?.("");
     onPageChange?.(1);
   }, [onFilterChange, onSearchChange, onPageChange]);
-  const getImportFileName = (projectId: string): string | null => {
-    const sources = projectSources[projectId];
-    if (!sources || sources.length === 0) return null;
-    const excelSource = sources.find((s) => s.source_type === "excel");
-    if (excelSource) return excelSource.source_url;
-    return sources[0].source_url;
+    const getImportFileName = (projectId: string): string | null => {
+    const project = projects.find((p) => p.id === projectId);
+    return (project as any)?.import_file_name || null;
   };
 
-  const getSourceStatusInfo = (projectId: string) => {
+    const getSourceStatusInfo = (projectId: string) => {
     const project = projects.find((p) => p.id === projectId);
-    const sources = projectSources[projectId] || [];
     const isCleaningProject = project?.operationMode === "cleaning";
     const isEnrichmentProject = project?.operationMode === "enrichment";
     const isPdfExtractionProject = project?.operationMode === "pdf_extraction";
 
-    // If project itself is completed, always show as completed
     if (project?.status === "completed") {
       return {
         isCompleted: true,
@@ -255,7 +237,6 @@ export default function ProjectsOverviewTab({
       };
     }
 
-    // If project status is failed
     if (project?.status === "failed") {
       return {
         isCompleted: false,
@@ -266,7 +247,6 @@ export default function ProjectsOverviewTab({
       };
     }
 
-    // If project status is processing
     if (project?.status === "processing") {
       return {
         isCompleted: false,
@@ -283,7 +263,9 @@ export default function ProjectsOverviewTab({
       };
     }
 
-    if (!sources.length) {
+    const sourceStatus = (project as any)?.source_processing_status;
+
+    if (!sourceStatus || sourceStatus === "pending") {
       return {
         isCompleted: false,
         isProcessing: false,
@@ -299,46 +281,26 @@ export default function ProjectsOverviewTab({
       };
     }
 
-    const completedSource = sources.find(
-      (s) => s.metadata?.processing_status === "completed",
-    );
-    const processingSource = sources.find(
-      (s) => s.metadata?.processing_status === "processing",
-    );
-    const failedSource = sources.find(
-      (s) => s.metadata?.processing_status === "failed",
-    );
-
-    const processStatus =
-      completedSource?.metadata?.processing_status ||
-      processingSource?.metadata?.processing_status ||
-      failedSource?.metadata?.processing_status ||
-      "pending";
-
-    const isCompleted = processStatus === "completed";
-    const isProcessing = processStatus === "processing";
-    const isFailed = processStatus === "failed";
-
-    const pendingLabel = isCleaningProject
-      ? "Needs Cleaning"
-      : isEnrichmentProject
-        ? "Needs Enrichment"
-        : isPdfExtractionProject
-          ? "Needs Extraction"
-          : "Needs Aggregation";
-
-    const processingLabel = isCleaningProject
-      ? "Cleaning..."
-      : isEnrichmentProject
-        ? "Enriching..."
-        : "Aggregating...";
+    const isCompleted = sourceStatus === "completed";
+    const isProcessing = sourceStatus === "processing";
+    const isFailed = sourceStatus === "failed";
 
     return {
       isCompleted,
       isProcessing,
       isFailed,
-      pendingLabel,
-      processingLabel,
+      pendingLabel: isCleaningProject
+        ? "Needs Cleaning"
+        : isEnrichmentProject
+          ? "Needs Enrichment"
+          : isPdfExtractionProject
+            ? "Needs Extraction"
+            : "Needs Aggregation",
+      processingLabel: isCleaningProject
+        ? "Cleaning..."
+        : isEnrichmentProject
+          ? "Enriching..."
+          : "Aggregating...",
     };
   };
   const handleDownloadOutput = async (
@@ -351,7 +313,7 @@ export default function ProjectsOverviewTab({
 
     setDownloading((prev) => new Set(prev).add(projectId));
     try {
-      const sources = projectSources[projectId] || [];
+      const sources = await ensureSourcesLoaded(projectId);
       const completedSource = sources.find((s) => s.status === "completed");
 
       if (project?.operationMode === "cleaning") {
@@ -560,7 +522,6 @@ export default function ProjectsOverviewTab({
               displayedProjects.map((p) => {
                 const isSelected = p.id === selectedProjectId;
                 const importFileName = getImportFileName(p.id);
-                const isLoading = loadingSources.has(p.id);
                 const isDownloading = downloading.has(p.id);
 
                 return (
@@ -648,13 +609,12 @@ export default function ProjectsOverviewTab({
                       className="px-4 py-3"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {isLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                      ) : importFileName ? (
+                                          {importFileName ? (
+
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={async () => {
-                              const sources = projectSources[p.id] || [];
+                           onClick={async () => {
+                              const sources = await ensureSourcesLoaded(p.id);
                               if (sources.length > 0) {
                                 setDownloading((prev) =>
                                   new Set(prev).add(p.id),
@@ -700,10 +660,7 @@ export default function ProjectsOverviewTab({
                       className="px-4 py-3 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {isLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 mx-auto" />
-                      ) : (
-                        (() => {
+                        {(() => {
                           const {
                             isCompleted,
                             isProcessing,
@@ -775,8 +732,8 @@ export default function ProjectsOverviewTab({
                           return (
                             <span className="text-slate-300 text-xs">—</span>
                           );
-                        })()
-                      )}
+                                               })()
+                      }
                     </td>
                     <td
                       className="px-4 py-3 text-center"
