@@ -131,10 +131,11 @@ export default function EnrichmentTab({
           p.operation_mode === "enrichment",
       );
       setProjects(enrichmentProjects);
-      const projectIds = enrichmentProjects.map((p) => p.id);
-      if (projectIds.length > 0) {
-        await loadProjectEnrichmentCounts(projectIds);
-      }
+      const counts:Record<string,number>={}
+      enrichmentProjects.forEach((p:Project)=>{
+        counts[p.id]=(p as any).enrichment_pending_count?? 0
+      })
+       setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
       const uniqueUseCases = [
         ...new Set(
           enrichmentProjects
@@ -161,46 +162,18 @@ export default function EnrichmentTab({
       setProjectsLoading(false);
     }
   }, []);
-  const loadProjectEnrichmentCounts = useCallback(
-    async (projectIds: string[]) => {
-      try {
-        const counts: Record<string, number> = {};
-        await Promise.all(
-          projectIds.map(async (projectId) => {
-            try {
-              const products = await productService.getProductsByProject(
-                projectId,
-                "enrichment",
-              );
-              const productArray = Array.isArray(products)
-                ? products
-                : (products?.products ?? []);
-              counts[projectId] = productArray.filter(
-                (p) =>
-                  p.workflow_stage === "enrichment" &&
-                  p.enrichment_status === "pending",
-              ).length;
-            } catch {
-              counts[projectId] = 0;
-            }
-          }),
-        );
-        setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
-      } catch (error) {
-        console.error("Failed to load enrichment counts:", error);
-      }
-    },
-    [],
-  );
+  
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
   const loadDefaultFilters = useCallback(async () => {
     await loadProjectFilters();
   }, [loadProjectFilters]);
-  useEffect(() => {
-    loadDefaultFilters();
-  }, [loadDefaultFilters]);
+    useEffect(() => {
+    if (!projectId) {
+      loadDefaultFilters();
+    }
+  }, [loadDefaultFilters, projectId]);
   useEffect(() => {
     if (selectedProjectId && projects.length > 0) {
       const project = projects.find((p) => p.id === selectedProjectId);
@@ -325,7 +298,6 @@ export default function EnrichmentTab({
   }, [
     expandedProjectProducts,
     searchQuery,
-    statusFilter,
     categoryFilter,
     brandFilter,
   ]);
