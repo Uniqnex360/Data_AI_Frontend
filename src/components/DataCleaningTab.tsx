@@ -1119,7 +1119,7 @@ export default function DataCleaningTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
             <div>
               <label className="block text-sm text-slate-700 mb-2">
-                Algorithm
+                LLM Provider
               </label>
               <select
                 value={selectedLLM}

@@ -62,7 +62,11 @@ function ProgressBar({
     </div>
   );
 }
-
+const formatOperationMode=(mode?:string)=>{
+  if(!mode)return "_"
+  if(mode==='cleaning') return "Cleansing"
+  return mode.charAt(0).toUpperCase()+mode.slice(1)
+}
 export default function ProjectsOverviewTab({
   projects,
   totalCount,
@@ -467,7 +471,7 @@ export default function ProjectsOverviewTab({
                 <option value="all">All Modes</option>
                 {availableOperationModes.map((b) => (
                   <option key={b} value={b}>
-                    {b ? b.charAt(0).toUpperCase() + b.slice(1) : ""}
+                    {formatOperationMode(b)}
                   </option>
                 ))}
               </select>
@@ -477,7 +481,7 @@ export default function ProjectsOverviewTab({
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
               >
-                <option value="all">All Use Cases</option>
+                <option value="all">All Use Case</option>
                 {availableUseCases.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -491,7 +495,7 @@ export default function ProjectsOverviewTab({
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
-                     onSearchChange?.(newValue); 
+                     onSearchChange?.(e.target.value); 
                     onPageChange?.(1);
                   }}
                   onKeyDown={(e) => {
@@ -611,7 +615,7 @@ export default function ProjectsOverviewTab({
                     </td>
                     <td className="px-4 py-2">
                       <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
-                        {p.operationMode || "—"}
+                        {formatOperationMode(p.operationMode)}
                       </span>
                     </td>
                     <td className="px-4 py-2">
