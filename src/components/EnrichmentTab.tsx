@@ -99,9 +99,14 @@ export default function EnrichmentTab({
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
-      toggleExpandProject(projectId);
+      const project=projects.find((p)=>p.id===projectId)
+      if(project)
+      {
+        openProjectStats(projectId)
+      }
+
     }
-  }, [projectId]);
+  }, [projectId,projects]);
   const openProjectStats = useCallback(
     (pid: string) => {
       setIsDrawerOpen(false);
@@ -126,8 +131,6 @@ export default function EnrichmentTab({
       });
       const enrichmentProjects = data.filter(
         (p: Project) =>
-          p.operation_mode === "aggregation" ||
-          p.operation_mode === "pdf_extraction" ||
           p.operation_mode === "enrichment",
       );
       setProjects(enrichmentProjects);
@@ -777,6 +780,7 @@ export default function EnrichmentTab({
         project={statsProject ?? undefined}
         onClose={closeProjectStats}
         onNavigateProject={onNavigate}
+         defaultTab="enrichment"  
       />
     );
   }

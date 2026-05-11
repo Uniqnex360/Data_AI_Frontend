@@ -33,6 +33,7 @@ interface ProjectStatsProps {
   onClose?: () => void;
   onAggregateProducts?: (productId: string) => Promise<void>;
   onNavigateProject?: (tab: string, projectId: string) => void;
+   defaultTab?: "listing" | "aggregated" | "enrichment";  
 }
 const ITEMS_PER_PAGE = 10;
 export function ProjectStats({
@@ -40,6 +41,7 @@ export function ProjectStats({
   project: projectProp,
   onClose,
   onNavigateProject,
+  defaultTab
 }: ProjectStatsProps) {
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
@@ -57,7 +59,7 @@ export function ProjectStats({
   );
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("listing");
+const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
   const [search, setSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
