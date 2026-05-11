@@ -121,6 +121,9 @@ const parseValueAndUnit = (raw: any): { value: string; unit: string | null } => 
       const productUoms: Record<string, string> = {};
 
       attrResults[index].forEach((a) => {
+        console.log('Attribute:', a.attribute_name);
+  console.log('values[0]:', a.values?.[0]);
+  console.log('typeof values[0]:', typeof a.values?.[0]);
         const rawAttr = a.values?.[0];
 const { value, unit } = parseValueAndUnit(rawAttr?.value ?? rawAttr);
         productAttrs[a.attribute_name] = value;
