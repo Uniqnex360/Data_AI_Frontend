@@ -535,11 +535,11 @@ export default function SourcesTab({
       setBulkFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       notify.success(
-  "Products imported successfully",
-  result?.summary
-    ? `${result.summary.valid_rows} products imported${result.summary.rejected_rows > 0 ? `, ${result.summary.rejected_rows} rejected` : ''} • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
-    : "Products imported",
-);
+        "Products imported successfully",
+        result?.summary
+          ? `${result.summary.valid_rows} products imported${result.summary.rejected_rows > 0 ? `, ${result.summary.rejected_rows} rejected` : ""} • ${result.summary.with_mpn_count} with MPN • ${result.summary.without_mpn_count} without MPN`
+          : "Products imported",
+      );
       pollBatchStatus(result.batch_id, async () => {
         await loadSources();
         await loadProjects();
@@ -1317,18 +1317,20 @@ export default function SourcesTab({
               const project = projects.find((p) => p.id === id);
               if (!project) return;
 
+              const projectOperationMode =
+                project.operation_mode || project.operationMode;
               const sources = await extractionService.getSourcesByProject(id);
 
               if (!sources || sources.length === 0) {
                 setSelectedProject(project);
-                setOperationMode(project.operation_mode as OperationMode);
+                setOperationMode(projectOperationMode as OperationMode);
                 setSelectedUseCase(project.use_case || "");
                 onProjectSelect?.(id);
                 setViewMode("sources");
               } else {
-                if (project.operationMode === "cleaning") {
+                if (projectOperationMode === "cleaning") {
                   onNavigateToProject?.("cleaning", id);
-                } else if (project.operationMode === "enrichment") {
+                } else if (projectOperationMode === "enrichment") {
                   onNavigateToProject?.("enrichment", id);
                 } else {
                   onNavigateToProject?.("aggregation", id);

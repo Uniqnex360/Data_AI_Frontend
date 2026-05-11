@@ -31,7 +31,7 @@ type TabId =
   | "rules"
   | "enrichment"
   | "golden"
-  | "datacleaning"
+  | "cleaning"
   | "reporting";
 
 interface Tab {
@@ -71,7 +71,7 @@ const tabs: Tab[] = [
     roles: ["admin", "editor", "viewer"],
   },
   {
-    id: "datacleaning",
+    id: "cleaning",
     label: "Cleansing & Standardization",
     icon: Sparkles,
     component: DataCleaningTab,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   X,
   Download,
@@ -29,6 +29,7 @@ interface Props {
   products: Product[];
   onBack: () => void;
   onNavigateToOverview?: () => void;
+  onAggregate?: (productId: string) => Promise<void>;
 }
 
 export function ProductDetailView({
@@ -37,12 +38,17 @@ export function ProductDetailView({
   products,
   onBack,
   onNavigateToOverview,
+  onAggregate,
 }: Props) {
   const [loading, setLoading] = useState(true);
+
   const [editMode, setEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<
     Record<string, Record<string, string>>
   >({});
+  const [aggregatingIds, setAggregatingIds] = useState<Set<string>>(new Set());
+  const [localProducts, setLocalProducts] = useState<Product[]>(products);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [attrMap, setAttrMap] = useState<
@@ -59,50 +65,58 @@ export function ProductDetailView({
   const [brandFilter, setBrandFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-const parseValueAndUnit = (raw: any): { value: string; unit: string | null } => {
-  if (!raw) return { value: "—", unit: null };
-  
-  // Case 1: Already a proper object with .value and .unit
-  if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
-    // Check if this is the attribute metadata object or a value wrapper
-    if (raw.hasOwnProperty("value") && typeof raw.value === "string" && raw.value.startsWith("{'")) {
-      // It's a double-wrapped Python dict string inside .value
-      return parsePythonDictString(raw.value);
-    }
-    return {
-      value: raw.value || "—",
-      unit: raw.unit || null
-    };
-  }
-  
-  // Case 2: String that might be a Python dict
-  if (typeof raw === "string") {
-    if (raw.startsWith("{'") && raw.includes("'value'")) {
-      return parsePythonDictString(raw);
-    }
-    return { value: raw, unit: null };
-  }
-  
-  return { value: "—", unit: null };
-};
+  const parseValueAndUnit = (
+    raw: any,
+  ): { value: string; unit: string | null } => {
+    if (!raw) return { value: "—", unit: null };
 
-// Helper to parse Python-style dict strings
-const parsePythonDictString = (str: string): { value: string; unit: string | null } => {
-  try {
-    const jsonStr = str
-      .replace(/'/g, '"')
-      .replace(/None/g, "null")
-      .replace(/True/g, "true")
-      .replace(/False/g, "false");
-    const parsed = JSON.parse(jsonStr);
-    return {
-      value: parsed.value || "—",
-      unit: parsed.unit || null
-    };
-  } catch {
+    // Case 1: Already a proper object with .value and .unit
+    if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+      // Check if this is the attribute metadata object or a value wrapper
+      if (
+        raw.hasOwnProperty("value") &&
+        typeof raw.value === "string" &&
+        raw.value.startsWith("{'")
+      ) {
+        // It's a double-wrapped Python dict string inside .value
+        return parsePythonDictString(raw.value);
+      }
+      return {
+        value: raw.value || "—",
+        unit: raw.unit || null,
+      };
+    }
+
+    // Case 2: String that might be a Python dict
+    if (typeof raw === "string") {
+      if (raw.startsWith("{'") && raw.includes("'value'")) {
+        return parsePythonDictString(raw);
+      }
+      return { value: raw, unit: null };
+    }
+
     return { value: "—", unit: null };
-  }
-};
+  };
+
+  // Helper to parse Python-style dict strings
+  const parsePythonDictString = (
+    str: string,
+  ): { value: string; unit: string | null } => {
+    try {
+      const jsonStr = str
+        .replace(/'/g, '"')
+        .replace(/None/g, "null")
+        .replace(/True/g, "true")
+        .replace(/False/g, "false");
+      const parsed = JSON.parse(jsonStr);
+      return {
+        value: parsed.value || "—",
+        unit: parsed.unit || null,
+      };
+    } catch {
+      return { value: "—", unit: null };
+    }
+  };
 
   const viewLabel = useMemo(() => {
     if (products.length === 1)
@@ -111,51 +125,57 @@ const parsePythonDictString = (str: string): { value: string; unit: string | nul
       );
     return "Products View";
   }, [products]);
-
+useEffect(() => {
+  return () => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+  };
+}, []);
   const loadViewData = useCallback(async () => {
-  setLoading(true);
-  try {
-    const sources = await extractionService.getSourcesByProject(projectId);
-    if (sources && sources.length > 0) {
-      setProjectSource(sources[0]);
-    }
+    setLoading(true);
+    try {
+      const sources = await extractionService.getSourcesByProject(projectId);
+      if (sources && sources.length > 0) {
+        setProjectSource(sources[0]);
+      }
 
-    const attrResults = await Promise.all(
-      products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
-    );
+      const attrResults = await Promise.all(
+        products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
+      );
 
-    const newMap: Record<string, Record<string, string>> = {};
-    const newUomMap: Record<string, Record<string, string>> = {};
+      const newMap: Record<string, Record<string, string>> = {};
+      const newUomMap: Record<string, Record<string, string>> = {};
 
-    products.forEach((p, index) => {
-      const productAttrs: Record<string, string> = {};
-      const productUoms: Record<string, string> = {};
+      products.forEach((p, index) => {
+        const productAttrs: Record<string, string> = {};
+        const productUoms: Record<string, string> = {};
 
-      attrResults[index].forEach((a) => {
-const { value, unit } = parseValueAndUnit(a.values?.[0]);
-        productAttrs[a.attribute_name] = value;
-        if (unit) {
-          productUoms[a.attribute_name] = unit;
-        }
+        attrResults[index].forEach((a) => {
+          const { value, unit } = parseValueAndUnit(a.values?.[0]);
+          productAttrs[a.attribute_name] = value;
+          if (unit) {
+            productUoms[a.attribute_name] = unit;
+          }
+        });
+
+        newMap[p.id] = productAttrs;
+        newUomMap[p.id] = productUoms;
       });
 
-      newMap[p.id] = productAttrs;
-      newUomMap[p.id] = productUoms;
-    });
-
-    setAttrMap(newMap);
-    setAttrUomMap(newUomMap);
-  } catch (err) {
-    console.error("Failed to load view data", err);
-  } finally {
-    setLoading(false);
-  }
-}, [projectId, products]);
+      setAttrMap(newMap);
+      setAttrUomMap(newUomMap);
+    } catch (err) {
+      console.error("Failed to load view data", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, products]);
 
   useEffect(() => {
     loadViewData();
   }, [loadViewData]);
-
+  useEffect(() => {
+    setLocalProducts(products);
+  }, [products]);
   const handleExport = async () => {
     if (filteredProducts.length === 0) return;
     setExporting(true);
@@ -194,53 +214,58 @@ const { value, unit } = parseValueAndUnit(a.values?.[0]);
     }
   };
   const handleSaveAll = async () => {
-  setSavingAll(true);
-  try {
-    const updatedProductIds = new Set<string>();
-    
-    for (const [productId, attrs] of Object.entries(pendingChanges)) {
-      const formattedAttrs: Record<string, { value: string; uom: string }> = {};
-      for (const [key, val] of Object.entries(attrs)) {
-        if (val && val.trim() && val !== attrMap[productId]?.[key]) {
-          formattedAttrs[key] = { 
-            value: val.trim(), 
-            uom: attrUomMap[productId]?.[key] || "" 
-          };
+    setSavingAll(true);
+    try {
+      const updatedProductIds = new Set<string>();
+
+      for (const [productId, attrs] of Object.entries(pendingChanges)) {
+        const formattedAttrs: Record<string, { value: string; uom: string }> =
+          {};
+        for (const [key, val] of Object.entries(attrs)) {
+          if (val && val.trim() && val !== attrMap[productId]?.[key]) {
+            formattedAttrs[key] = {
+              value: val.trim(),
+              uom: attrUomMap[productId]?.[key] || "",
+            };
+          }
+        }
+        if (Object.keys(formattedAttrs).length > 0) {
+          await cleansingService.updateProductAttributes(
+            productId,
+            formattedAttrs as any,
+          );
+          updatedProductIds.add(productId);
         }
       }
-      if (Object.keys(formattedAttrs).length > 0) {
-        await cleansingService.updateProductAttributes(productId, formattedAttrs as any);
-        updatedProductIds.add(productId);
+
+      if (updatedProductIds.size > 0) {
+        for (const productId of updatedProductIds) {
+          const attrs =
+            await aggregationService.getAggregatedAttributes(productId);
+          const productAttrs: Record<string, string> = {};
+          const productUoms: Record<string, string> = {};
+          attrs.forEach((a: any) => {
+            const { value } = parseValueAndUnit(a.values?.[0]);
+            productAttrs[a.attribute_name] = value;
+          });
+          setAttrMap((prev) => ({
+            ...prev,
+            [productId]: { ...prev[productId], ...productAttrs },
+          }));
+        }
       }
+
+      notify.success("Changes saved and values cleaned");
+      setPendingChanges({});
+      setEditMode(false);
+    } catch {
+      notify.error("Failed to save changes");
+    } finally {
+      setSavingAll(false);
     }
-    
-    if (updatedProductIds.size > 0) {
-      for (const productId of updatedProductIds) {
-        const attrs = await aggregationService.getAggregatedAttributes(productId);
-        const productAttrs: Record<string, string> = {};
-        const productUoms: Record<string, string> = {};
-        attrs.forEach((a: any) => {
-          const { value } = parseValueAndUnit(a.values?.[0]);
-productAttrs[a.attribute_name] = value;
-        });
-        setAttrMap(prev => ({
-          ...prev,
-          [productId]: { ...prev[productId], ...productAttrs }
-        }));
-      }
-    }
-    
-    notify.success("Changes saved and values cleaned");
-    setPendingChanges({});
-    setEditMode(false);
-  } catch {
-    notify.error("Failed to save changes");
-  } finally {
-    setSavingAll(false);
-  }
-};
+  };
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return localProducts.filter((p) => {
       const matchesSearch =
         !search ||
         p.product_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -266,14 +291,102 @@ productAttrs[a.attribute_name] = value;
       );
     });
   }, [
-    products,
+    localProducts,
     search,
     statusFilter,
     brandFilter,
     categoryFilter,
     completenessFilter,
   ]);
+  // Add polling effect
+  useEffect(() => {
+    if (aggregatingIds.size === 0) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
 
+    pollingRef.current = setInterval(async () => {
+      try {
+        const results = await Promise.all(
+          Array.from(aggregatingIds).map((id) =>
+            aggregationService.getAggregatedAttributes(id).catch(() => null),
+          ),
+        );
+
+        const stillProcessing = new Set(aggregatingIds);
+        const updatedProducts = [...localProducts];
+
+        for (const id of aggregatingIds) {
+          const product = localProducts.find((p) => p.id === id);
+          if (!product) continue;
+
+          // Check if product status changed by re-fetching
+          const freshAttrs = results[Array.from(aggregatingIds).indexOf(id)];
+          if (freshAttrs && freshAttrs.length > 0) {
+            stillProcessing.delete(id);
+            const idx = updatedProducts.findIndex((p) => p.id === id);
+            if (idx !== -1) {
+              updatedProducts[idx] = {
+                ...updatedProducts[idx],
+                enrichment_status: "completed",
+              };
+            }
+          }
+        }
+
+        if (stillProcessing.size === 0) {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setAggregatingIds(new Set());
+          notify.success("Aggregation completed");
+        } else {
+          setAggregatingIds(stillProcessing);
+        }
+
+        setLocalProducts(updatedProducts);
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+    }, 3000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [aggregatingIds, localProducts]);
+  const handleAggregateClick = useCallback(
+    async (productId: string) => {
+      // Update local state immediately
+      setLocalProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, enrichment_status: "processing" } : p,
+        ),
+      );
+      setAggregatingIds((prev) => new Set(prev).add(productId));
+
+      try {
+        await onAggregate?.(productId);
+      } catch {
+        // Revert on failure
+        setLocalProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+          ),
+        );
+        setAggregatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
+      }
+    },
+    [onAggregate],
+  );
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
     Object.values(attrMap).forEach((obj) =>
@@ -283,26 +396,26 @@ productAttrs[a.attribute_name] = value;
   }, [attrMap]);
 
   const uniqueBrands = useMemo(
-    () => [...new Set(products.map((p) => p.brand_name).filter(Boolean))],
-    [products],
+    () => [...new Set(localProducts.map((p) => p.brand_name).filter(Boolean))],
+    [localProducts],
   );
   const uniqueCategories = useMemo(
-    () => [...new Set(products.map((p) => p.category_3).filter(Boolean))],
-    [products],
+    () => [...new Set(localProducts.map((p) => p.category_3).filter(Boolean))],
+    [localProducts],
   );
 
   const stats = useMemo(
     () => ({
-      total: products.length,
-      aggregated: products.filter((p) => p.enrichment_status === "completed")
+      total: localProducts.length,
+      aggregated: localProducts.filter((p) => p.enrichment_status === "completed")
         .length,
-      enrichment: products.filter((p) => p.workflow_stage === "enrichment")
+      enrichment: localProducts.filter((p) => p.workflow_stage === "enrichment")
         .length,
-      progress: products.filter((p) => p.enrichment_status === "processing")
+      progress: localProducts.filter((p) => p.enrichment_status === "processing")
         .length,
-      failed: products.filter((p) => p.enrichment_status === "failed").length,
+      failed: localProducts.filter((p) => p.enrichment_status === "failed").length,
     }),
-    [products],
+    [localProducts],
   );
 
   return (
@@ -635,13 +748,19 @@ productAttrs[a.attribute_name] = value;
                     </td>
                     <td className="p-4 text-center border-l border-slate-100">
                       <button
-                        onClick={() => {
-                          /* add handleAggregate(p.id) here */
-                        }}
-                        className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-md hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
-                      >
-                        Aggregate
-                      </button>
+  onClick={(e) => {
+    e.stopPropagation();
+    handleAggregateClick(p.id);
+  }}
+  disabled={p.enrichment_status === "processing" || aggregatingIds.has(p.id)}
+  className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-md hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 disabled:opacity-50"
+>
+  {p.enrichment_status === "processing" || aggregatingIds.has(p.id) ? (
+    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+  ) : (
+    "Aggregate"
+  )}
+</button>
                     </td>
                   </tr>
                 ))

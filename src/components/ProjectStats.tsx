@@ -288,11 +288,19 @@ export function ProjectStats({
     <div className="h-full flex flex-col bg-white text-slate-900">
       {showDetailView ? (
         <ProductDetailView
-          projectId={projectId}
-          projectName={projectName}
-          products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
-          onBack={() => setShowDetailView(false)}
-        />
+  projectId={projectId}
+  projectName={projectName}
+  products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
+  onBack={() => setShowDetailView(false)}
+  onAggregate={async (productId: string) => {
+    try {
+      await aggregationService.aggregateProduct(productId, "openai");
+      notify.success("Aggregation started");
+    } catch (e: any) {
+      notify.error("Aggregation failed", e.message);
+    }
+  }}
+/>
       ) : (
         <>
           <div className="px-6 py-2 flex items-center justify-between border-b border-slate-200 bg-slate-50/30">
