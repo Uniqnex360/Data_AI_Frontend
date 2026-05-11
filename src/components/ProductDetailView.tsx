@@ -65,25 +65,37 @@ export function ProductDetailView({
   const [brandFilter, setBrandFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
- const parseValueAndUnit = (str: string) => {
-  if (!str) return { value: "—", unit: null };
-  if (!str.startsWith("{") || !str.includes("'value'")) {
-    return { value: str, unit: null };
-  }
-  try {
-    const jsonStr = str
-      .replace(/'/g, '"')
-      .replace(/None/g, "null")
-      .replace(/True/g, "true")
-      .replace(/False/g, "false");
-    const parsed = JSON.parse(jsonStr);
+const parseValueAndUnit = (raw: any): { value: string; unit: string | null } => {
+  if (!raw) return { value: "—", unit: null };
+  
+  if (typeof raw === "object" && raw !== null) {
     return {
-      value: parsed.value || str,
-      unit: parsed.unit || null
+      value: raw.value || "—",
+      unit: raw.unit || null
     };
-  } catch (e) {
-    return { value: str, unit: null };
   }
+  
+  if (typeof raw === "string") {
+    if (raw.startsWith("{") && raw.includes("'value'")) {
+      try {
+        const jsonStr = raw
+          .replace(/'/g, '"')
+          .replace(/None/g, "null")
+          .replace(/True/g, "true")
+          .replace(/False/g, "false");
+        const parsed = JSON.parse(jsonStr);
+        return {
+          value: parsed.value || raw,
+          unit: parsed.unit || null
+        };
+      } catch {
+        return { value: raw, unit: null };
+      }
+    }
+    return { value: raw, unit: null };
+  }
+  
+  return { value: "—", unit: null };
 };
 
   const viewLabel = useMemo(() => {
@@ -114,7 +126,8 @@ export function ProductDetailView({
       const productUoms: Record<string, string> = {};
 
       attrResults[index].forEach((a) => {
-        const { value, unit } = parseValueAndUnit(a.values?.[0]?.value);
+        const rawAttr = a.values?.[0];
+const { value, unit } = parseValueAndUnit(rawAttr?.value ?? rawAttr);
         productAttrs[a.attribute_name] = value;
         if (unit) {
           productUoms[a.attribute_name] = unit;
