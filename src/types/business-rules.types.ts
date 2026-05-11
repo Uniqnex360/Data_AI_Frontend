@@ -248,7 +248,7 @@ export interface AuthUser {
   role: UserRole;
   is_active?: boolean;
 }
-export type ProjectStatus = "active" | "completed" | "stalled" | "new";
+export type ProjectStatus = "in_progress" | "partially_completed" | "completed" | "failed" | "yet_to_start";
 export interface ProjectOverview {
   id: string;
   name: string;

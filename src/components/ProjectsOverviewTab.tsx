@@ -17,6 +17,7 @@ import { extractionService } from "../services/extractionService";
 import { aggregationService } from "../services/aggregationService";
 import { cleansingService } from "../services/cleansingService";
 import { notify } from "../lib/notifications";
+import { Pagination } from './Pagination';
 
 interface Props {
   projects: ProjectOverview[];
@@ -62,11 +63,11 @@ function ProgressBar({
     </div>
   );
 }
-const formatOperationMode=(mode?:string)=>{
-  if(!mode)return "_"
-  if(mode==='cleaning') return "Cleansing"
-  return mode.charAt(0).toUpperCase()+mode.slice(1)
-}
+const formatOperationMode = (mode?: string) => {
+  if (!mode) return "_";
+  if (mode === "cleaning") return "Cleansing";
+  return mode.charAt(0).toUpperCase() + mode.slice(1);
+};
 export default function ProjectsOverviewTab({
   projects,
   totalCount,
@@ -237,109 +238,109 @@ export default function ProjectsOverviewTab({
   };
 
   const getSourceStatusInfo = (projectId: string) => {
-  const project = projects.find((p) => p.id === projectId);
-  const sources = projectSources[projectId] || [];
-  const isCleaningProject = project?.operationMode === "cleaning";
-  const isEnrichmentProject = project?.operationMode === "enrichment";
-  const isPdfExtractionProject = project?.operationMode === "pdf_extraction";
+    const project = projects.find((p) => p.id === projectId);
+    const sources = projectSources[projectId] || [];
+    const isCleaningProject = project?.operationMode === "cleaning";
+    const isEnrichmentProject = project?.operationMode === "enrichment";
+    const isPdfExtractionProject = project?.operationMode === "pdf_extraction";
 
-  // If project itself is completed, always show as completed
-  if (project?.status === "completed") {
+    // If project itself is completed, always show as completed
+    if (project?.status === "completed") {
+      return {
+        isCompleted: true,
+        isProcessing: false,
+        isFailed: false,
+        pendingLabel: "",
+        processingLabel: "",
+      };
+    }
+
+    // If project status is failed
+    if (project?.status === "failed") {
+      return {
+        isCompleted: false,
+        isProcessing: false,
+        isFailed: true,
+        pendingLabel: "",
+        processingLabel: "",
+      };
+    }
+
+    // If project status is processing
+    if (project?.status === "processing") {
+      return {
+        isCompleted: false,
+        isProcessing: true,
+        isFailed: false,
+        pendingLabel: "",
+        processingLabel: isCleaningProject
+          ? "Cleaning..."
+          : isEnrichmentProject
+            ? "Enriching..."
+            : isPdfExtractionProject
+              ? "Extracting..."
+              : "Aggregating...",
+      };
+    }
+
+    if (!sources.length) {
+      return {
+        isCompleted: false,
+        isProcessing: false,
+        isFailed: false,
+        pendingLabel: isCleaningProject
+          ? "Needs Cleaning"
+          : isEnrichmentProject
+            ? "Needs Enrichment"
+            : isPdfExtractionProject
+              ? "Needs Extraction"
+              : "Needs Aggregation",
+        processingLabel: "",
+      };
+    }
+
+    const completedSource = sources.find(
+      (s) => s.metadata?.processing_status === "completed",
+    );
+    const processingSource = sources.find(
+      (s) => s.metadata?.processing_status === "processing",
+    );
+    const failedSource = sources.find(
+      (s) => s.metadata?.processing_status === "failed",
+    );
+
+    const processStatus =
+      completedSource?.metadata?.processing_status ||
+      processingSource?.metadata?.processing_status ||
+      failedSource?.metadata?.processing_status ||
+      "pending";
+
+    const isCompleted = processStatus === "completed";
+    const isProcessing = processStatus === "processing";
+    const isFailed = processStatus === "failed";
+
+    const pendingLabel = isCleaningProject
+      ? "Needs Cleaning"
+      : isEnrichmentProject
+        ? "Needs Enrichment"
+        : isPdfExtractionProject
+          ? "Needs Extraction"
+          : "Needs Aggregation";
+
+    const processingLabel = isCleaningProject
+      ? "Cleaning..."
+      : isEnrichmentProject
+        ? "Enriching..."
+        : "Aggregating...";
+
     return {
-      isCompleted: true,
-      isProcessing: false,
-      isFailed: false,
-      pendingLabel: "",
-      processingLabel: "",
+      isCompleted,
+      isProcessing,
+      isFailed,
+      pendingLabel,
+      processingLabel,
     };
-  }
-
-  // If project status is failed
-  if (project?.status === "failed") {
-    return {
-      isCompleted: false,
-      isProcessing: false,
-      isFailed: true,
-      pendingLabel: "",
-      processingLabel: "",
-    };
-  }
-
-  // If project status is processing
-  if (project?.status === "processing") {
-    return {
-      isCompleted: false,
-      isProcessing: true,
-      isFailed: false,
-      pendingLabel: "",
-      processingLabel: isCleaningProject
-        ? "Cleaning..."
-        : isEnrichmentProject
-          ? "Enriching..."
-          : isPdfExtractionProject
-            ? "Extracting..."
-            : "Aggregating...",
-    };
-  }
-
-  if (!sources.length) {
-    return {
-      isCompleted: false,
-      isProcessing: false,
-      isFailed: false,
-      pendingLabel: isCleaningProject
-        ? "Needs Cleaning"
-        : isEnrichmentProject
-          ? "Needs Enrichment"
-          : isPdfExtractionProject
-            ? "Needs Extraction"
-            : "Needs Aggregation",
-      processingLabel: "",
-    };
-  }
-
-  const completedSource = sources.find(
-    (s) => s.metadata?.processing_status === "completed",
-  );
-  const processingSource = sources.find(
-    (s) => s.metadata?.processing_status === "processing",
-  );
-  const failedSource = sources.find(
-    (s) => s.metadata?.processing_status === "failed",
-  );
-
-  const processStatus =
-    completedSource?.metadata?.processing_status ||
-    processingSource?.metadata?.processing_status ||
-    failedSource?.metadata?.processing_status ||
-    "pending";
-
-  const isCompleted = processStatus === "completed";
-  const isProcessing = processStatus === "processing";
-  const isFailed = processStatus === "failed";
-
-  const pendingLabel = isCleaningProject
-    ? "Needs Cleaning"
-    : isEnrichmentProject
-      ? "Needs Enrichment"
-      : isPdfExtractionProject
-        ? "Needs Extraction"
-        : "Needs Aggregation";
-
-  const processingLabel = isCleaningProject
-    ? "Cleaning..."
-    : isEnrichmentProject
-      ? "Enriching..."
-      : "Aggregating...";
-
-  return {
-    isCompleted,
-    isProcessing,
-    isFailed,
-    pendingLabel,
-    processingLabel,
   };
-};
   const handleDownloadOutput = async (
     e: React.MouseEvent,
     projectId: string,
@@ -387,44 +388,7 @@ export default function ProjectsOverviewTab({
     }
   };
 
-  const Pagination = () => (
-    <div className="flex items-center justify-end text-xs text-slate-500 gap-2">
-      <button
-        type="button"
-        onClick={() => onPageChange?.(effectivePage - 1)}
-        disabled={effectivePage <= 1}
-        className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
-      >
-        <ChevronLeft className="w-3 h-3" /> Previous
-      </button>
-      <span className="flex items-center gap-1">
-        {Array.from({ length: effectiveTotalPages }, (_, i) => i + 1).map(
-          (p) => (
-            <button
-              type="button"
-              key={p}
-              onClick={() => onPageChange?.(p)}
-              className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
-                p === effectivePage
-                  ? "bg-blue-600 text-white"
-                  : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {p}
-            </button>
-          ),
-        )}
-      </span>
-      <button
-        type="button"
-        onClick={() => onPageChange?.(effectivePage + 1)}
-        disabled={effectivePage >= effectiveTotalPages}
-        className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 transition-colors"
-      >
-        Next <ChevronRight className="w-3 h-3" />
-      </button>
-    </div>
-  );
+ 
 
   return (
     <div
@@ -435,7 +399,7 @@ export default function ProjectsOverviewTab({
     >
       <div className="shrink-0 bg-white">
         <div className="px-5 pt-4 pb-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 shrink-0">
               <Folder className="w-5 h-5 text-slate-700" />
               <h3 className="text-lg font-bold text-slate-900">
@@ -446,19 +410,23 @@ export default function ProjectsOverviewTab({
               </span>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0 flex-nowrap">
               <select
                 value={currentFilter}
                 onChange={(e) => {
                   onFilterChange?.(e.target.value);
                   onPageChange?.(1);
                 }}
-                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none max-w-[140px] truncate"
               >
                 <option value="all">All Status</option>
                 {availableStatuses.map((s) => (
                   <option key={s} value={s}>
-                    {s ? s.charAt(0).toUpperCase() + s.slice(1) : ""}
+                    {s
+                      ? s
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase())
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -466,7 +434,7 @@ export default function ProjectsOverviewTab({
               <select
                 value={brandFilter}
                 onChange={(e) => setBrandFilter(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none max-w-[120px] truncate"
               >
                 <option value="all">All Modes</option>
                 {availableOperationModes.map((b) => (
@@ -479,7 +447,7 @@ export default function ProjectsOverviewTab({
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none max-w-[140px] truncate"
               >
                 <option value="all">All Use Case</option>
                 {availableUseCases.map((c) => (
@@ -488,14 +456,15 @@ export default function ProjectsOverviewTab({
                   </option>
                 ))}
               </select>
-              <div className="relative w-64">
+
+              <div className="relative w-48 min-w-[120px]">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
-                     onSearchChange?.(e.target.value); 
+                    onSearchChange?.(e.target.value);
                     onPageChange?.(1);
                   }}
                   onKeyDown={(e) => {
@@ -509,7 +478,7 @@ export default function ProjectsOverviewTab({
                     type="button"
                     onClick={() => {
                       setSearch("");
-                      onSearchChange?.(""); 
+                      onSearchChange?.("");
                       onPageChange?.(1);
                     }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
@@ -518,19 +487,26 @@ export default function ProjectsOverviewTab({
                   </button>
                 )}
               </div>
+
               {(brandFilter !== "all" ||
                 categoryFilter !== "all" ||
                 currentFilter !== "all" ||
                 search.trim()) && (
                 <button
                   onClick={resetFilters}
-                  className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 shrink-0"
                 >
                   Clear
                 </button>
               )}
+          <div className="px-4 py-3 flex items-center justify-end text-xs text-slate-500">
 
-              <Pagination />
+              <Pagination
+  page={effectivePage}
+  totalPages={effectiveTotalPages}
+  onPageChange={(p) => onPageChange?.(p)}
+/>
+</div>
             </div>
           </div>
         </div>
@@ -833,7 +809,13 @@ export default function ProjectsOverviewTab({
         </table>
       </div>
       <div className="shrink-0 px-5 py-2 border-t border-slate-100 bg-white">
-        <Pagination />
+        <div className="px-4 py-3 flex items-center justify-end text-xs text-slate-500">
+<Pagination
+  page={effectivePage}
+  totalPages={effectiveTotalPages}
+  onPageChange={(p) => onPageChange?.(p)}
+/>
+</div>
       </div>
     </div>
   );
