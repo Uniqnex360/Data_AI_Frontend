@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronUp,
   Edit3,
-  Filter,
   Loader2,
   TrendingUp,
 } from "lucide-react";
@@ -57,6 +56,7 @@ export default function ReportingTab() {
   useEffect(() => {
     loadProjects();
     loadQualityReport();
+    loadFilterOptions();
   }, []);
 
   const loadProjects = async () => {
@@ -86,21 +86,22 @@ export default function ReportingTab() {
       setLoading(false);
     }
   };
-  const loadBrands = async () => {
+    const loadFilterOptions = async () => {
     try {
-      const data = await cleansingService.getEditLogs({ limit: 500 });
+      const data = await cleansingService.getEditLogs({ limit: 1000 });
       const brands = [
         ...new Set(data.map((l: EditLog) => l.brand_name).filter(Boolean)),
       ];
       setAvailableBrands(brands.sort());
+      const cats = [
+        ...new Set(data.map((l: any) => l.category_name).filter(Boolean)),
+      ];
+      setAvailableCategories(cats.sort());
     } catch (e) {
-      console.error("Failed to load brands", e);
+      console.error("Failed to load filter options", e);
     }
   };
 
-  useEffect(() => {
-    loadBrands();
-  }, []);
   const loadEditLogs = async (projectId: string) => {
     setLogLoading(true);
     try {
@@ -118,26 +119,12 @@ export default function ReportingTab() {
       setLogLoading(false);
     }
   };
+
   useEffect(() => {
     if (expandedProject) {
       loadEditLogs(expandedProject);
     }
-  }, [selectedAlgorithm, selectedBrand, expandedProject]);
-  const loadCategories = async () => {
-    try {
-      const data = await cleansingService.getEditLogs({ limit: 1000 });
-      const cats = [
-  ...new Set(data.map((l: any) => l.category_name).filter(Boolean)),
-];
-      setAvailableCategories(cats.sort());
-    } catch (e) {
-      console.error("Failed to load categories", e);
-    }
-  };
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  }, [selectedAlgorithm, selectedBrand, selectedCategory, expandedProject]);
   const stats = useMemo(() => {
     const total = qualityData.reduce((sum, r) => sum + r.total_products, 0);
     const avgScore =
@@ -189,16 +176,6 @@ export default function ReportingTab() {
     if (score >= 70) return "bg-amber-500";
     return "bg-red-500";
   };
-
-  const uniqueAlgorithms = useMemo(() => {
-    return [
-      ...new Set(qualityData.map((r) => r.algorithm_used).filter(Boolean)),
-    ];
-  }, [qualityData]);
-
-  const uniqueBrands = useMemo(() => {
-    return [...new Set(qualityData.map((r) => r.brand_name).filter(Boolean))];
-  }, [qualityData]);
 
   return (
     <div className="p-6 space-y-6">
@@ -303,6 +280,7 @@ export default function ReportingTab() {
                 project_id: val || undefined,
                 brand_name: selectedBrand || undefined,
                 algorithm: selectedAlgorithm || undefined,
+                 category_name: selectedCategory || undefined,
               })
               .then((data) => setQualityData(data || []))
               .finally(() => setLoading(false));
@@ -316,26 +294,31 @@ export default function ReportingTab() {
             </option>
           ))}
         </select>
-          <select
-  value={selectedCategory}
-  onChange={(e) => {
-    const val = e.target.value;
-    setSelectedCategory(val);
-    setLoading(true);
-    cleansingService.getDataQualityReport({
-      project_id: selectedProject || undefined,
-      brand_name: selectedBrand || undefined,
-      algorithm: selectedAlgorithm || undefined,
-      category_name: val || undefined
-    }).then(data => setQualityData(data || [])).finally(() => setLoading(false));
-  }}
-  className="h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white"
->
-  <option value="">All Categories</option>
-  {availableCategories.map((c) => (
-    <option key={c} value={c}>{c}</option>
-  ))}
-</select>
+        <select
+          value={selectedCategory}
+          onChange={(e) => {
+            const val = e.target.value;
+            setSelectedCategory(val);
+            setLoading(true);
+            cleansingService
+              .getDataQualityReport({
+                project_id: selectedProject || undefined,
+                brand_name: selectedBrand || undefined,
+                algorithm: selectedAlgorithm || undefined,
+                category_name: val || undefined,
+              })
+              .then((data) => setQualityData(data || []))
+              .finally(() => setLoading(false));
+          }}
+          className="h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+        >
+          <option value="">All Categories</option>
+          {availableCategories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
         <select
           value={selectedAlgorithm}
           onChange={(e) => {
@@ -347,6 +330,7 @@ export default function ReportingTab() {
                 project_id: selectedProject || undefined,
                 brand_name: selectedBrand || undefined,
                 algorithm: val || undefined,
+                category_name: selectedCategory || undefined,
               })
               .then((data) => setQualityData(data || []))
               .finally(() => setLoading(false));
@@ -370,6 +354,7 @@ export default function ReportingTab() {
                 project_id: selectedProject || undefined,
                 brand_name: val || undefined,
                 algorithm: selectedAlgorithm || undefined,
+                category_name: selectedCategory || undefined,
               })
               .then((data) => setQualityData(data || []))
               .finally(() => setLoading(false));
@@ -383,18 +368,19 @@ export default function ReportingTab() {
             </option>
           ))}
         </select>
-        {selectedProject || selectedAlgorithm || selectedBrand ? (
+        {selectedProject || selectedAlgorithm || selectedBrand || selectedCategory ? (
           <button
             onClick={() => {
-  setSelectedProject("");
-  setSelectedAlgorithm("");
-  setSelectedBrand("");
-  setSelectedCategory("");
-  setLoading(true);
-  cleansingService.getDataQualityReport({})
-    .then(data => setQualityData(data || []))
-    .finally(() => setLoading(false));
-}}
+              setSelectedProject("");
+              setSelectedAlgorithm("");
+              setSelectedBrand("");
+              setSelectedCategory("");
+              setLoading(true);
+              cleansingService
+                .getDataQualityReport({})
+                .then((data) => setQualityData(data || []))
+                .finally(() => setLoading(false));
+            }}
             className="h-10 px-3 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
           >
             Clear
