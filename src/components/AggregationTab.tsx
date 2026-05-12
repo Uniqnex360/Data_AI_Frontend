@@ -701,6 +701,15 @@ export default function AggregationTab({
 
   const handleAggregateSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
+      let primaryLLM = selectedLLM;
+  let missingLLM = selectedLLM;
+  if (selectedLLM === "openai_gemini") {
+    primaryLLM = "openai";
+    missingLLM = "gemini";
+  } else if (selectedLLM === "gemini_openai") {
+    primaryLLM = "gemini";
+    missingLLM = "openai";
+  }
     const projectIdsToAggregate = Array.from(selectedProjectIds);
     setLoading(true);
     let successCount = 0;
@@ -710,7 +719,7 @@ export default function AggregationTab({
         const batch = projectIdsToAggregate.slice(i, i + batchSize);
         const promises = batch.map((projectId) =>
           aggregationService
-            .aggregateProject(projectId, selectedLLM)
+            .aggregateProject(projectId, primaryLLM,missingLLM)
             .then((result) => ({
               status: "fulfilled" as const,
               projectId,

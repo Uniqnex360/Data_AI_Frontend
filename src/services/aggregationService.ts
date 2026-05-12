@@ -46,11 +46,12 @@ export const aggregationService = {
   async aggregateProject(
     projectId: string,
     llmProvider: string,
+    missingLLM?:string
   ): Promise<AggregationResponse> {
     try {
       const { data } = await api.post<AggregationResponse>(
         `/aggregation/project/${projectId}`,
-        { llm_provider: llmProvider },
+        { llm_provider: llmProvider, missing_llm_provider: missingLLM || null },
       );
       return data;
     } catch (error) {
