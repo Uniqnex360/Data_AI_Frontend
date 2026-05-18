@@ -248,6 +248,19 @@ export interface AuthUser {
   role: UserRole;
   is_active?: boolean;
 }
+export interface AggregationJob {
+  id: string;
+  project_id: string;
+  status: string;
+  total_products: number;
+  successful: number;
+  failed: number;
+  progress_percent?: number;
+  progress_percentage?: number;
+  job_id?: string;  // ← ADD THIS
+  current_product?: string;
+  error_message?: string;
+}
 export type ProjectStatus = "in_progress" | "partially_completed" | "completed" | "failed" | "yet_to_start";
 export interface ProjectOverview {
   id: string;

@@ -74,6 +74,8 @@ export default function AggregationTab({
   const [projectOptions, setProjectOptions] = useState<
     { id: string; name: string }[]
   >([]);
+  const [jobProgress, setJobProgress] = useState<Record<string, any>>({});
+
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -171,6 +173,25 @@ export default function AggregationTab({
     }
     return useCaseMap[type] || [];
   };
+  const fetchJobProgress = useCallback(async (projectId: string) => {
+    
+    try {
+      const status =
+        await aggregationService.getProjectAggregationStatus(projectId);
+        console.log(`Job status for ${projectId}:`, status); 
+        const jobId = status.job_id || status.id;
+     if (jobId && (status.status === "processing" || status.status === "pending")) {
+      const progress = await aggregationService.getJobProgress(jobId);
+      console.log(`Progress for ${projectId}:`, progress);
+      setJobProgress((prev) => ({
+        ...prev,
+        [projectId]: progress,
+      }));
+    }
+    } catch (error) {
+      console.error(`Failed to fetch job progress for ${projectId}:`, error);
+    }
+  }, []);
   const availableAggregationTypes = useMemo(() => {
     const types = new Set<string>();
     projects.forEach((p) => {
@@ -245,6 +266,7 @@ export default function AggregationTab({
     },
     [projects],
   );
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -462,6 +484,17 @@ export default function AggregationTab({
   //     });
   //   }
   // };
+  useEffect(() => {
+    if (aggregatingProjects.size === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const projectId of aggregatingProjects) {
+        await fetchJobProgress(projectId);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [aggregatingProjects, fetchJobProgress]);
   const pollProjectStatuses = useCallback(async () => {
     if (aggregatingProjects.size === 0) return;
     const newAggregatingProjects = new Set(aggregatingProjects);
@@ -487,7 +520,7 @@ export default function AggregationTab({
     }
     if (completedProjects.length > 0) {
       setAggregatingProjects(newAggregatingProjects);
-       loadProjects(true);
+      loadProjects(true);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
           const freshResult = await productService.getProductsByProject(
@@ -519,27 +552,30 @@ export default function AggregationTab({
     loadDefaultFilters();
   }, [loadDefaultFilters]);
 
-  const loadProjects = useCallback(async (silent = false) => {
-  if (!silent) setProjectsLoading(true);
-  try {
-    const data = await projectService.getAllProjects({
-      operation_mode: "aggregation,pdf_extraction",
-      tab: "aggregation",
-    });
-    const aggregationData = data.filter(
-      (p: Project) =>
-        p.operation_mode === "aggregation" ||
-        p.operation_mode === "pdf_extraction",
-    );
-    setProjects(aggregationData);
-    await loadProjectEnrichmentCounts();
-  } catch (error) {
-    console.error("Failed to load projects:", error);
-    if (!silent) notify.error("Failed to load projects");
-  } finally {
-    if (!silent) setProjectsLoading(false);
-  }
-}, [loadProjectEnrichmentCounts]);
+  const loadProjects = useCallback(
+    async (silent = false) => {
+      if (!silent) setProjectsLoading(true);
+      try {
+        const data = await projectService.getAllProjects({
+          operation_mode: "aggregation,pdf_extraction",
+          tab: "aggregation",
+        });
+        const aggregationData = data.filter(
+          (p: Project) =>
+            p.operation_mode === "aggregation" ||
+            p.operation_mode === "pdf_extraction",
+        );
+        setProjects(aggregationData);
+        await loadProjectEnrichmentCounts();
+      } catch (error) {
+        console.error("Failed to load projects:", error);
+        if (!silent) notify.error("Failed to load projects");
+      } finally {
+        if (!silent) setProjectsLoading(false);
+      }
+    },
+    [loadProjectEnrichmentCounts],
+  );
   useEffect(() => {
     console.time("initialLoad");
     loadProjects().then(() => {
@@ -626,12 +662,7 @@ export default function AggregationTab({
     if (selectedProjectIds.size > 0) return true;
     return false;
   }, [selectedProductIds, selectedProjectIds]);
-  console.log("canDownloadSelected debug:", {
-    selectedProductIds: selectedProductIds.size,
-    selectedProjectIds: selectedProjectIds.size,
-    canDownload: canDownloadSelected,
-    expandedProjectProducts: expandedProjectProducts.length,
-  });
+ 
 
   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
     projectId: expandedProjectId,
@@ -701,15 +732,15 @@ export default function AggregationTab({
 
   const handleAggregateSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
-      let primaryLLM = selectedLLM;
-  let missingLLM = selectedLLM;
-  if (selectedLLM === "openai_gemini") {
-    primaryLLM = "openai";
-    missingLLM = "gemini";
-  } else if (selectedLLM === "gemini_openai") {
-    primaryLLM = "gemini";
-    missingLLM = "openai";
-  }
+    let primaryLLM = selectedLLM;
+    let missingLLM = selectedLLM;
+    if (selectedLLM === "openai_gemini") {
+      primaryLLM = "openai";
+      missingLLM = "gemini";
+    } else if (selectedLLM === "gemini_openai") {
+      primaryLLM = "gemini";
+      missingLLM = "openai";
+    }
     const projectIdsToAggregate = Array.from(selectedProjectIds);
     setLoading(true);
     let successCount = 0;
@@ -719,7 +750,7 @@ export default function AggregationTab({
         const batch = projectIdsToAggregate.slice(i, i + batchSize);
         const promises = batch.map((projectId) =>
           aggregationService
-            .aggregateProject(projectId, primaryLLM,missingLLM)
+            .aggregateProject(projectId, primaryLLM, missingLLM)
             .then((result) => ({
               status: "fulfilled" as const,
               projectId,
@@ -771,7 +802,7 @@ export default function AggregationTab({
       }
       if (successCount > 0) {
         notify.success(`Aggregation started for ${successCount} project(s)`);
-         loadProjects(true);  
+        loadProjects(true);
       }
     } catch (error) {
       console.error("Failed to aggregate:", error);
@@ -873,7 +904,13 @@ export default function AggregationTab({
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes,loadProjects]);
+  }, [
+    pollingProductIds,
+    expandedProjectId,
+    selectedProduct,
+    loadAttributes,
+    loadProjects,
+  ]);
   const handleDownloadSelected = useCallback(async () => {
     const selectedProjects = Array.from(selectedProjectIds);
     const selectedProducts = Array.from(selectedProductIds);
@@ -1388,58 +1425,59 @@ export default function AggregationTab({
       </div>
       <div className="bg-white border border-slate-200 rounded-lg">
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-  <div className="flex items-center gap-3">
-    <input
-      type="checkbox"
-      checked={
-        filteredProjects.length > 0 &&
-        selectedProjectIds.size === filteredProjects.length
-      }
-      onChange={toggleSelectAllProjects}
-      className="rounded border-slate-300 cursor-pointer"
-    />
-    <span className="text-xs text-slate-500">
-      {selectedProjectIds.size === filteredProjects.length && filteredProjects.length > 0
-        ? "Deselect All"
-        : "Select All"}
-    </span>
-    {selectedProjectIds.size > 0 && (
-      <button
-        onClick={() => setSelectedProjectIds(new Set())}
-        className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
-      >
-        Clear selection
-      </button>
-    )}
-  </div>
-  <div className="flex items-center gap-4">
-    <span className="text-sm font-semibold text-slate-900">
-      {filteredProjects.length} Projects
-    </span>
-    {selectedProjectIds.size > 0 && (
-      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1.5">
-        {selectedProjectIds.size} selected
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedProjectIds(new Set());
-          }}
-          className="hover:bg-blue-200 rounded-full p-0.5"
-          title="Clear all selections"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      </span>
-    )}
-    <div className="flex items-center justify-end text-xs text-slate-500">
-      <Pagination
-        page={projectsPage}
-        totalPages={projectsTotalPages}
-        onPageChange={setProjectsPage}
-      />
-    </div>
-  </div>
-</div>
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={
+                filteredProjects.length > 0 &&
+                selectedProjectIds.size === filteredProjects.length
+              }
+              onChange={toggleSelectAllProjects}
+              className="rounded border-slate-300 cursor-pointer"
+            />
+            <span className="text-xs text-slate-500">
+              {selectedProjectIds.size === filteredProjects.length &&
+              filteredProjects.length > 0
+                ? "Deselect All"
+                : "Select All"}
+            </span>
+            {selectedProjectIds.size > 0 && (
+              <button
+                onClick={() => setSelectedProjectIds(new Set())}
+                className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline ml-1"
+              >
+                Clear selection
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-slate-900">
+              {filteredProjects.length} Projects
+            </span>
+            {selectedProjectIds.size > 0 && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1.5">
+                {selectedProjectIds.size} selected
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProjectIds(new Set());
+                  }}
+                  className="hover:bg-blue-200 rounded-full p-0.5"
+                  title="Clear all selections"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            <div className="flex items-center justify-end text-xs text-slate-500">
+              <Pagination
+                page={projectsPage}
+                totalPages={projectsTotalPages}
+                onPageChange={setProjectsPage}
+              />
+            </div>
+          </div>
+        </div>
         <div
           className="overflow-auto"
           style={{ height: "calc(100vh - 400px)" }}
@@ -1522,34 +1560,62 @@ export default function AggregationTab({
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="font-semibold text-slate-900 hover:underline text-left"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openProjectStats(project.id);
-                          }}
-                        >
-                          {project.name}
-                        </button>
-                        {aggregatingProjects.has(project.id) && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            Processing
-                          </span>
-                        )}
-                      </div>
-                    </td>
+  <div className="flex items-center gap-2 flex-wrap">
+    <button
+      type="button"
+      className="font-semibold text-slate-900 hover:underline text-left"
+      onClick={(e) => {
+        e.stopPropagation();
+        openProjectStats(project.id);
+      }}
+    >
+      {project.name}
+    </button>
+    {aggregatingProjects.has(project.id) && (
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Processing
+        </span>
+        {jobProgress[project.id] && (
+          <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-full">
+            {Math.round(jobProgress[project.id].progress_percentage || 0)}%
+          </span>
+        )}
+      </div>
+    )}
+  </div>
+  {/* Optional: Show current product being processed */}
+  {aggregatingProjects.has(project.id) && jobProgress[project.id]?.current_product && (
+    <p className="text-[10px] text-slate-400 mt-1 truncate max-w-[200px]">
+      Current: {jobProgress[project.id].current_product}
+    </p>
+  )}
+</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
-                        {(project as any).aggregation_type ||
-                        project.operation_mode === "aggregation"
-                          ? "web"
-                          : project.operation_mode === "pdf_extraction"
-                            ? "pdf"
-                            : "—"}
-                      </span>
+                      {aggregatingProjects.has(project.id) &&
+                      jobProgress[project.id] ? (
+                        <div className="space-y-2">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full capitalize">
+                            {(project as any).aggregation_type ||
+                            project.operation_mode === "aggregation"
+                              ? "web"
+                              : project.operation_mode === "pdf_extraction"
+                                ? "pdf"
+                                : "—"}
+                          </span>
+                          
+                        </div>
+                      ) : (
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
+                          {(project as any).aggregation_type ||
+                          project.operation_mode === "aggregation"
+                            ? "web"
+                            : project.operation_mode === "pdf_extraction"
+                              ? "pdf"
+                              : "—"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {project.use_case && (

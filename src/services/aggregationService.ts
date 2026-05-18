@@ -1,9 +1,9 @@
 import api from "../lib/api.ts";
+import { AggregationJob } from "../types/business-rules.types.ts";
 import {
   ProjectWithStats,
   AggregationResponse,
   ProductAggregationResponse,
-  AggregationJob,
 } from "../types/database.types";
 
 export const aggregationService = {
@@ -18,6 +18,22 @@ export const aggregationService = {
       return [];
     }
   },
+ async getJobProgress(jobId: string): Promise<any> {
+  try {
+    const { data } = await api.get(`/aggregation/job/${jobId}/progress`);
+    return data;
+  } catch (error) {
+    console.error("Failed to get job progress:", error);
+    return {
+      status: "not_found",
+      progress_percentage: 0,
+      total_products: 0,
+      successful: 0,
+      failed: 0,
+      current_product: null
+    };
+  }
+},
   async getAllProducts(): Promise<Product[]> {
     try {
       const { data } = await api.get<Product[]>("/products/");
