@@ -1513,6 +1513,9 @@ export default function AggregationTab({
                   Data Quality
                 </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
+      Algorithm
+    </th>
+                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                   Status
                 </th>
               </tr>
@@ -1687,6 +1690,19 @@ export default function AggregationTab({
                         <span className="text-slate-400">—</span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-center">
+  {(project as any).algorithm_used ? (
+    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+      {(project as any).algorithm_used}
+    </span>
+  ) : aggregatingProjects.has(project.id) && jobProgress[project.id] ? (
+    <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+      {Math.round(jobProgress[project.id].progress_percentage || 0)}%
+    </span>
+  ) : (
+    <span className="text-slate-400 text-xs">—</span>
+  )}
+</td>
                     <td className="px-4 py-3 text-center">
                       <span
                         title={project.source_status || "NA"}

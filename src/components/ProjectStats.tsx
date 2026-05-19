@@ -15,12 +15,8 @@ import { aggregationService } from "../services/aggregationService";
 import { extractionService } from "../services/extractionService.ts";
 import { notify } from "../lib/notifications";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
-import type {
-  Product,
-  ProjectWithStats,
-  Source,
-} from "../types/database.types";
-import type { Project } from "../types/business-rules.types";
+import type { Product, Source } from "../types/database.types";
+import type { Project, ProjectWithStats } from "../types/business-rules.types";
 import { ProductDetailView } from "./ProductDetailView";
 import { useRef } from "react";
 import { productService } from "../services/productService.ts";
@@ -33,7 +29,7 @@ interface ProjectStatsProps {
   onClose?: () => void;
   onAggregateProducts?: (productId: string) => Promise<void>;
   onNavigateProject?: (tab: string, projectId: string) => void;
-   defaultTab?: "listing" | "aggregated" | "enrichment";  
+  defaultTab?: "listing" | "aggregated" | "enrichment";
 }
 const ITEMS_PER_PAGE = 10;
 export function ProjectStats({
@@ -41,7 +37,7 @@ export function ProjectStats({
   project: projectProp,
   onClose,
   onNavigateProject,
-  defaultTab
+  defaultTab,
 }: ProjectStatsProps) {
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
@@ -59,7 +55,7 @@ export function ProjectStats({
   );
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
-const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
+  const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
   const [search, setSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -163,11 +159,34 @@ const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
       setAttributesLoading(false);
     }
   }, []);
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-    setIsDrawerOpen(true);
-    loadAttributes(product.id);
+  const getAlgorithmLabel = (
+    llmProvider?: string,
+    missingProvider?: string,
+  ) => {
+    if (!llmProvider) return "Not specified";
+
+    if (llmProvider === "openai" && missingProvider === "gemini")
+      return "Algo 1 & 2";
+    if (llmProvider === "gemini" && missingProvider === "openai")
+      return "Algo 2 & 1";
+    if (llmProvider === "openai" && missingProvider === "claude")
+      return "Algo 1 & 3";
+    if (llmProvider === "claude" && missingProvider === "openai")
+      return "Algo 3 & 1";
+
+    // Single algorithms
+    switch (llmProvider) {
+      case "openai":
+        return "Datavio Algo-1";
+      case "gemini":
+        return "Datavio Algo-2";
+      case "claude":
+        return "Datavio Algo-3";
+      default:
+        return llmProvider;
+    }
   };
+
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
@@ -290,19 +309,19 @@ const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
     <div className="h-full flex flex-col bg-white text-slate-900">
       {showDetailView ? (
         <ProductDetailView
-  projectId={projectId}
-  projectName={projectName}
-  products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
-  onBack={() => setShowDetailView(false)}
-  onAggregate={async (productId: string) => {
-    try {
-      await aggregationService.aggregateProduct(productId, "openai");
-      notify.success("Aggregation started");
-    } catch (e: any) {
-      notify.error("Aggregation failed", e.message);
-    }
-  }}
-/>
+          projectId={projectId}
+          projectName={projectName}
+          products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
+          onBack={() => setShowDetailView(false)}
+          onAggregate={async (productId: string) => {
+            try {
+              await aggregationService.aggregateProduct(productId, "openai");
+              notify.success("Aggregation started");
+            } catch (e: any) {
+              notify.error("Aggregation failed", e.message);
+            }
+          }}
+        />
       ) : (
         <>
           <div className="px-6 py-2 flex items-center justify-between border-b border-slate-200 bg-slate-50/30">
@@ -367,29 +386,36 @@ const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-lg p-3">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                Project Status
-              </p>
-              <div className="flex flex-col gap-2">
-                {getStatusBadge(
-                  projectProp?.source_status ||
-                    projectStats?.aggregationStatus ||
-                    "Yet to Start",
-                )}
-                <p className="text-[10px] text-slate-400">
-                  Last updated:{" "}
-                  {lastUpdated
-                    ? new Date(lastUpdated).toLocaleDateString("en-US", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })
-                    : "Just now"}
-                </p>
-              </div>
-            </div>
+  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+    Project Status
+  </p>
+  <div className="flex flex-col gap-2">
+    {getStatusBadge(
+      projectProp?.source_status ||
+        projectStats?.aggregationStatus ||
+        "Yet to Start",
+    )}
+    
+    {projectStats?.algorithm_used && (
+      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+        <span className="text-slate-500">Algorithm:</span>
+        <span className="font-medium text-purple-600">
+          {projectStats.algorithm_used}
+        </span>
+      </div>
+    )}
+    
+    <p className="text-[10px] text-slate-400">
+      Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleDateString("en-US", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }) : "Just now"}
+    </p>
+  </div>
+</div>
             <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
@@ -672,15 +698,15 @@ const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
             </div>
           </div>
           <div className="px-6 py-2 border-t border-slate-100 flex items-center justify-end text-xs text-slate-500 gap-3">
-  <span className="text-slate-400">
-    {filtered.length} product{filtered.length !== 1 ? 's' : ''} found
-  </span>
-  <Pagination
-    page={page}
-    totalPages={totalPages}
-    onPageChange={setPage}
-  />
-</div>
+            <span className="text-slate-400">
+              {filtered.length} product{filtered.length !== 1 ? "s" : ""} found
+            </span>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
           <div className="flex-1 overflow-auto px-6">
             <table
               className="w-full text-xs text-left border-separate border-spacing-x-2 border-spacing-y-0"

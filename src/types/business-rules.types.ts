@@ -161,6 +161,7 @@ export interface Project {
   product_count?: number;
   source_status?: string;
   created_at?: string;  
+   algorithm_used?: string;
   updated_at?: string; 
   processing_status?:
     | "pending"
@@ -247,6 +248,18 @@ export interface AuthUser {
   full_name: string;
   role: UserRole;
   is_active?: boolean;
+}
+export interface ProjectWithStats {
+  id: string;
+  name: string;
+  client?: string;
+  status: string;
+  totalProducts: number;
+  aggregatedProducts: number;
+  pendingProducts: number;
+  failedProducts: number;
+  aggregationStatus: string;
+  algorithm_used?: string;  
 }
 export interface AggregationJob {
   id: string;

@@ -1,7 +1,6 @@
 import api from "../lib/api.ts";
-import { AggregationJob } from "../types/business-rules.types.ts";
+import { AggregationJob, ProjectWithStats } from "../types/business-rules.types.ts";
 import {
-  ProjectWithStats,
   AggregationResponse,
   ProductAggregationResponse,
 } from "../types/database.types";
