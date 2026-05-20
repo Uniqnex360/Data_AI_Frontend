@@ -25,6 +25,7 @@ import AddPromptModal from "./BusinessModal/AddPromptModal.tsx";
 import StatusConfirmModal from "./BusinessModal/StatusConfirmModal";
 import CategoryPromptModal from "./CategoryPromptModal";
 import BrandPromptModal from "./BrandPromptModal";
+import { productService } from "../services/productService.ts";
 const CATEGORY_COLORS: Record<RuleCategory, string> = {
   enrichment: "bg-emerald-100 text-emerald-700 border-emerald-200",
   aggregation: "bg-indigo-100 text-indigo-700 border-indigo-200",
@@ -60,12 +61,13 @@ export default function BusinessRulesTab() {
   const [allRules, setAllRules] = useState<BusinessRule[]>([]);
   const [uniquePromptNames, setUniquePromptNames] = useState<string[]>([]);
   const [brandPromptBrandFilter, setBrandPromptBrandFilter] = useState("");
-const [brandsList, setBrandsList] = useState<string[]>([]);
+  const [brandsList, setBrandsList] = useState<string[]>([]);
   const [promptNameFilter, setPromptNameFilter] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryPromptCategoryFilter, setCategoryPromptCategoryFilter] = useState("");
-const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [categoryPromptCategoryFilter, setCategoryPromptCategoryFilter] =
+    useState("");
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<RuleCategory | "all">(
     "all",
   );
@@ -89,6 +91,7 @@ const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set());
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<string[]>([]);
   const [showAddPromptModal, setShowAddPromptModal] = useState(false);
   const [showEditPromptModal, setShowEditPromptModal] = useState(false);
   const [selectedRule, setSelectedRule] = useState<BusinessRule | null>(null);
@@ -131,14 +134,16 @@ const [categoriesList, setCategoriesList] = useState<any[]>([]);
     setRules(filteredRules);
   }, [allRules, promptNameFilter]);
   useEffect(() => {
-  loadCategoriesList();
-}, []);
+    loadCategoriesList();
+  }, []);
 
-const loadCategoriesList = async () => {
-  const data = await businessRulesService.getCategoryPrompts() || [];
-  const uniqueCats = [...new Set(data.map((cp: any) => cp.category_name).filter(Boolean))];
-  setCategoriesList(uniqueCats.sort());
-};
+  const loadCategoriesList = async () => {
+    const data = (await businessRulesService.getCategoryPrompts()) || [];
+    const uniqueCats = [
+      ...new Set(data.map((cp: any) => cp.category_name).filter(Boolean)),
+    ];
+    setCategoriesList(uniqueCats.sort());
+  };
   useEffect(() => {
     loadRules();
   }, [loadRules]);
@@ -186,14 +191,28 @@ const loadCategoriesList = async () => {
     }
   };
   useEffect(() => {
-  loadBrandsList();
+  const loadFilters = async () => {
+    const categories = await productService.getCategories();
+    const taxonomies = await productService.getAllTaxonomies();
+    const allOptions = [...new Set([
+      ...categories.map(c => c.name),
+      ...taxonomies
+    ])].sort();
+    setFilterOptions(allOptions);
+  };
+  loadFilters();
 }, []);
+  useEffect(() => {
+    loadBrandsList();
+  }, []);
 
-const loadBrandsList = async () => {
-  const data = await businessRulesService.getBrandPrompts() || [];
-  const uniqueBrands = [...new Set(data.map((bp: any) => bp.brand_name).filter(Boolean))];
-  setBrandsList(uniqueBrands.sort());
-};
+  const loadBrandsList = async () => {
+    const data = (await businessRulesService.getBrandPrompts()) || [];
+    const uniqueBrands = [
+      ...new Set(data.map((bp: any) => bp.brand_name).filter(Boolean)),
+    ];
+    setBrandsList(uniqueBrands.sort());
+  };
   const handleUpdatePromptStatus = async (
     prompt: RulePrompt,
     status: RuleStatus,
@@ -262,60 +281,68 @@ const loadBrandsList = async () => {
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-  <div className="flex items-end justify-between gap-4 flex-wrap">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
-      <div>
-        <label className="block text-sm text-slate-700 mb-2">Search</label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search rules or prompts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-lg bg-white text-sm"
-          />
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Search
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search rules or prompts..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-lg bg-white text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Scenario
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value as any)}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
+              >
+                <option value="all">All Scenarios</option>
+                <option value="enrichment">Enrichment</option>
+                <option value="aggregation">Aggregation</option>
+                <option value="extraction">PDF Extraction</option>
+                <option value="standardization">Standardization</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-700 mb-2">
+                Prompt
+              </label>
+              <select
+                value={promptNameFilter}
+                onChange={(e) => setPromptNameFilter(e.target.value)}
+                disabled={uniquePromptNames.length === 0}
+                className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
+              >
+                <option value="">All Prompts</option>
+                {uniquePromptNames.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
-      <div>
-        <label className="block text-sm text-slate-700 mb-2">Scenario</label>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as any)}
-          className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-        >
-          <option value="all">All Scenarios</option>
-          <option value="enrichment">Enrichment</option>
-          <option value="aggregation">Aggregation</option>
-          <option value="extraction">PDF Extraction</option>
-          <option value="standardization">Standardization</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm text-slate-700 mb-2">Prompt</label>
-        <select
-          value={promptNameFilter}
-          onChange={(e) => setPromptNameFilter(e.target.value)}
-          disabled={uniquePromptNames.length === 0}
-          className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm disabled:opacity-50"
-        >
-          <option value="">All Prompts</option>
-          {uniquePromptNames.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-      </div>
-    </div>
-    {hasActiveFilters && (
-      <button
-        onClick={resetFilters}
-        className="h-10 px-4 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
-      >
-        Clear
-      </button>
-    )}
-  </div>
-</div>
       <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit">
         <button
           onClick={() => setActiveTab("rules")}
@@ -616,15 +643,15 @@ const loadBrandsList = async () => {
               Category-Specific Prompts
             </h4>
             <select
-          value={categoryPromptCategoryFilter}
-          onChange={(e) => setCategoryPromptCategoryFilter(e.target.value)}
-          className="h-9 px-3 border border-slate-300 rounded-lg text-sm bg-white"
-        >
-          <option value="">All Categories</option>
-          {categoriesList.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
+  value={categoryPromptCategoryFilter}
+  onChange={(e) => setCategoryPromptCategoryFilter(e.target.value)}
+  className="h-9 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+>
+  <option value="">All Categories / Taxonomies</option>
+  {filterOptions.map((opt) => (
+    <option key={opt} value={opt}>{opt}</option>
+  ))}
+</select>
             <button
               onClick={() => {
                 setSelectedCategoryPrompt(null);
@@ -638,7 +665,7 @@ const loadBrandsList = async () => {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
               <tr>
-                <th className="px-4 py-3 text-left">Category</th>
+                <th className="px-4 py-3 text-left">Category / Taxonomy</th>
                 <th className="px-4 py-3 text-left">Prompt Name</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-center">Actions</th>
@@ -646,44 +673,69 @@ const loadBrandsList = async () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {categoryPrompts
-  .filter((cp) => !categoryPromptCategoryFilter || cp.category_name === categoryPromptCategoryFilter)
-  .map((cp) =>(
-                <tr key={cp.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium">{cp.category_name}</td>
-                  <td className="px-4 py-3">{cp.prompt_name}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        cp.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {cp.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => {
-                        setSelectedCategoryPrompt(cp);
-                        setShowCategoryPromptModal(true);
-                      }}
-                      className="p-1 hover:bg-slate-100 rounded"
-                    >
-                      <Edit className="w-4 h-4 text-slate-500" />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await businessRulesService.deleteCategoryPrompt(cp.id);
-                        loadCategoryPrompts();
-                      }}
-                      className="p-1 hover:bg-red-50 rounded ml-1"
-                    >
-                      <X className="w-4 h-4 text-red-500" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                .filter((cp) => {
+                  if (!categoryPromptCategoryFilter) return true;
+                  // Filter by category name or taxonomy
+                  return (
+                    cp.category_name === categoryPromptCategoryFilter ||
+                    cp.selected_taxonomy === categoryPromptCategoryFilter
+                  );
+                })
+                .map((cp) => (
+                  <tr key={cp.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium">
+                      {/* Show taxonomy if selected, otherwise show category */}
+                      {cp.selected_taxonomy ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-blue-600 text-xs font-mono">
+                            Taxonomy:
+                          </span>
+                          <span className="text-slate-700">
+                            {cp.selected_taxonomy}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-green-600">
+                          {cp.category_name || "—"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{cp.prompt_name}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          cp.status === "active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {cp.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => {
+                          setSelectedCategoryPrompt(cp);
+                          setShowCategoryPromptModal(true);
+                        }}
+                        className="p-1 hover:bg-slate-100 rounded"
+                      >
+                        <Edit className="w-4 h-4 text-slate-500" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await businessRulesService.deleteCategoryPrompt(
+                            cp.id,
+                          );
+                          loadCategoryPrompts();
+                        }}
+                        className="p-1 hover:bg-red-50 rounded ml-1"
+                      >
+                        <X className="w-4 h-4 text-red-500" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -695,15 +747,17 @@ const loadBrandsList = async () => {
               Brand-Specific Prompts
             </h4>
             <select
-          value={brandPromptBrandFilter}
-          onChange={(e) => setBrandPromptBrandFilter(e.target.value)}
-          className="h-9 px-3 border border-slate-300 rounded-lg text-sm bg-white"
-        >
-          <option value="">All Brands</option>
-          {brandsList.map((b) => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
+              value={brandPromptBrandFilter}
+              onChange={(e) => setBrandPromptBrandFilter(e.target.value)}
+              className="h-9 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+            >
+              <option value="">All Brands</option>
+              {brandsList.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
             <button
               onClick={() => {
                 setSelectedBrandPrompt(null);
@@ -724,48 +778,62 @@ const loadBrandsList = async () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-  {brandPrompts.length === 0 ? (
-    <tr>
-      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-        No brand prompts found
-      </td>
-    </tr>
-  ) : (
-    brandPrompts
-      .filter((bp) => !brandPromptBrandFilter || bp.brand_name === brandPromptBrandFilter)
-      .map((bp) => (
-        <tr key={bp.id} className="hover:bg-slate-50">
-          <td className="px-4 py-3 font-medium">{bp.brand_name}</td>
-          <td className="px-4 py-3">{bp.prompt_name}</td>
-          <td className="px-4 py-3 text-center">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              bp.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
-            }`}>
-              {bp.status}
-            </span>
-          </td>
-          <td className="px-4 py-3 text-center">
-            <button
-              onClick={() => { setSelectedBrandPrompt(bp); setShowBrandPromptModal(true); }}
-              className="p-1 hover:bg-slate-100 rounded"
-            >
-              <Edit className="w-4 h-4 text-slate-500" />
-            </button>
-            <button
-              onClick={async () => {
-                await businessRulesService.deleteBrandPrompt(bp.id);
-                loadBrandPrompts();
-                notify.success("Brand prompt deleted");
-              }}
-              className="p-1 hover:bg-red-50 rounded ml-1"
-            >
-              <X className="w-4 h-4 text-red-500" />
-            </button>
-          </td>
-        </tr>
-      ))
-  )}
-</tbody>
+              {brandPrompts.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
+                    No brand prompts found
+                  </td>
+                </tr>
+              ) : (
+                brandPrompts
+                  .filter(
+                    (bp) =>
+                      !brandPromptBrandFilter ||
+                      bp.brand_name === brandPromptBrandFilter,
+                  )
+                  .map((bp) => (
+                    <tr key={bp.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-medium">{bp.brand_name}</td>
+                      <td className="px-4 py-3">{bp.prompt_name}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            bp.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {bp.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => {
+                            setSelectedBrandPrompt(bp);
+                            setShowBrandPromptModal(true);
+                          }}
+                          className="p-1 hover:bg-slate-100 rounded"
+                        >
+                          <Edit className="w-4 h-4 text-slate-500" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await businessRulesService.deleteBrandPrompt(bp.id);
+                            loadBrandPrompts();
+                            notify.success("Brand prompt deleted");
+                          }}
+                          className="p-1 hover:bg-red-50 rounded ml-1"
+                        >
+                          <X className="w-4 h-4 text-red-500" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+              )}
+            </tbody>
           </table>
         </div>
       )}

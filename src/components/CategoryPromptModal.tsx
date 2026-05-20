@@ -22,6 +22,9 @@ export default function CategoryPromptModal({
   onSuccess,
 }: Props) {
   const [categories, setCategories] = useState<any[]>([]);
+  const [selectionMode, setSelectionMode] = useState<"category" | "taxonomy">("category");
+  const [availableTaxonomies, setAvailableTaxonomies] = useState<string[]>([]);
+  const [selectedTaxonomy, setSelectedTaxonomy] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchCategory, setSearchCategory] = useState("");
@@ -39,6 +42,7 @@ export default function CategoryPromptModal({
     description: prompt?.description || "",
     variables: prompt?.variables?.join(", ") || "",
     status: prompt?.status || "active",
+    selected_taxonomy: prompt?.selected_taxonomy || "",
   });
   const loadIndustries = async () => {
     setLoading(true);
@@ -56,27 +60,27 @@ export default function CategoryPromptModal({
     loadIndustries();
   }, []);
   const handleCreateCategory = async () => {
-  const name = newCategoryName.trim();
-  if (!name) return;
-  setCreatingCategory(true);
-  try {
-    const newCat = await productService.createCategory({ 
-      name,
-      level: 1,
-      full_path: name,
-    });
-    setForm({ ...form, category_id: newCat.id, category_name: newCat.name });
-    setSearchCategory(newCat.name);
-    setShowAddCategoryForm(false);
-    setShowDropdown(false);
-    loadCategories();
-    notify.success("Category created");
-  } catch (e: any) {
-    notify.error(e?.detail || "Failed to create category");
-  } finally {
-    setCreatingCategory(false);
-  }
-};
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setCreatingCategory(true);
+    try {
+      const newCat = await productService.createCategory({
+        name,
+        level: 1,
+        full_path: name,
+      });
+      setForm({ ...form, category_id: newCat.id, category_name: newCat.name });
+      setSearchCategory(newCat.name);
+      setShowAddCategoryForm(false);
+      setShowDropdown(false);
+      loadCategories();
+      notify.success("Category created");
+    } catch (e: any) {
+      notify.error(e?.detail || "Failed to create category");
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
   const loadCategories = async () => {
     setLoading(true);
     try {
@@ -88,19 +92,56 @@ export default function CategoryPromptModal({
       setLoading(false);
     }
   };
+  useEffect(() => {
+  if (prompt) {
+    setForm({
+      category_id: prompt.category_id || "",
+      category_name: prompt.category_name || "",
+      selected_taxonomy: prompt.selected_taxonomy || "",
+      prompt_name: prompt.prompt_name || "",
+      prompt_text: prompt.prompt_text || "",
+      description: prompt.description || "",
+      variables: prompt.variables?.join(", ") || "",
+      status: prompt.status || "active",
+    });
+    setSearchCategory(prompt.category_name || "");
+    
+    if (prompt.selected_taxonomy) {
+      setSelectionMode("taxonomy");
+    } else {
+      setSelectionMode("category");
+    }
+  }
+}, [prompt]);
+  useEffect(() => {
+    const fetchTaxonomies = async () => {
+      const taxonomies = await productService.getAllTaxonomies();
+      setAvailableTaxonomies(taxonomies);
+    };
+    fetchTaxonomies();
+  }, []);
   const filteredCategories = categories.filter((c: any) =>
     c.name?.toLowerCase().includes(searchCategory.toLowerCase()),
   );
   const handleSubmit = async () => {
-    if (!form.category_id || !form.prompt_name || !form.prompt_text) {
-      notify.error("Please fill all required fields");
-      return;
-    }
-    setSaving(true);
+     if (selectionMode === "category" && !form.category_id) {
+    notify.error("Please select a category");
+    return;
+  }
+  if (selectionMode === "taxonomy" && !form.selected_taxonomy) {
+    notify.error("Please select a taxonomy or leave empty to use product's own");
+    return;
+  }
+  if (!form.prompt_name || !form.prompt_text) {
+    notify.error("Please fill all required fields");
+    return;
+  }
+  
+  setSaving(true);
     try {
       const payload = {
-        category_id: form.category_id,
-        stage: form.stage,
+        category_id: selectionMode === "category" ? form.category_id : null,
+        selected_taxonomy: selectionMode === "taxonomy" ? form.selected_taxonomy : undefined,
         prompt_name: form.prompt_name,
         prompt_text: form.prompt_text,
         description: form.description || undefined,
@@ -147,129 +188,170 @@ export default function CategoryPromptModal({
           </button>
         </div>
         <div className="p-6 space-y-4">
-          {/* Category Selection */}
-          {/* Category Selection */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Category *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchCategory}
-                onChange={(e) => {
-                  setSearchCategory(e.target.value);
-                  setShowDropdown(true);
-                }}
-                onFocus={() => {
-                  setShowDropdown(true);
-                  if (!form.category_id) {
-                    setSearchCategory("");
-                  }
-                }}
-                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                placeholder="Search categories..."
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
-              />
-              {/* Show dropdown when input is focused */}
-              {showDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                  {filteredCategories.map((cat: any) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => {
-                        setForm({
-                          ...form,
-                          category_id: cat.id,
-                          category_name: cat.name,
-                        });
-                        setSearchCategory(cat.name);
-                        setShowDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${
-                        form.category_id === cat.id
-                          ? "bg-blue-50 text-blue-700"
-                          : ""
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                  {filteredCategories.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-slate-500">
-                      No categories found
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setShowAddCategoryForm(true);
-                      setNewCategoryName(searchCategory);
-                      setSelectedIndustryId(industries[0]?.id || "");
-                      setCreatingCategory(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 border-t font-medium"
-                  >
-                    + Add New Category
-                  </button>
-                </div>
-              )}
-              {showAddCategoryForm && (
-  <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-3">
-    <input
-      type="text"
-      value={newCategoryName}
-      onChange={(e) => setNewCategoryName(e.target.value)}
-      placeholder="Category name"
-      className="w-full h-10 px-3 border rounded-lg text-sm mb-2"
-      autoFocus
-    />
-    <div className="flex gap-2">
-      <button
-        type="button"
-        onClick={handleCreateCategory}
-        disabled={creatingCategory || !newCategoryName.trim()}
-        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
-      >
-        {creatingCategory ? "Creating..." : "Create"}
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowAddCategoryForm(false)}
-        className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50"
-      >
-        Cancel
-      </button>
+          {/* Switch between Category and Taxonomy */}
+<div className="flex items-center gap-4 mb-4 p-2 bg-slate-50 rounded-lg">
+  <button
+    type="button"
+    onClick={() => setSelectionMode("category")}
+    className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+      selectionMode === "category"
+        ? "bg-blue-600 text-white"
+        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+    }`}
+  >
+    Select Category
+  </button>
+  <button
+    type="button"
+    onClick={() => setSelectionMode("taxonomy")}
+    className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+      selectionMode === "taxonomy"
+        ? "bg-blue-600 text-white"
+        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+    }`}
+  >
+    Use Custom Taxonomy
+  </button>
+</div>
+
+{/* Category Selection (shown only when selectionMode === "category") */}
+{selectionMode === "category" && (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Select Category *
+    </label>
+    <div className="relative">
+      <input
+        type="text"
+        value={searchCategory}
+        onChange={(e) => {
+          setSearchCategory(e.target.value);
+          setShowDropdown(true);
+        }}
+        onFocus={() => {
+          setShowDropdown(true);
+          if (!form.category_id) {
+            setSearchCategory("");
+          }
+        }}
+        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+        placeholder="Search categories..."
+        className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
+      />
+      {showDropdown && (
+        <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+          {filteredCategories.map((cat: any) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => {
+                setForm({
+                  ...form,
+                  category_id: cat.id,
+                  category_name: cat.name,
+                  selected_taxonomy: "",
+                });
+                setSearchCategory(cat.name);
+                setShowDropdown(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${
+                form.category_id === cat.id ? "bg-blue-50 text-blue-700" : ""
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+          {filteredCategories.length === 0 && (
+            <div className="px-3 py-2 text-sm text-slate-500">
+              No categories found
+            </div>
+          )}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setShowAddCategoryForm(true);
+              setNewCategoryName(searchCategory);
+              setSelectedIndustryId(industries[0]?.id || "");
+              setCreatingCategory(false);
+            }}
+            className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 border-t font-medium"
+          >
+            + Add New Category
+          </button>
+        </div>
+      )}
+      {showAddCategoryForm && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-3">
+          <input
+            type="text"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="Category name"
+            className="w-full h-10 px-3 border rounded-lg text-sm mb-2"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleCreateCategory}
+              disabled={creatingCategory || !newCategoryName.trim()}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {creatingCategory ? "Creating..." : "Create"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddCategoryForm(false)}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+    {form.category_name && (
+      <p className="mt-1 text-xs text-green-600">
+        Selected: {form.category_name}
+      </p>
+    )}
   </div>
 )}
-            </div>
-            {form.category_name && (
-              <p className="mt-1 text-xs text-green-600">
-                Selected: {form.category_name}
-              </p>
-            )}
-          </div>
-          {/* Stage */}
-          {/* <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Stage *
-            </label>
-            <select
-              value={form.stage}
-              onChange={(e) => setForm({ ...form, stage: e.target.value })}
-              className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
-            >
-              {STAGES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div> */}
-          {/* Prompt Name */}
+
+{/* Taxonomy Selection (shown only when selectionMode === "taxonomy") */}
+{selectionMode === "taxonomy" && (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Custom Taxonomy
+    </label>
+    <select
+      value={form.selected_taxonomy}
+      onChange={(e) => {
+        setForm({ 
+          ...form, 
+          selected_taxonomy: e.target.value,
+          category_id: "",
+          category_name: "",
+        });
+      }}
+      className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+    >
+      <option value="">-- Select a taxonomy (optional) --</option>
+      {availableTaxonomies.map((tax) => (
+        <option key={tax} value={tax}>
+          {tax}
+        </option>
+      ))}
+    </select>
+    {form.selected_taxonomy && (
+      <p className="text-xs text-blue-600 mt-1">
+        This prompt will use: {form.selected_taxonomy}
+      </p>
+    )}
+    
+  </div>
+)}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Prompt Name *

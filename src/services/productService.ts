@@ -12,6 +12,15 @@ export const productService = {
     });
     return response.data;
   },
+  async getAllTaxonomies(): Promise<string[]> {
+  try {
+    const response = await api.get('/products/taxonomies');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching taxonomies:', error);
+    throw error;
+  }
+},
  async createCategory(payload: {
     name: string;
     level: number;
