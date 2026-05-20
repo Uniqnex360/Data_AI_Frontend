@@ -152,66 +152,59 @@ export default function CategoryPromptModal({
     c.name?.toLowerCase().includes(searchCategory.toLowerCase()),
   );
   const handleSubmit = async () => {
-    if (selectionMode === "category" && !form.category_id) {
-      notify.error("Please select a category");
-      return;
-    }
-    if (selectionMode === "taxonomy" && !form.selected_taxonomy) {
-      notify.error("Please select a taxonomy");
-      return;
-    }
-    if (!form.prompt_name || !form.prompt_text) {
-      notify.error("Please fill all required fields");
-      return;
-    }
+  if (selectionMode === "category" && !form.category_id) {
+    notify.error("Please select a category");
+    return;
+  }
+  if (selectionMode === "taxonomy" && !form.selected_taxonomy) {
+    notify.error("Please select a taxonomy");
+    return;
+  }
+  if (!form.prompt_name || !form.prompt_text) {
+    notify.error("Please fill all required fields");
+    return;
+  }
 
-    setSaving(true);
-    try {
-      const payload =
-        selectionMode === "category"
-          ? {
-              category_id: form.category_id,
-              selected_taxonomy: undefined,
-              prompt_name: form.prompt_name,
-              prompt_text: form.prompt_text,
-              description: form.description || undefined,
-              variables: form.variables
-                ? form.variables
-                    .split(",")
-                    .map((v: string) => v.trim())
-                    .filter(Boolean)
-                : undefined,
-              status: form.status,
-            }
-          : {
-              category_id: undefined,
-              selected_taxonomy: form.selected_taxonomy,
-              prompt_name: form.prompt_name,
-              prompt_text: form.prompt_text,
-              description: form.description || undefined,
-              variables: form.variables
-                ? form.variables
-                    .split(",")
-                    .map((v: string) => v.trim())
-                    .filter(Boolean)
-                : undefined,
-              status: form.status,
-            };
+  setSaving(true);
+  try {
+    const payload = selectionMode === "category"
+      ? {
+          category_id: form.category_id,
+          selected_taxonomy: null,  // ✅ Explicitly clear taxonomy
+          prompt_name: form.prompt_name,
+          prompt_text: form.prompt_text,
+          description: form.description || undefined,
+          variables: form.variables
+            ? form.variables.split(",").map((v: string) => v.trim()).filter(Boolean)
+            : undefined,
+          status: form.status,
+        }
+      : {
+          category_id: null,  // ✅ Explicitly clear category
+          selected_taxonomy: form.selected_taxonomy,
+          prompt_name: form.prompt_name,
+          prompt_text: form.prompt_text,
+          description: form.description || undefined,
+          variables: form.variables
+            ? form.variables.split(",").map((v: string) => v.trim()).filter(Boolean)
+            : undefined,
+          status: form.status,
+        };
 
-      if (prompt?.id) {
-        await businessRulesService.updateCategoryPrompt(prompt.id, payload);
-        notify.success("Category prompt updated");
-      } else {
-        await businessRulesService.createCategoryPrompt(payload);
-        notify.success("Category prompt created");
-      }
-      onSuccess();
-    } catch (error: any) {
-      notify.error("Failed to save", error.message);
-    } finally {
-      setSaving(false);
+    if (prompt?.id) {
+      await businessRulesService.updateCategoryPrompt(prompt.id, payload);
+      notify.success("Category prompt updated");
+    } else {
+      await businessRulesService.createCategoryPrompt(payload);
+      notify.success("Category prompt created");
     }
-  };
+    onSuccess();
+  } catch (error: any) {
+    notify.error("Failed to save", error.message);
+  } finally {
+    setSaving(false);
+  }
+};
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -234,30 +227,46 @@ export default function CategoryPromptModal({
         </div>
         <div className="p-6 space-y-4">
           {/* Switch between Category and Taxonomy */}
-          <div className="flex items-center gap-4 mb-4 p-2 bg-slate-50 rounded-lg">
-            <button
-              type="button"
-              onClick={() => setSelectionMode("category")}
-              className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                selectionMode === "category"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              Select Category
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectionMode("taxonomy")}
-              className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                selectionMode === "taxonomy"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              Use Custom Taxonomy
-            </button>
-          </div>
+          {/* Mode Toggle Switch */}
+<div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-4">
+  <div className="flex items-center gap-2">
+    <span className={`text-sm font-medium ${selectionMode === "category" ? "text-slate-900" : "text-slate-400"}`}>
+      Category
+    </span>
+    <button
+      type="button"
+      onClick={() => {
+        const newMode = selectionMode === "category" ? "taxonomy" : "category";
+        setSelectionMode(newMode);
+        
+        // Clear the opposite field when switching
+        if (newMode === "category") {
+          setForm(prev => ({ ...prev, selected_taxonomy: "" }));
+        } else {
+          setForm(prev => ({ ...prev, category_id: "", category_name: "" }));
+          setSearchCategory("");
+        }
+      }}
+      className={`
+        relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+        ${selectionMode === "taxonomy" ? "bg-blue-600" : "bg-gray-300"}
+      `}
+    >
+      <span
+        className={`
+          inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+          ${selectionMode === "taxonomy" ? "translate-x-6" : "translate-x-1"}
+        `}
+      />
+    </button>
+    <span className={`text-sm font-medium ${selectionMode === "taxonomy" ? "text-slate-900" : "text-slate-400"}`}>
+      Taxonomy
+    </span>
+  </div>
+  <div className="text-xs text-slate-500">
+    {selectionMode === "category" ? "Select from existing" : "Enter custom value"}
+  </div>
+</div>
 
           {selectionMode === "category" && (
             <div>
