@@ -96,12 +96,10 @@ export default function CategoryPromptModal({
   };
   useEffect(() => {
   if (prompt) {
-    // Determine which mode this prompt uses
     const hasTaxonomy = !!prompt.selected_taxonomy;
     const hasCategory = !!prompt.category_id;
     
     if (hasTaxonomy) {
-      // Taxonomy mode - ignore category
       setSelectionMode("taxonomy");
       setForm({
         category_id: "",
@@ -115,7 +113,6 @@ export default function CategoryPromptModal({
       });
       setSearchCategory("");
     } else if (hasCategory) {
-      // Category mode - ignore taxonomy
       setSelectionMode("category");
       setForm({
         category_id: prompt.category_id || "",
@@ -129,7 +126,6 @@ export default function CategoryPromptModal({
       });
       setSearchCategory(prompt.category_name || "");
     } else {
-      // Neither selected (unlikely, but safe default)
       setSelectionMode("category");
       setForm({
         category_id: "",
@@ -174,7 +170,6 @@ export default function CategoryPromptModal({
       const payload =
         selectionMode === "category"
           ? {
-              // ✅ Category mode — send category_id, no taxonomy
               category_id: form.category_id,
               selected_taxonomy: undefined,
               prompt_name: form.prompt_name,
@@ -189,7 +184,6 @@ export default function CategoryPromptModal({
               status: form.status,
             }
           : {
-              // ✅ Taxonomy mode — send ONLY selected_taxonomy, let backend resolve category_id
               category_id: undefined,
               selected_taxonomy: form.selected_taxonomy,
               prompt_name: form.prompt_name,
