@@ -124,49 +124,62 @@ export default function CategoryPromptModal({
     c.name?.toLowerCase().includes(searchCategory.toLowerCase()),
   );
   const handleSubmit = async () => {
-     if (selectionMode === "category" && !form.category_id) {
+  if (selectionMode === "category" && !form.category_id) {
     notify.error("Please select a category");
     return;
   }
   if (selectionMode === "taxonomy" && !form.selected_taxonomy) {
-    notify.error("Please select a taxonomy or leave empty to use product's own");
+    notify.error("Please select a taxonomy");
     return;
   }
   if (!form.prompt_name || !form.prompt_text) {
     notify.error("Please fill all required fields");
     return;
   }
-  
+
   setSaving(true);
-    try {
-      const payload = {
-        category_id: selectionMode === "category" ? form.category_id : null,
-        selected_taxonomy: selectionMode === "taxonomy" ? form.selected_taxonomy : undefined,
-        prompt_name: form.prompt_name,
-        prompt_text: form.prompt_text,
-        description: form.description || undefined,
-        variables: form.variables
-          ? form.variables
-              .split(",")
-              .map((v: string) => v.trim())
-              .filter(Boolean)
-          : undefined,
-        status: form.status,
-      };
-      if (prompt?.id) {
-        await businessRulesService.updateCategoryPrompt(prompt.id, payload);
-        notify.success("Category prompt updated");
-      } else {
-        await businessRulesService.createCategoryPrompt(payload);
-        notify.success("Category prompt created");
-      }
-      onSuccess();
-    } catch (error: any) {
-      notify.error("Failed to save", error.message);
-    } finally {
-      setSaving(false);
+  try {
+    const payload =
+      selectionMode === "category"
+        ? {
+            // ✅ Category mode — send category_id, no taxonomy
+            category_id: form.category_id,
+            selected_taxonomy: undefined,
+            prompt_name: form.prompt_name,
+            prompt_text: form.prompt_text,
+            description: form.description || undefined,
+            variables: form.variables
+              ? form.variables.split(",").map((v: string) => v.trim()).filter(Boolean)
+              : undefined,
+            status: form.status,
+          }
+        : {
+            // ✅ Taxonomy mode — send ONLY selected_taxonomy, let backend resolve category_id
+            category_id: undefined,
+            selected_taxonomy: form.selected_taxonomy,
+            prompt_name: form.prompt_name,
+            prompt_text: form.prompt_text,
+            description: form.description || undefined,
+            variables: form.variables
+              ? form.variables.split(",").map((v: string) => v.trim()).filter(Boolean)
+              : undefined,
+            status: form.status,
+          };
+
+    if (prompt?.id) {
+      await businessRulesService.updateCategoryPrompt(prompt.id, payload);
+      notify.success("Category prompt updated");
+    } else {
+      await businessRulesService.createCategoryPrompt(payload);
+      notify.success("Category prompt created");
     }
-  };
+    onSuccess();
+  } catch (error: any) {
+    notify.error("Failed to save", error.message);
+  } finally {
+    setSaving(false);
+  }
+};
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
