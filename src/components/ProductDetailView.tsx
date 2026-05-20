@@ -23,6 +23,8 @@ import { Product, Source } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { cleansingService } from "../services/cleansingService.ts";
 import { SearchableDropdown } from "../utils/SearchableDropdown.tsx";
+import { ExternalLink } from 'lucide-react';
+import { ProductLogDrawer } from './ProductLogDrawer';
 
 interface Props {
   projectId: string;
@@ -61,7 +63,9 @@ export function ProductDetailView({
   const [attrUomMap, setAttrUomMap] = useState<
     Record<string, Record<string, string>>
   >({});
-
+  const [showLogDrawer, setShowLogDrawer] = useState(false);
+  const [selectedProductForLogs, setSelectedProductForLogs] =
+    useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [completenessFilter, setCompletenessFilter] = useState("all");
@@ -136,46 +140,48 @@ export function ProductDetailView({
     };
   }, []);
   const loadViewData = useCallback(async () => {
-  setLoading(true);
-  try {
-    const sources = await extractionService.getSourcesByProject(projectId);
-    if (sources && sources.length > 0) {
-      setProjectSource(sources[0]);
-    }
-
-    // Use product.attributes directly - no API call needed
-    const newMap: Record<string, Record<string, string>> = {};
-    const newUomMap: Record<string, Record<string, string>> = {};
-
-    products.forEach((product) => {
-      const productAttrs: Record<string, string> = {};
-      const productUoms: Record<string, string> = {};
-
-      if (product.attributes && typeof product.attributes === 'object') {
-        Object.entries(product.attributes).forEach(([attrName, attrValue]) => {
-          if (typeof attrValue === 'object' && attrValue !== null) {
-            productAttrs[attrName] = attrValue.value || "—";
-            if (attrValue.unit) {
-              productUoms[attrName] = attrValue.unit;
-            }
-          } else {
-            productAttrs[attrName] = String(attrValue);
-          }
-        });
+    setLoading(true);
+    try {
+      const sources = await extractionService.getSourcesByProject(projectId);
+      if (sources && sources.length > 0) {
+        setProjectSource(sources[0]);
       }
 
-      newMap[product.id] = productAttrs;
-      newUomMap[product.id] = productUoms;
-    });
+      // Use product.attributes directly - no API call needed
+      const newMap: Record<string, Record<string, string>> = {};
+      const newUomMap: Record<string, Record<string, string>> = {};
 
-    setAttrMap(newMap);
-    setAttrUomMap(newUomMap);
-  } catch (err) {
-    console.error("Failed to load view data", err);
-  } finally {
-    setLoading(false);
-  }
-}, [projectId, products]); // ← Removed the API call dependency
+      products.forEach((product) => {
+        const productAttrs: Record<string, string> = {};
+        const productUoms: Record<string, string> = {};
+
+        if (product.attributes && typeof product.attributes === "object") {
+          Object.entries(product.attributes).forEach(
+            ([attrName, attrValue]) => {
+              if (typeof attrValue === "object" && attrValue !== null) {
+                productAttrs[attrName] = attrValue.value || "—";
+                if (attrValue.unit) {
+                  productUoms[attrName] = attrValue.unit;
+                }
+              } else {
+                productAttrs[attrName] = String(attrValue);
+              }
+            },
+          );
+        }
+
+        newMap[product.id] = productAttrs;
+        newUomMap[product.id] = productUoms;
+      });
+
+      setAttrMap(newMap);
+      setAttrUomMap(newUomMap);
+    } catch (err) {
+      console.error("Failed to load view data", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, products]); // ← Removed the API call dependency
 
   useEffect(() => {
     loadViewData();
@@ -629,6 +635,10 @@ export function ProductDetailView({
                 <th className="p-4 w-72 bg-slate-50 sticky left-[112px] z-30 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
                   Product Name
                 </th>
+                <th className="p-4 w-20 border-l border-slate-100 text-center">
+                  Logs
+                </th>
+
                 <th className="p-4 w-36 border-l border-slate-100">Brand</th>
                 <th className="p-4 w-36 border-l border-slate-100">Category</th>
                 {dynamicColumns.map((col, idx) => (
@@ -697,6 +707,19 @@ export function ProductDetailView({
                         </span>
                       </div>
                     </td>
+                    <td className="p-4 border-l border-slate-50 text-center">
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      setSelectedProductForLogs(p);
+      setShowLogDrawer(true);
+    }}
+    className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
+    title="View Sources & Attributes"
+  >
+    <ExternalLink className="w-4 h-4" />
+  </button>
+</td>
                     <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
                       {p.brand_name || "—"}
                     </td>
@@ -725,13 +748,13 @@ export function ProductDetailView({
                           />
                         ) : (
                           <span>
-    {attrMap[p.id]?.[col] || "—"}
-    {attrUomMap[p.id]?.[col] && (
-      <span className="text-xs text-slate-400 ml-1">
-        {attrUomMap[p.id][col]}
-      </span>
-    )}
-  </span>
+                            {attrMap[p.id]?.[col] || "—"}
+                            {attrUomMap[p.id]?.[col] && (
+                              <span className="text-xs text-slate-400 ml-1">
+                                {attrUomMap[p.id][col]}
+                              </span>
+                            )}
+                          </span>
                         )}
                       </td>
                     ))}
@@ -778,6 +801,20 @@ export function ProductDetailView({
           </table>
         </div>
       </div>
+      {showLogDrawer && selectedProductForLogs && (
+  <ProductLogDrawer
+  productId={selectedProductForLogs.id} 
+    productName={selectedProductForLogs.product_name || selectedProductForLogs.product_code}
+    productCode={selectedProductForLogs.product_code}
+    productImage={selectedProductForLogs.image_url_1}
+    attributes={(selectedProductForLogs as any).attributes || {}}
+    sourcesConsulted={(selectedProductForLogs as any).sources_consulted || []}
+    onClose={() => {
+      setShowLogDrawer(false);
+      setSelectedProductForLogs(null);
+    }}
+  />
+)}
     </div>
   );
 }

@@ -17,6 +17,19 @@ export const aggregationService = {
       return [];
     }
   },
+  async getProductExtractionLogs(productId: string): Promise<any> {
+  try {
+    const { data } = await api.get(
+      `/aggregation/product/${productId}/extraction-logs`
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch extraction logs:", error);
+    return [];
+  }
+},
+
  async getJobProgress(jobId: string): Promise<any> {
   try {
     const { data } = await api.get(`/aggregation/job/${jobId}/progress`);
