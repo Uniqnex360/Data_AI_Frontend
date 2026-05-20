@@ -26,8 +26,9 @@ export default function CategoryPromptModal({
     "category",
   );
   const [availableTaxonomies, setAvailableTaxonomies] = useState<string[]>([]);
-  const [selectedTaxonomy, setSelectedTaxonomy] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searchTaxonomy, setSearchTaxonomy] = useState("");
+const [showTaxonomyDropdown, setShowTaxonomyDropdown] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchCategory, setSearchCategory] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -142,12 +143,18 @@ export default function CategoryPromptModal({
   }
 }, [prompt]);
   useEffect(() => {
-    const fetchTaxonomies = async () => {
-      const taxonomies = await productService.getAllTaxonomies();
-      setAvailableTaxonomies(taxonomies);
-    };
-    fetchTaxonomies();
-  }, []);
+  const fetchTaxonomies = async () => {
+    const taxonomies = await productService.getAllTaxonomies();
+    setAvailableTaxonomies(taxonomies);
+  };
+  fetchTaxonomies();
+}, []);
+
+useEffect(() => {
+  if (prompt?.selected_taxonomy) {
+    setSearchTaxonomy(prompt.selected_taxonomy);
+  }
+}, [prompt]);
   const filteredCategories = categories.filter((c: any) =>
     c.name?.toLowerCase().includes(searchCategory.toLowerCase()),
   );
@@ -375,37 +382,78 @@ export default function CategoryPromptModal({
           )}
 
           {/* Taxonomy Selection (shown only when selectionMode === "taxonomy") */}
-          {selectionMode === "taxonomy" && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Custom Taxonomy
-              </label>
-              <select
-                value={form.selected_taxonomy}
-                onChange={(e) => {
+{selectionMode === "taxonomy" && (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Custom Taxonomy *
+    </label>
+    <div className="relative">
+      <input
+        type="text"
+        value={searchTaxonomy}
+        onChange={(e) => {
+          setSearchTaxonomy(e.target.value);
+          setShowTaxonomyDropdown(true);
+          setForm(prev => ({ 
+            ...prev, 
+            selected_taxonomy: e.target.value,
+            category_id: "",
+            category_name: ""
+          }));
+        }}
+        onFocus={() => {
+          setShowTaxonomyDropdown(true);
+          setSearchTaxonomy(form.selected_taxonomy || "");
+        }}
+        onBlur={() => setTimeout(() => setShowTaxonomyDropdown(false), 200)}
+        placeholder="Search taxonomy..."
+        className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm"
+      />
+      
+      {showTaxonomyDropdown && (
+        <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {availableTaxonomies
+            .filter(tax => tax.toLowerCase().includes(searchTaxonomy.toLowerCase()))
+            .slice(0, 20)
+            .map((tax) => (
+              <button
+                key={tax}
+                type="button"
+                onClick={() => {
                   setForm({
                     ...form,
-                    selected_taxonomy: e.target.value,
+                    selected_taxonomy: tax,
                     category_id: "",
                     category_name: "",
                   });
+                  setSearchTaxonomy(tax);
+                  setShowTaxonomyDropdown(false);
                 }}
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white"
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${
+                  form.selected_taxonomy === tax
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-700"
+                }`}
               >
-                <option value="">-- Select a taxonomy (optional) --</option>
-                {availableTaxonomies.map((tax) => (
-                  <option key={tax} value={tax}>
-                    {tax}
-                  </option>
-                ))}
-              </select>
-              {form.selected_taxonomy && (
-                <p className="text-xs text-blue-600 mt-1">
-                  This prompt will use: {form.selected_taxonomy}
-                </p>
-              )}
+                {tax}
+              </button>
+            ))}
+          
+          {availableTaxonomies.filter(tax => tax.toLowerCase().includes(searchTaxonomy.toLowerCase())).length === 0 && (
+            <div className="px-3 py-2 text-sm text-slate-500">
+              No matching taxonomies found
             </div>
           )}
+        </div>
+      )}
+    </div>
+    {form.selected_taxonomy && (
+      <p className="text-xs text-blue-600 mt-1">
+        Selected: {form.selected_taxonomy}
+      </p>
+    )}
+  </div>
+)}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Prompt Name *
