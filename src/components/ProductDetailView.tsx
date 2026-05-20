@@ -146,7 +146,7 @@ export function ProductDetailView({
       const attrResults = await Promise.all(
         products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
       );
-
+      console.log("Raw attributes from API:", attrResults[0]);
       const newMap: Record<string, Record<string, string>> = {};
       const newUomMap: Record<string, Record<string, string>> = {};
 
