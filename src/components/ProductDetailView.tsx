@@ -136,44 +136,46 @@ export function ProductDetailView({
     };
   }, []);
   const loadViewData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const sources = await extractionService.getSourcesByProject(projectId);
-      if (sources && sources.length > 0) {
-        setProjectSource(sources[0]);
-      }
+  setLoading(true);
+  try {
+    const sources = await extractionService.getSourcesByProject(projectId);
+    if (sources && sources.length > 0) {
+      setProjectSource(sources[0]);
+    }
 
-      const attrResults = await Promise.all(
-        products.map((p) => aggregationService.getAggregatedAttributes(p.id)),
-      );
-      console.log("Raw attributes from API:", attrResults[0]);
-      const newMap: Record<string, Record<string, string>> = {};
-      const newUomMap: Record<string, Record<string, string>> = {};
+    // Use product.attributes directly - no API call needed
+    const newMap: Record<string, Record<string, string>> = {};
+    const newUomMap: Record<string, Record<string, string>> = {};
 
-      products.forEach((p, index) => {
-        const productAttrs: Record<string, string> = {};
-        const productUoms: Record<string, string> = {};
+    products.forEach((product) => {
+      const productAttrs: Record<string, string> = {};
+      const productUoms: Record<string, string> = {};
 
-        attrResults[index].forEach((a) => {
-          const { value, unit } = parseValueAndUnit(a.values?.[0]);
-          productAttrs[a.attribute_name] = value;
-          if (unit) {
-            productUoms[a.attribute_name] = unit;
+      if (product.attributes && typeof product.attributes === 'object') {
+        Object.entries(product.attributes).forEach(([attrName, attrValue]) => {
+          if (typeof attrValue === 'object' && attrValue !== null) {
+            productAttrs[attrName] = attrValue.value || "—";
+            if (attrValue.unit) {
+              productUoms[attrName] = attrValue.unit;
+            }
+          } else {
+            productAttrs[attrName] = String(attrValue);
           }
         });
+      }
 
-        newMap[p.id] = productAttrs;
-        newUomMap[p.id] = productUoms;
-      });
+      newMap[product.id] = productAttrs;
+      newUomMap[product.id] = productUoms;
+    });
 
-      setAttrMap(newMap);
-      setAttrUomMap(newUomMap);
-    } catch (err) {
-      console.error("Failed to load view data", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, products]);
+    setAttrMap(newMap);
+    setAttrUomMap(newUomMap);
+  } catch (err) {
+    console.error("Failed to load view data", err);
+  } finally {
+    setLoading(false);
+  }
+}, [projectId, products]); // ← Removed the API call dependency
 
   useEffect(() => {
     loadViewData();
@@ -723,13 +725,13 @@ export function ProductDetailView({
                           />
                         ) : (
                           <span>
-                            {attrMap[p.id]?.[col] || "—"}
-                            {attrUomMap[p.id]?.[col] && (
-                              <span className="text-xs text-slate-400 ml-1">
-                                {attrUomMap[p.id][col]}
-                              </span>
-                            )}
-                          </span>
+    {attrMap[p.id]?.[col] || "—"}
+    {attrUomMap[p.id]?.[col] && (
+      <span className="text-xs text-slate-400 ml-1">
+        {attrUomMap[p.id][col]}
+      </span>
+    )}
+  </span>
                         )}
                       </td>
                     ))}
