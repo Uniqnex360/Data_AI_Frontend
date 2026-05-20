@@ -57,7 +57,7 @@ export function ProjectStats({
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
   const [search, setSearch] = useState("");
-  const [brandFilter, setBrandFilter] = useState("");
+const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [page, setPage] = useState(1);
@@ -206,7 +206,7 @@ export function ProjectStats({
           p.category_3?.toLowerCase().includes(q),
       );
     }
-    if (brandFilter) arr = arr.filter((p) => p.brand_name === brandFilter);
+if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand_name ?? ''));
     if (categoryFilter)
       arr = arr.filter((p) => p.category_3 === categoryFilter);
     if (statusFilter)
@@ -607,35 +607,33 @@ export function ProjectStats({
                 )}
               </div>
               <SearchableDropdown
-                label="All Brands"
-                options={(() => {
-                  let list = [...baseProducts];
-                  if (search.trim()) {
-                    const q = search.toLowerCase();
-                    list = list.filter(
-                      (p) =>
-                        p.product_name?.toLowerCase().includes(q) ||
-                        p.brand_name?.toLowerCase().includes(q) ||
-                        p.category_3?.toLowerCase().includes(q),
-                    );
-                  }
-                  if (categoryFilter)
-                    list = list.filter((p) => p.category_3 === categoryFilter);
-                  if (statusFilter)
-                    list = list.filter(
-                      (p) =>
-                        (p.enrichment_status || "pending") === statusFilter,
-                    );
-                  return [
-                    ...new Set(list.map((p) => p.brand_name).filter(Boolean)),
-                  ];
-                })()}
-                value={brandFilter}
-                onChange={(v) => {
-                  setBrandFilter(v);
-                  setPage(1);
-                }}
-              />
+  label="All Brands"
+  options={(() => {
+    let list = [...baseProducts];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.product_name?.toLowerCase().includes(q) ||
+          p.brand_name?.toLowerCase().includes(q) ||
+          p.category_3?.toLowerCase().includes(q),
+      );
+    }
+    if (categoryFilter)
+      list = list.filter((p) => p.category_3 === categoryFilter);
+    if (statusFilter)
+      list = list.filter(
+        (p) => (p.enrichment_status || "pending") === statusFilter,
+      );
+    return [...new Set(list.map((p) => p.brand_name).filter(Boolean))];
+  })()}
+  value={brandFilter}          
+  onChange={(v) => {
+    setBrandFilter(v as string[]);
+    setPage(1);
+  }}
+  multi={true}                
+/>
               <SearchableDropdown
                 label="All Categories"
                 options={(() => {
@@ -649,8 +647,8 @@ export function ProjectStats({
                         p.category_3?.toLowerCase().includes(q),
                     );
                   }
-                  if (brandFilter)
-                    list = list.filter((p) => p.brand_name === brandFilter);
+                  if (brandFilter.length > 0)
+  list = list.filter((p) => brandFilter.includes(p.brand_name ?? ''));
                   if (statusFilter)
                     list = list.filter(
                       (p) =>
@@ -662,7 +660,7 @@ export function ProjectStats({
                 })()}
                 value={categoryFilter}
                 onChange={(v) => {
-                  setCategoryFilter(v);
+                   setCategoryFilter(v as string);
                   setPage(1);
                 }}
               />
@@ -680,12 +678,11 @@ export function ProjectStats({
                 <option value="processing">In Progress</option>
                 <option value="failed">Failed</option>
               </select>
-              {(search || brandFilter || categoryFilter || statusFilter) && (
+{(search || brandFilter.length > 0 || categoryFilter || statusFilter) && (
                 <button
                   onClick={() => {
                     setSearch("");
-                    setBrandFilter("");
-                    setCategoryFilter("");
+ setBrandFilter([]);                     setCategoryFilter("");
                     setStatusFilter("");
                     setPage(1);
                   }}
