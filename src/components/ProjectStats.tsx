@@ -57,7 +57,7 @@ export function ProjectStats({
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>(defaultTab || "listing");
   const [search, setSearch] = useState("");
-const [brandFilter, setBrandFilter] = useState<string[]>([]);
+  const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [page, setPage] = useState(1);
@@ -206,7 +206,8 @@ const [brandFilter, setBrandFilter] = useState<string[]>([]);
           p.category_3?.toLowerCase().includes(q),
       );
     }
-if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand_name ?? ''));
+    if (brandFilter.length > 0)
+      arr = arr.filter((p) => brandFilter.includes(p.brand_name ?? ""));
     if (categoryFilter)
       arr = arr.filter((p) => p.category_3 === categoryFilter);
     if (statusFilter)
@@ -313,6 +314,7 @@ if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand
           projectName={projectName}
           products={baseProducts.filter((p) => selectedProductIds.has(p.id))}
           onBack={() => setShowDetailView(false)}
+          initialBrandFilter={brandFilter} 
           onAggregate={async (productId: string) => {
             try {
               await aggregationService.aggregateProduct(productId, "openai");
@@ -386,36 +388,39 @@ if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-lg p-3">
-  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-    Project Status
-  </p>
-  <div className="flex flex-col gap-2">
-    {getStatusBadge(
-      projectProp?.source_status ||
-        projectStats?.aggregationStatus ||
-        "Yet to Start",
-    )}
-    
-    {projectStats?.algorithm_used && (
-      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
-        <span className="text-slate-500">Algorithm:</span>
-        <span className="font-medium text-purple-600">
-          {projectStats.algorithm_used}
-        </span>
-      </div>
-    )}
-    
-    <p className="text-[10px] text-slate-400">
-      Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleDateString("en-US", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }) : "Just now"}
-    </p>
-  </div>
-</div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+                Project Status
+              </p>
+              <div className="flex flex-col gap-2">
+                {getStatusBadge(
+                  projectProp?.source_status ||
+                    projectStats?.aggregationStatus ||
+                    "Yet to Start",
+                )}
+
+                {projectStats?.algorithm_used && (
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                    <span className="text-slate-500">Algorithm:</span>
+                    <span className="font-medium text-purple-600">
+                      {projectStats.algorithm_used}
+                    </span>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-400">
+                  Last updated:{" "}
+                  {lastUpdated
+                    ? new Date(lastUpdated).toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "Just now"}
+                </p>
+              </div>
+            </div>
             <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
@@ -607,33 +612,36 @@ if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand
                 )}
               </div>
               <SearchableDropdown
-  label="All Brands"
-  options={(() => {
-    let list = [...baseProducts];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.product_name?.toLowerCase().includes(q) ||
-          p.brand_name?.toLowerCase().includes(q) ||
-          p.category_3?.toLowerCase().includes(q),
-      );
-    }
-    if (categoryFilter)
-      list = list.filter((p) => p.category_3 === categoryFilter);
-    if (statusFilter)
-      list = list.filter(
-        (p) => (p.enrichment_status || "pending") === statusFilter,
-      );
-    return [...new Set(list.map((p) => p.brand_name).filter(Boolean))];
-  })()}
-  value={brandFilter}          
-  onChange={(v) => {
-    setBrandFilter(v as string[]);
-    setPage(1);
-  }}
-  multi={true}                
-/>
+                label="All Brands"
+                options={(() => {
+                  let list = [...baseProducts];
+                  if (search.trim()) {
+                    const q = search.toLowerCase();
+                    list = list.filter(
+                      (p) =>
+                        p.product_name?.toLowerCase().includes(q) ||
+                        p.brand_name?.toLowerCase().includes(q) ||
+                        p.category_3?.toLowerCase().includes(q),
+                    );
+                  }
+                  if (categoryFilter)
+                    list = list.filter((p) => p.category_3 === categoryFilter);
+                  if (statusFilter)
+                    list = list.filter(
+                      (p) =>
+                        (p.enrichment_status || "pending") === statusFilter,
+                    );
+                  return [
+                    ...new Set(list.map((p) => p.brand_name).filter(Boolean)),
+                  ];
+                })()}
+                value={brandFilter}
+                onChange={(v) => {
+                  setBrandFilter(v as string[]);
+                  setPage(1);
+                }}
+                multi={true}
+              />
               <SearchableDropdown
                 label="All Categories"
                 options={(() => {
@@ -648,7 +656,9 @@ if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand
                     );
                   }
                   if (brandFilter.length > 0)
-  list = list.filter((p) => brandFilter.includes(p.brand_name ?? ''));
+                    list = list.filter((p) =>
+                      brandFilter.includes(p.brand_name ?? ""),
+                    );
                   if (statusFilter)
                     list = list.filter(
                       (p) =>
@@ -660,7 +670,7 @@ if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand
                 })()}
                 value={categoryFilter}
                 onChange={(v) => {
-                   setCategoryFilter(v as string);
+                  setCategoryFilter(v as string);
                   setPage(1);
                 }}
               />
@@ -678,11 +688,15 @@ if (brandFilter.length > 0) arr = arr.filter((p) => brandFilter.includes(p.brand
                 <option value="processing">In Progress</option>
                 <option value="failed">Failed</option>
               </select>
-{(search || brandFilter.length > 0 || categoryFilter || statusFilter) && (
+              {(search ||
+                brandFilter.length > 0 ||
+                categoryFilter ||
+                statusFilter) && (
                 <button
                   onClick={() => {
                     setSearch("");
- setBrandFilter([]);                     setCategoryFilter("");
+                    setBrandFilter([]);
+                    setCategoryFilter("");
                     setStatusFilter("");
                     setPage(1);
                   }}

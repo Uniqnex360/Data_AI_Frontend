@@ -22,6 +22,7 @@ import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { Product, Source } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { cleansingService } from "../services/cleansingService.ts";
+import { SearchableDropdown } from "../utils/SearchableDropdown.tsx";
 
 interface Props {
   projectId: string;
@@ -30,6 +31,7 @@ interface Props {
   onBack: () => void;
   onNavigateToOverview?: () => void;
   onAggregate?: (productId: string) => Promise<void>;
+  initialBrandFilter?: string[];
 }
 
 export function ProductDetailView({
@@ -39,6 +41,7 @@ export function ProductDetailView({
   onBack,
   onNavigateToOverview,
   onAggregate,
+  initialBrandFilter = [],
 }: Props) {
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +65,9 @@ export function ProductDetailView({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [completenessFilter, setCompletenessFilter] = useState("all");
-  const [brandFilter, setBrandFilter] = useState("all");
+  const [brandFilter, setBrandFilter] = useState<string[]>(
+    initialBrandFilter.length > 0 ? initialBrandFilter : [],
+  );
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const parseValueAndUnit = (
@@ -125,11 +130,11 @@ export function ProductDetailView({
       );
     return "Products View";
   }, [products]);
-useEffect(() => {
-  return () => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
   const loadViewData = useCallback(async () => {
     setLoading(true);
     try {
@@ -273,7 +278,7 @@ useEffect(() => {
       const matchesStatus =
         statusFilter === "all" || p.enrichment_status === statusFilter;
       const matchesBrand =
-        brandFilter === "all" || p.brand_name === brandFilter;
+        brandFilter.length === 0 || brandFilter.includes(p.brand_name ?? "");
       const matchesCategory =
         categoryFilter === "all" || p.category_3 === categoryFilter;
       const score = p.completeness_score || 0;
@@ -407,13 +412,16 @@ useEffect(() => {
   const stats = useMemo(
     () => ({
       total: localProducts.length,
-      aggregated: localProducts.filter((p) => p.enrichment_status === "completed")
-        .length,
+      aggregated: localProducts.filter(
+        (p) => p.enrichment_status === "completed",
+      ).length,
       enrichment: localProducts.filter((p) => p.workflow_stage === "enrichment")
         .length,
-      progress: localProducts.filter((p) => p.enrichment_status === "processing")
+      progress: localProducts.filter(
+        (p) => p.enrichment_status === "processing",
+      ).length,
+      failed: localProducts.filter((p) => p.enrichment_status === "failed")
         .length,
-      failed: localProducts.filter((p) => p.enrichment_status === "failed").length,
     }),
     [localProducts],
   );
@@ -516,18 +524,13 @@ useEffect(() => {
             />
           </div>
 
-          <select
+          <SearchableDropdown
+            label="All Brands"
+            options={uniqueBrands as string[]}
             value={brandFilter}
-            onChange={(e) => setBrandFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
-          >
-            <option value="all">All Brands</option>
-            {uniqueBrands.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setBrandFilter(v as string[])}
+            multi={true}
+          />
 
           <select
             value={categoryFilter}
@@ -748,19 +751,23 @@ useEffect(() => {
                     </td>
                     <td className="p-4 text-center border-l border-slate-100">
                       <button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleAggregateClick(p.id);
-  }}
-  disabled={p.enrichment_status === "processing" || aggregatingIds.has(p.id)}
-  className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-md hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 disabled:opacity-50"
->
-  {p.enrichment_status === "processing" || aggregatingIds.has(p.id) ? (
-    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-  ) : (
-    "Aggregate"
-  )}
-</button>
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAggregateClick(p.id);
+                        }}
+                        disabled={
+                          p.enrichment_status === "processing" ||
+                          aggregatingIds.has(p.id)
+                        }
+                        className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-md hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 disabled:opacity-50"
+                      >
+                        {p.enrichment_status === "processing" ||
+                        aggregatingIds.has(p.id) ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          "Aggregate"
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))
