@@ -192,10 +192,17 @@ export function ProductLogDrawer({
                   {productCode}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                <Globe className="w-3 h-3" />
-                {sourcesConsulted[0] || getHostname(sourcesConsulted[0] || "")}
-              </p>
+              {sourcesConsulted[0] && (
+  <a 
+    href={sourcesConsulted[0]} 
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="text-xs text-slate-400 hover:text-blue-400 mt-0.5 flex items-center gap-1"
+  >
+    <ExternalLink className="w-3 h-3" />
+    {getHostname(sourcesConsulted[0])}
+  </a>
+)}
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -280,10 +287,16 @@ export function ProductLogDrawer({
                             {source.attributes.length} attributes
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1 truncate">
-                          <Link2 className="w-3 h-3 shrink-0" />
-                          {source.url}
-                        </p>
+                        <a 
+  href={source.url} 
+  target="_blank" 
+  rel="noopener noreferrer"
+  className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-0.5 flex items-center gap-1 truncate"
+  onClick={(e) => e.stopPropagation()}
+>
+  <ExternalLink className="w-3 h-3 shrink-0" />
+  {source.url}
+</a>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         {source.extracted_at && (
