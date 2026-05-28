@@ -17,7 +17,7 @@ import { extractionService } from "../services/extractionService";
 import { aggregationService } from "../services/aggregationService";
 import { cleansingService } from "../services/cleansingService";
 import { notify } from "../lib/notifications";
-import { Pagination } from './Pagination';
+import { Pagination } from "./Pagination";
 
 interface Props {
   projects: ProjectOverview[];
@@ -192,7 +192,7 @@ export default function ProjectsOverviewTab({
   const displayedProjects = search.trim()
     ? filtered.slice((effectivePage - 1) * 20, effectivePage * 20)
     : filtered;
-  
+
   const ensureSourcesLoaded = useCallback(
     async (projectId: string): Promise<any[]> => {
       if (projectSources[projectId]) return projectSources[projectId];
@@ -206,7 +206,35 @@ export default function ProjectsOverviewTab({
     },
     [projectSources],
   );
-  
+  const handleDownloadInput = async (
+    e: React.MouseEvent,
+    projectId: string,
+  ) => {
+    e.stopPropagation();
+
+    setDownloading((prev) => new Set(prev).add(projectId));
+
+    try {
+      const sources = await ensureSourcesLoaded(projectId);
+
+      if (!sources || sources.length === 0) {
+        notify.error("No input file available");
+        return;
+      }
+
+      await extractionService.download(sources[0].id, "input");
+      notify.success("Input download started");
+    } catch (error) {
+      console.error("Input download failed:", error);
+      notify.error("Failed to download input file");
+    } finally {
+      setDownloading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(projectId);
+        return newSet;
+      });
+    }
+  };
   const resetFilters = useCallback(() => {
     setBrandFilter("all");
     setCategoryFilter("all");
@@ -216,12 +244,12 @@ export default function ProjectsOverviewTab({
     onSearchChange?.("");
     onPageChange?.(1);
   }, [onFilterChange, onSearchChange, onPageChange]);
-    const getImportFileName = (projectId: string): string | null => {
+  const getImportFileName = (projectId: string): string | null => {
     const project = projects.find((p) => p.id === projectId);
     return (project as any)?.import_file_name || null;
   };
 
-    const getSourceStatusInfo = (projectId: string) => {
+  const getSourceStatusInfo = (projectId: string) => {
     const project = projects.find((p) => p.id === projectId);
     const isCleaningProject = project?.operationMode === "cleaning";
     const isEnrichmentProject = project?.operationMode === "enrichment";
@@ -350,8 +378,6 @@ export default function ProjectsOverviewTab({
     }
   };
 
- 
-
   return (
     <div
       className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
@@ -461,14 +487,13 @@ export default function ProjectsOverviewTab({
                   Clear
                 </button>
               )}
-          <div className="px-4 py-3 flex items-center justify-end text-xs text-slate-500">
-
-              <Pagination
-  page={effectivePage}
-  totalPages={effectiveTotalPages}
-  onPageChange={(p) => onPageChange?.(p)}
-/>
-</div>
+              <div className="px-4 py-3 flex items-center justify-end text-xs text-slate-500">
+                <Pagination
+                  page={effectivePage}
+                  totalPages={effectiveTotalPages}
+                  onPageChange={(p) => onPageChange?.(p)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -609,131 +634,103 @@ export default function ProjectsOverviewTab({
                       className="px-4 py-3"
                       onClick={(e) => e.stopPropagation()}
                     >
-                                          {importFileName ? (
+                      <div className="flex items-center gap-1.5">
+  <div className="relative group/tip">
+    <button
+      onClick={(e) => handleDownloadInput(e, p.id)}
+      disabled={isDownloading}
+      className="w-7 h-7 flex items-center justify-center rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 disabled:opacity-50"
+    >
+      {isDownloading ? (
+        <Loader2 className="w-3 h-3 animate-spin" />
+      ) : (
+        <Download className="w-3.5 h-3.5" />
+      )}
+    </button>
 
-                        <div className="flex items-center gap-1.5">
-                          <button
-                           onClick={async () => {
-                              const sources = await ensureSourcesLoaded(p.id);
-                              if (sources.length > 0) {
-                                setDownloading((prev) =>
-                                  new Set(prev).add(p.id),
-                                );
-                                try {
-                                  await extractionService.download(
-                                    sources[0].id,
-                                    "input",
-                                  );
-                                  notify.success("Download started");
-                                } catch {
-                                  notify.error("Failed to download input");
-                                } finally {
-                                  setDownloading((prev) => {
-                                    const newSet = new Set(prev);
-                                    newSet.delete(p.id);
-                                    return newSet;
-                                  });
-                                }
-                              }
-                            }}
-                            disabled={isDownloading}
-                            className="flex items-center gap-1.5 hover:underline"
-                          >
-                            {isDownloading ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                            ) : (
-                              <Download className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            )}
-                            <span
-                              className="text-xs text-slate-600 font-mono truncate block max-w-[100px]"
-                              title={importFileName}
-                            >
-                              {importFileName}
-                            </span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
+    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+      Download Input File
+    </span>
+  </div>
+</div>
                     </td>
                     <td
                       className="px-4 py-3 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                        {(() => {
-                          const {
-                            isCompleted,
-                            isProcessing,
-                            isFailed,
-                            pendingLabel,
-                            processingLabel,
-                          } = getSourceStatusInfo(p.id);
+                      {(() => {
+                        const {
+                          isCompleted,
+                          isProcessing,
+                          isFailed,
+                          pendingLabel,
+                          processingLabel,
+                        } = getSourceStatusInfo(p.id);
 
-                          if (isCompleted) {
-                            return (
-                              <div className="relative group/tip">
-                                <button
-                                  onClick={(e) => handleDownloadOutput(e, p.id)}
-                                  disabled={isDownloading}
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
-                                >
-                                  {isDownloading ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Download className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-                                  Download Output
-                                </span>
-                              </div>
-                            );
-                          }
-
-                          if (isProcessing) {
-                            return (
-                              <div className="relative group/tip">
-                                <div className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-600 bg-purple-50 border border-purple-100">
-                                  <Clock className="w-3.5 h-3.5 animate-spin" />
-                                </div>
-                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-                                  {processingLabel}
-                                </span>
-                              </div>
-                            );
-                          }
-
-                          if (isFailed) {
-                            return (
-                              <div className="relative group/tip">
-                                <div className="w-7 h-7 flex items-center justify-center rounded-lg text-red-600 bg-red-50 border border-red-100">
-                                  <XCircle className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-                                  Failed
-                                </span>
-                              </div>
-                            );
-                          }
-
-                          if (pendingLabel) {
-                            return (
-                              <div className="relative group/tip">
-                                <div className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-600 bg-amber-50 border border-amber-100">
-                                  <AlertCircle className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-                                  {pendingLabel}
-                                </span>
-                              </div>
-                            );
-                          }
-
+                        if (isCompleted) {
                           return (
-                            <span className="text-slate-300 text-xs">—</span>
+                            <div className="relative group/tip">
+                              <button
+                                onClick={(e) => handleDownloadOutput(e, p.id)}
+                                disabled={isDownloading}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
+                              >
+                                {isDownloading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Download className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                Download Output
+                              </span>
+                            </div>
                           );
-                                               })()
-                      }
+                        }
+
+                        if (isProcessing) {
+                          return (
+                            <div className="relative group/tip">
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-600 bg-purple-50 border border-purple-100">
+                                <Clock className="w-3.5 h-3.5 animate-spin" />
+                              </div>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                {processingLabel}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        if (isFailed) {
+                          return (
+                            <div className="relative group/tip">
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg text-red-600 bg-red-50 border border-red-100">
+                                <XCircle className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                Failed
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        if (pendingLabel) {
+                          return (
+                            <div className="relative group/tip">
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-600 bg-amber-50 border border-amber-100">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                                {pendingLabel}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <span className="text-slate-300 text-xs">—</span>
+                        );
+                      })()}
                     </td>
                     <td
                       className="px-4 py-3 text-center"
@@ -767,12 +764,12 @@ export default function ProjectsOverviewTab({
       </div>
       <div className="shrink-0 px-5 py-2 border-t border-slate-100 bg-white">
         <div className="px-4 py-3 flex items-center justify-end text-xs text-slate-500">
-<Pagination
-  page={effectivePage}
-  totalPages={effectiveTotalPages}
-  onPageChange={(p) => onPageChange?.(p)}
-/>
-</div>
+          <Pagination
+            page={effectivePage}
+            totalPages={effectiveTotalPages}
+            onPageChange={(p) => onPageChange?.(p)}
+          />
+        </div>
       </div>
     </div>
   );
