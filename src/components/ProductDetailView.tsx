@@ -15,6 +15,7 @@ import {
   FileDown,
   Edit,
   Check,
+  ImageIcon,
 } from "lucide-react";
 import { aggregationService } from "../services/aggregationService";
 import { extractionService } from "../services/extractionService";
@@ -689,14 +690,27 @@ export function ProductDetailView({
                       />
                     </td>
                     <td className="p-4 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
-                      <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100">
-                        <img
-                          src={p.image_url_1 || ""}
-                          alt=""
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    </td>
+  <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100 flex items-center justify-center">
+    {p.image_url_1 ? (
+      <img
+        src={p.image_url_1}
+        alt={p.product_name || "Product"}
+        className="w-full h-full object-contain"
+        onError={(e) => {
+          // If image URL exists but fails to load, hide it and show fallback
+          (e.target as HTMLImageElement).style.display = "none";
+          (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+        }}
+      />
+    ) : null}
+    <div className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}>
+      <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
+      <span className="text-[7px] text-slate-400 font-bold leading-tight">
+        Image not<br/>found
+      </span>
+    </div>
+  </div>
+</td>
                     <td className="p-4 sticky left-[112px] bg-white group-hover:bg-slate-50 z-10 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug">
