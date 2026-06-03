@@ -10,6 +10,7 @@ import {
   List,
   Play,
   Eye,
+  ImageIcon,
 } from "lucide-react";
 import { aggregationService } from "../services/aggregationService";
 import { extractionService } from "../services/extractionService.ts";
@@ -830,40 +831,46 @@ export function ProjectStats({
                         />
                       </td>
                       <td className="py-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {p.image_url_1 ? (
-                            <img
-                              src={p.image_url_1}
-                              className="w-10 h-10 rounded-lg object-cover bg-slate-100 p-1 shrink-0"
-                              alt=""
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                              <FileText className="w-4 h-4 text-slate-600" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div
-                              className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
-                              title={p.product_name}
-                              onClick={() => {
-                                setSelectedProductIds(new Set([p.id]));
-                                setShowDetailView(true);
-                              }}
-                            >
-                              {p.product_name ||
-                                p.product_code ||
-                                "Unnamed Product"}
-                            </div>
-                            <span
-                              className="text-[10px] text-blue-600 font-mono font-medium truncate block"
-                              title={p.product_code}
-                            >
-                              MPN: {p.product_code}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
+  <div className="flex items-center gap-3 min-w-0">
+    {/* Image Container */}
+    <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 overflow-hidden border border-slate-100 relative">
+      {p.image_url_1 ? (
+        <img
+          src={p.image_url_1}
+          className="w-full h-full object-contain p-1"
+          alt=""
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+            (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+          }}
+        />
+      ) : null}
+      
+      <div className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}>
+        <ImageIcon className="w-4 h-4 text-slate-300 mb-0.5" />
+        <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
+          No<br/>Image
+        </span>
+      </div>
+    </div>
+
+    <div className="min-w-0 flex-1">
+      <div
+        className="font-bold text-slate-900 group-hover:text-indigo-400 transition-colors line-clamp-2 break-words"
+        title={p.product_name}
+        onClick={() => {
+          setSelectedProductIds(new Set([p.id]));
+          setShowDetailView(true);
+        }}
+      >
+        {p.product_name || p.product_code || "Unnamed Product"}
+      </div>
+      <span className="text-[10px] text-blue-600 font-mono font-medium truncate block" title={p.product_code}>
+        MPN: {p.product_code}
+      </span>
+    </div>
+  </div>
+</td>
                       <td
                         className="py-2 text-slate-500 truncate"
                         title={p.brand_name}
