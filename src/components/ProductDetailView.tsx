@@ -419,8 +419,14 @@ export function ProductDetailView({
   );
 
   const stats = useMemo(
-    () => ({
-      total: localProducts.length,
+  () => {
+    const total = localProducts.length;
+    const avgCompleteness = total > 0 
+      ? localProducts.reduce((acc, p) => acc + (p.completeness_score || 0), 0) / total 
+      : 0;
+
+    return {
+      total,
       aggregated: localProducts.filter(
         (p) => p.enrichment_status === "completed",
       ).length,
@@ -431,9 +437,11 @@ export function ProductDetailView({
       ).length,
       failed: localProducts.filter((p) => p.enrichment_status === "failed")
         .length,
-    }),
-    [localProducts],
-  );
+      avgCompleteness
+    };
+  },
+  [localProducts],
+);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
@@ -639,7 +647,9 @@ export function ProductDetailView({
                 <th className="p-4 w-20 border-l border-slate-100 text-center">
                   Logs
                 </th>
-
+                <th className="p-4 w-36 text-center border-l border-slate-100">
+                  Completeness
+                </th>
                 <th className="p-4 w-36 border-l border-slate-100">Brand</th>
                 <th className="p-4 w-36 border-l border-slate-100">Category</th>
                 {dynamicColumns.map((col, idx) => (
@@ -654,9 +664,7 @@ export function ProductDetailView({
                     </div>
                   </th>
                 ))}
-                <th className="p-4 w-36 text-center border-l border-slate-100">
-                  Completeness
-                </th>
+                
                 <th className="p-4 w-32 border-l border-slate-100 text-center">
                   Status
                 </th>
@@ -705,9 +713,9 @@ export function ProductDetailView({
     ) : null}
     <div className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}>
       <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
-      <span className="text-[7px] text-slate-400 font-bold leading-tight">
-        Image not<br/>found
-      </span>
+      <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
+          No<br/>Image
+        </span>
     </div>
   </div>
 </td>
@@ -734,6 +742,19 @@ export function ProductDetailView({
     <ExternalLink className="w-4 h-4" />
   </button>
 </td>
+<td className="p-4 border-l border-slate-50">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <span className="text-xs font-black text-slate-700">
+                          {p.completeness_score || 0}%
+                        </span>
+                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500"
+                            style={{ width: `${p.completeness_score || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
                     <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
                       {p.brand_name || "—"}
                     </td>
@@ -772,19 +793,7 @@ export function ProductDetailView({
                         )}
                       </td>
                     ))}
-                    <td className="p-4 border-l border-slate-50">
-                      <div className="flex flex-col items-center gap-1.5">
-                        <span className="text-xs font-black text-slate-700">
-                          {p.completeness_score || 0}%
-                        </span>
-                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500"
-                            style={{ width: `${p.completeness_score || 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
+                    
                     <td className="p-4 border-l border-slate-50 text-center">
                       {getStatusBadge(p.enrichment_status || "pending", true)}
                     </td>
