@@ -33,6 +33,7 @@ interface Props {
 
 type Preset = "today" | "week" | "month" | "custom";
 type Period = "day" | "week" | "month";
+type DashboardMode = "aggregation" | "cleaning" | "enrichment" | "attributes";
 
 const toYMD = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -223,6 +224,8 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [startDate, setStartDate] = useState<string>(
     toYMD(startOfMonth(new Date())),
   );
+  const [activeMode, setActiveMode] = useState<DashboardMode>("aggregation");
+
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
   const [attributeSummary, setAttributeSummary] = useState<any[]>([]);
 
@@ -291,8 +294,8 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   }, [startDate, endDate]);
 
   const rangeParams = useMemo(
-    () => ({ start_date: startDate, end_date: endDate, date_field: dateField }),
-    [startDate, endDate, dateField],
+    () => ({ start_date: startDate, end_date: endDate, date_field: dateField,mode: activeMode, }),
+    [startDate, endDate, dateField,activeMode],
   );
 
   useEffect(() => {
@@ -303,6 +306,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     rangeParams.start_date,
     rangeParams.end_date,
     rangeParams.date_field,
+    activeMode, 
   ]);
 
   const getMetricValue = (type: string): number =>
@@ -316,11 +320,15 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         : await dashboardService.getGlobalMetrics(rangeParams);
       setGlobalStats(data);
 
-      const attrSummary = await dashboardService.getAttributeSummary({
-        project_id: projectId,
-        ...rangeParams,
-      } as any);
-      setAttributeSummary(attrSummary);
+      if (activeMode === "attributes") {
+  const attrSummary = await dashboardService.getAttributeSummary({
+    project_id: projectId,
+    ...rangeParams,
+  } as any);
+  setAttributeSummary(attrSummary);
+} else {
+  setAttributeSummary([]);
+}
       const prev = shiftRangeBack(startDate, endDate);
       const prevData = projectId
         ? await dashboardService.getProjectMetrics(projectId, {
@@ -614,7 +622,33 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </button>
         </div>
       </div>
-
+              <div className="bg-white border-b border-slate-200">
+  <div className="flex items-center gap-2 px-6 overflow-x-auto">
+    {[
+      { id: "aggregation", label: "Aggregation", icon: Layers },
+      { id: "cleaning", label: "Cleansing", icon: Filter },
+      { id: "enrichment", label: "Enrichment", icon: Sparkles },
+      { id: "attributes", label: "Attributes", icon: Activity },
+    ].map((tab) => {
+      const isActive = activeMode === tab.id;
+      return (
+        <button
+          key={tab.id}
+          onClick={() => setActiveMode(tab.id as DashboardMode)}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+            isActive
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+          type="button"
+        >
+          <tab.icon className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
+          {tab.label}
+        </button>
+      );
+    })}
+  </div>
+</div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
         <StatCard
           title="Total Products"
