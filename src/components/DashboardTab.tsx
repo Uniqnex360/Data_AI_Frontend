@@ -17,7 +17,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { dashboardService, type DateField } from "../services/dashboardService";
-import { aggregationService } from "../services/aggregationService";
 import ProjectsOverviewTab from "./ProjectsOverviewTab.tsx";
 import {
   DashboardStats,
@@ -25,6 +24,7 @@ import {
   ProjectOverview,
 } from "../types/business-rules.types.ts";
 import { productService } from "../services/productService";
+import { ChevronRight } from "lucide-react";
 
 interface Props {
   projectId?: string;
@@ -224,12 +224,16 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [startDate, setStartDate] = useState<string>(
     toYMD(startOfMonth(new Date())),
   );
-  const [taxonomies, setTaxonomies] = useState<{taxonomy: string, count: number}[]>([]);
-const [selectedTaxonomy, setSelectedTaxonomy] = useState<string>("");
-const [taxonomyMetrics, setTaxonomyMetrics] = useState<any>(null);
-const [searchTerm, setSearchTerm] = useState("");
+  const [taxonomies, setTaxonomies] = useState<
+    { taxonomy: string; count: number }[]
+  >([]);
+  const [viewAllType, setViewAllType] = useState<"brands" | "categories" | null>(null);
+const [listSearch, setListSearch] = useState("");
+  const [selectedTaxonomy, setSelectedTaxonomy] = useState<string>("");
+  const [taxonomyMetrics, setTaxonomyMetrics] = useState<any>(null);
   const [activeMode, setActiveMode] = useState<DashboardMode>("aggregation");
-
+  const [showAllBrands, setShowAllBrands] = useState(false);
+const [brandSearch, setBrandSearch] = useState("");
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
   const [attributeSummary, setAttributeSummary] = useState<any[]>([]);
 
@@ -279,18 +283,18 @@ const [searchTerm, setSearchTerm] = useState("");
     }
   }, [projectId]);
   useEffect(() => {
-  if (activeMode === "attributes") {
-    const fetchTaxonomies = async () => {
-      const data = await dashboardService.getTaxonomiesList(projectId);
-      setTaxonomies(data);
-      if (data.length > 0 && !selectedTaxonomy) {
-        setSelectedTaxonomy(data[0].taxonomy); 
-      }
-    };
-    fetchTaxonomies();
-  }
-}, [activeMode, projectId]);
- const rangeParams = useMemo(
+    if (activeMode === "attributes") {
+      const fetchTaxonomies = async () => {
+        const data = await dashboardService.getTaxonomiesList(projectId);
+        setTaxonomies(data);
+        if (data.length > 0 && !selectedTaxonomy) {
+          setSelectedTaxonomy(data[0].taxonomy);
+        }
+      };
+      fetchTaxonomies();
+    }
+  }, [activeMode, projectId]);
+  const rangeParams = useMemo(
     () => ({
       start_date: startDate,
       end_date: endDate,
@@ -316,9 +320,12 @@ const [searchTerm, setSearchTerm] = useState("");
     if (activeMode === "attributes" && selectedTaxonomy) {
       const fetchTaxonomyDetails = async () => {
         try {
-          const metrics = await dashboardService.getTaxonomyAttributeMetrics(selectedTaxonomy, projectId);
+          const metrics = await dashboardService.getTaxonomyAttributeMetrics(
+            selectedTaxonomy,
+            projectId,
+          );
           setTaxonomyMetrics(metrics);
-          
+
           const details = await dashboardService.getAttributeSummary({
             project_id: projectId,
             taxonomy: selectedTaxonomy,
@@ -337,8 +344,6 @@ const [searchTerm, setSearchTerm] = useState("");
     if (!startDate || !endDate) return;
     if (startDate > endDate) setEndDate(startDate);
   }, [startDate, endDate]);
-
- 
 
   useEffect(() => {
     loadData();
@@ -824,249 +829,261 @@ const [searchTerm, setSearchTerm] = useState("");
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-  {activeMode === "enrichment" && (
-    <ProgressCard
-      title="Enrichment Rate"
-      valuePct={enrichmentRatePct}
-      subtitle={`${enriched} of ${total} products enriched`}
-      barClass="bg-orange-500"
-      icon={<Sparkles className="w-5 h-5 text-orange-600" />}
-    />
-  )}
+            {activeMode === "enrichment" && (
+              <ProgressCard
+                title="Enrichment Rate"
+                valuePct={enrichmentRatePct}
+                subtitle={`${enriched} of ${total} products enriched`}
+                barClass="bg-orange-500"
+                icon={<Sparkles className="w-5 h-5 text-orange-600" />}
+              />
+            )}
 
-  <ProgressCard title="Avg Completeness" valuePct={avgCompleteness} subtitle="across top 10 brands" barClass="bg-blue-600" icon={<Activity className="w-5 h-5 text-blue-600" />} />
-  <ProgressCard title="Category Coverage" valuePct={categoryCoveragePct} subtitle={`${uncategorized} products still uncategorised`} barClass="bg-emerald-500" icon={<Layers className="w-5 h-5 text-emerald-600" />} />
-
-  
-</div>
+            <ProgressCard
+              title="Avg Completeness"
+              valuePct={avgCompleteness}
+              subtitle="across top 10 brands"
+              barClass="bg-blue-600"
+              icon={<Activity className="w-5 h-5 text-blue-600" />}
+            />
+            <ProgressCard
+              title="Category Coverage"
+              valuePct={categoryCoveragePct}
+              subtitle={`${uncategorized} products still uncategorised`}
+              barClass="bg-emerald-500"
+              icon={<Layers className="w-5 h-5 text-emerald-600" />}
+            />
+          </div>
         </>
       )}
       {activeMode === "attributes" && (
-  <div className="space-y-6 animate-in fade-in duration-500">
-    {/* SEARCHABLE SELECT CATEGORY */}
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2 block">
-        Select Category Taxonomy
-      </label>
-      <div className="relative">
-        <select
-          value={selectedTaxonomy}
-          onChange={(e) => setSelectedTaxonomy(e.target.value)}
-          className="w-full h-12 pl-4 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold appearance-none focus:ring-2 focus:ring-blue-500 outline-none"
-        >
-          {taxonomies.map((t) => (
-            <option key={t.taxonomy} value={t.taxonomy}>
-              {t.taxonomy} ({t.count} products)
-            </option>
-          ))}
-        </select>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-          <Filter className="w-4 h-4" />
-        </div>
-      </div>
-    </div>
-
-    {/* TAXONOMY SUMMARY CARDS */}
-    {taxonomyMetrics && (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase">Total Attributes</p>
-            <p className="text-3xl font-black text-slate-900 mt-1">{taxonomyMetrics.totalAttributes}</p>
-          </div>
-          <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
-            <Layers className="w-6 h-6" />
-          </div>
-        </div>
-        
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase">Total Products</p>
-            <p className="text-3xl font-black text-slate-900 mt-1">{taxonomyMetrics.totalProducts}</p>
-          </div>
-          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-            <Package className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase">Avg Unique Values</p>
-            <p className="text-3xl font-black text-slate-900 mt-1">{taxonomyMetrics.avgUniqueValues}</p>
-          </div>
-          <div className="w-12 h-12 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600">
-            <Activity className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* ATTRIBUTE SETS GRID (Bottom) */}
-    <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
-       <div className="flex items-center justify-between mb-6">
-          <h4 className="text-lg font-bold text-slate-900">Extracted Attribute Summary</h4>
-          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">
-            {attributeSummary.length} Attributes Found
-          </span>
-       </div>
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {attributeSummary.map((attr) => (
-            <div key={attr.attribute_name} className="p-5 bg-slate-50 border border-slate-100 rounded-2xl hover:border-blue-200 transition-colors group">
-              <p className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{attr.attribute_name}</p>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-2xl font-black text-slate-900">{attr.unique_values}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Unique Values</span>
+        <div className="space-y-6 animate-in fade-in duration-500">
+          {/* SEARCHABLE SELECT CATEGORY */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2 block">
+              Select Category Taxonomy
+            </label>
+            <div className="relative">
+              <select
+                value={selectedTaxonomy}
+                onChange={(e) => setSelectedTaxonomy(e.target.value)}
+                className="w-full h-12 pl-4 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold appearance-none focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                {taxonomies.map((t) => (
+                  <option key={t.taxonomy} value={t.taxonomy}>
+                    {t.taxonomy} ({t.count} products)
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <Filter className="w-4 h-4" />
               </div>
-              {attr.uoms?.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-1">
-                  {attr.uoms.map((uom: string) => (
-                    <span key={uom} className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-500 uppercase">
-                      {uom}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
-          ))}
-       </div>
-    </div>
-  </div>
-)}
+          </div>
+
+          {/* TAXONOMY SUMMARY CARDS */}
+          {taxonomyMetrics && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">
+                    Total Attributes
+                  </p>
+                  <p className="text-3xl font-black text-slate-900 mt-1">
+                    {taxonomyMetrics.totalAttributes}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
+                  <Layers className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">
+                    Total Products
+                  </p>
+                  <p className="text-3xl font-black text-slate-900 mt-1">
+                    {taxonomyMetrics.totalProducts}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                  <Package className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">
+                    Avg Unique Values
+                  </p>
+                  <p className="text-3xl font-black text-slate-900 mt-1">
+                    {taxonomyMetrics.avgUniqueValues}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600">
+                  <Activity className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ATTRIBUTE SETS GRID (Bottom) */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-lg font-bold text-slate-900">
+                Extracted Attribute Summary
+              </h4>
+              <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">
+                {attributeSummary.length} Attributes Found
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {attributeSummary.map((attr) => (
+                <div
+                  key={attr.attribute_name}
+                  className="p-5 bg-slate-50 border border-slate-100 rounded-2xl hover:border-blue-200 transition-colors group"
+                >
+                  <p className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                    {attr.attribute_name}
+                  </p>
+                  <div className="mt-3 flex items-baseline gap-1">
+                    <span className="text-2xl font-black text-slate-900">
+                      {attr.unique_values}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      Unique Values
+                    </span>
+                  </div>
+                  {attr.uoms?.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-1">
+                      {attr.uoms.map((uom: string) => (
+                        <span
+                          key={uom}
+                          className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-500 uppercase"
+                        >
+                          {uom}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeMode !== "attributes" && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-emerald-600" /> Top 10 Brands
-                </h4>
-                <button className="text-xs font-bold text-blue-600 hover:underline">
-                  View all
+            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[500px]">
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h4 className="text-base font-bold text-slate-900">Brands</h4>
+                <button className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"  onClick={() => setViewAllType("brands")} >
+                  View all <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-5">
-                {brandFlowStats.slice(0, 10).map((row: any, idx: number) => {
-                  const pct =
-                    row.totalProducts > 0
-                      ? Math.round(
-                          (row.enrichmentProducts / row.totalProducts) * 100,
-                        )
-                      : 0;
-
-                  const delta = 0;
-
-                  return (
-                    <div key={`${row.brand}-${idx}`}>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-5 text-xs text-slate-400 text-right">
-                            {idx + 1}
-                          </span>
-                          <span
-                            className="font-semibold text-slate-900 truncate"
-                            title={row.brand}
-                          >
-                            {row.brand}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500 whitespace-nowrap">
-                          {row.totalProducts} products{" "}
-                          <span
-                            className={`ml-2 font-semibold ${delta >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                          >
-                            {delta === 0
-                              ? "0%"
-                              : delta > 0
-                                ? `+${delta}%`
-                                : `${delta}%`}
-                          </span>
-                        </div>
+              {/* Scrollable List */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                {brandFlowStats.map((row: any, idx: number) => (
+                  <button
+                    key={idx}
+                    className="w-full group flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">
+                          {row.brand}
+                        </span>
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-full">
+                          {row.count}
+                        </span>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <div className="w-10 text-right text-xs font-semibold text-slate-700">
-                          {pct}%
-                        </div>
+                      <div className="flex items-center gap-3 text-xs font-semibold">
+                        <span className="text-blue-600">
+                          {row.complete}%{" "}
+                          <span className="text-slate-400 font-medium">
+                            complete
+                          </span>
+                        </span>
+                        <span className="text-fuchsia-600">
+                          {row.quality}%{" "}
+                          <span className="text-slate-400 font-medium">
+                            quality
+                          </span>
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-400 transition-colors" />
+                  </button>
+                ))}
 
                 {brandFlowStats.length === 0 && (
-                  <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
-                    No brand data for this range.
+                  <div className="h-full flex flex-col items-center justify-center p-10 text-slate-400">
+                    <Tag className="w-8 h-8 mb-2 opacity-20" />
+                    <p className="text-sm italic">No brand data available</p>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-blue-600" /> Top 10 Categories
+            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[500px]">
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h4 className="text-base font-bold text-slate-900">
+                  Categories
                 </h4>
-                <button className="text-xs font-bold text-blue-600 hover:underline">
-                  View all
+                <button className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"  onClick={() => setViewAllType("categories")} >
+                  View all <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-5">
-                {categoryFlowStats.slice(0, 10).map((row: any, idx: number) => {
-                  const pct =
-                    row.totalProducts > 0
-                      ? Math.round(
-                          (row.enrichmentProducts / row.totalProducts) * 100,
-                        )
-                      : 0;
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                {categoryFlowStats.map((row: any, idx: number) => {
+                  const displayName = row.category.split(">").pop().trim();
 
                   return (
-                    <div key={`${row.category}-${idx}`}>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-5 text-xs text-slate-400 text-right">
-                            {idx + 1}
+                    <button
+                      key={idx}
+                      className="w-full group flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                      title={row.category} // Shows full path on hover
+                    >
+                      <div className="space-y-1 min-w-0 flex-1 pr-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 truncate uppercase text-[13px] tracking-tight">
+                            {displayName}
                           </span>
-                          <span
-                            className="font-semibold text-slate-900 truncate"
-                            title={row.category}
-                          >
-                            {row.category}
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-full flex-shrink-0">
+                            {row.count}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-500 whitespace-nowrap">
-                          {row.totalProducts} products{" "}
-                          <span className="ml-2 font-semibold text-slate-900">
-                            {pct}% enriched
+                        <div className="flex items-center gap-3 text-xs font-semibold">
+                          <span className="text-blue-600">
+                            {row.complete}%{" "}
+                            <span className="text-slate-400 font-medium">
+                              complete
+                            </span>
+                          </span>
+                          <span className="text-fuchsia-600">
+                            {row.quality}%{" "}
+                            <span className="text-slate-400 font-medium">
+                              quality
+                            </span>
                           </span>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-orange-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <div className="w-10 text-right text-xs font-semibold text-slate-700">
-                          {pct}%
-                        </div>
-                      </div>
-                    </div>
+                      <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-400 transition-colors flex-shrink-0" />
+                    </button>
                   );
                 })}
 
                 {categoryFlowStats.length === 0 && (
-                  <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
-                    No category data for this range.
+                  <div className="h-full flex flex-col items-center justify-center p-10 text-slate-400">
+                    <Layers className="w-8 h-8 mb-2 opacity-20" />
+                    <p className="text-sm italic">No category data available</p>
                   </div>
                 )}
               </div>
@@ -1402,6 +1419,86 @@ const [searchTerm, setSearchTerm] = useState("");
           </div>
         </div>
       )}
+      {viewAllType && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all">
+    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
+      
+      {/* Modal Header */}
+      <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div>
+          <h3 className="text-3xl font-black text-slate-900">
+            All {viewAllType === "brands" ? "Brands" : "Categories"}
+          </h3>
+          <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">
+            Total {viewAllType === "brands" ? brandFlowStats.length : categoryFlowStats.length} Items found
+          </p>
+        </div>
+        <button 
+          onClick={() => { setViewAllType(null); setListSearch(""); }}
+          className="p-3 hover:bg-white hover:shadow-xl rounded-2xl transition-all group border border-transparent hover:border-slate-100"
+        >
+          <XCircle className="w-9 h-9 text-slate-300 group-hover:text-red-500 transition-colors" />
+        </button>
+      </div>
+      
+      {/* Search Section */}
+      <div className="p-6 bg-white">
+        <div className="relative">
+          <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input 
+            type="text"
+            placeholder={`Search ${viewAllType}...`}
+            className="w-full pl-14 pr-6 py-5 bg-slate-100 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl outline-none font-bold text-slate-700 transition-all text-lg shadow-inner"
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+            autoFocus
+          />
+        </div>
+      </div>
+
+      {/* List Area */}
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
+        <div className="grid grid-cols-1 gap-3">
+          {(viewAllType === "brands" ? brandFlowStats : categoryFlowStats)
+            .filter(item => {
+                const name = viewAllType === "brands" ? item.brand : item.category;
+                return name.toLowerCase().includes(listSearch.toLowerCase());
+            })
+            .map((row: any, idx: number) => {
+              const name = viewAllType === "brands" ? row.brand : row.category;
+              // For categories, show the breadcrumb path nicely
+              const displayName = viewAllType === "categories" ? name.split('>').pop().trim() : name;
+              const subName = viewAllType === "categories" ? name : null;
+
+              return (
+                <div key={idx} className="flex items-center justify-between p-5 rounded-3xl hover:bg-slate-50 transition-all border border-slate-50 hover:border-blue-100 group">
+                   <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <span className="font-black text-slate-900 text-lg truncate uppercase tracking-tight">{displayName}</span>
+                        <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full border border-blue-100">{row.count}</span>
+                      </div>
+                      {subName && <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">{subName}</p>}
+                   </div>
+
+                   <div className="flex items-center gap-8 ml-4">
+                      <div className="text-right">
+                          <p className="text-[10px] font-black text-slate-300 uppercase">Completeness</p>
+                          <p className="text-lg font-black text-blue-600">{row.complete}%</p>
+                      </div>
+                      <div className="text-right">
+                          <p className="text-[10px] font-black text-slate-300 uppercase">Quality</p>
+                          <p className="text-lg font-black text-fuchsia-600">{row.quality}%</p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-blue-500 transition-colors" />
+                   </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

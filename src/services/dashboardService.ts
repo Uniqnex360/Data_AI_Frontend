@@ -106,10 +106,10 @@ async getAttributeSummary(params?: {
     );
   }
 },
-  async getBrandFlow(params: BrandFlowParams & DateRangeParams) {
-    const { data } = await api.get("/dashboard/brand-flow", { params });
-    return data;
-  },
+  async getBrandFlow(params: any, limit?: number) {
+  const { data } = await api.get("/dashboard/brand-flow", { params: { ...params, limit } });
+  return data;
+},
 
   async getBrandAttributes(params: BrandAttributesParams & DateRangeParams) {
     const { data } = await api.get("/dashboard/brand-attributes", { params });
