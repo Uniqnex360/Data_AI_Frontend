@@ -294,8 +294,13 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   }, [startDate, endDate]);
 
   const rangeParams = useMemo(
-    () => ({ start_date: startDate, end_date: endDate, date_field: dateField,mode: activeMode, }),
-    [startDate, endDate, dateField,activeMode],
+    () => ({
+      start_date: startDate,
+      end_date: endDate,
+      date_field: dateField,
+      mode: activeMode,
+    }),
+    [startDate, endDate, dateField, activeMode],
   );
 
   useEffect(() => {
@@ -306,7 +311,7 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     rangeParams.start_date,
     rangeParams.end_date,
     rangeParams.date_field,
-    activeMode, 
+    activeMode,
   ]);
 
   const getMetricValue = (type: string): number =>
@@ -321,14 +326,14 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       setGlobalStats(data);
 
       if (activeMode === "attributes") {
-  const attrSummary = await dashboardService.getAttributeSummary({
-    project_id: projectId,
-    ...rangeParams,
-  } as any);
-  setAttributeSummary(attrSummary);
-} else {
-  setAttributeSummary([]);
-}
+        const attrSummary = await dashboardService.getAttributeSummary({
+          project_id: projectId,
+          ...rangeParams,
+        } as any);
+        setAttributeSummary(attrSummary);
+      } else {
+        setAttributeSummary([]);
+      }
       const prev = shiftRangeBack(startDate, endDate);
       const prevData = projectId
         ? await dashboardService.getProjectMetrics(projectId, {
@@ -622,598 +627,620 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </button>
         </div>
       </div>
-              <div className="bg-white border-b border-slate-200">
-  <div className="flex items-center gap-2 px-6 overflow-x-auto">
-    {[
-      { id: "aggregation", label: "Aggregation", icon: Layers },
-      { id: "cleaning", label: "Cleansing", icon: Filter },
-      { id: "enrichment", label: "Enrichment", icon: Sparkles },
-      { id: "attributes", label: "Attributes", icon: Activity },
-    ].map((tab) => {
-      const isActive = activeMode === tab.id;
-      return (
-        <button
-          key={tab.id}
-          onClick={() => setActiveMode(tab.id as DashboardMode)}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
-            isActive
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-          type="button"
-        >
-          <tab.icon className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
-          {tab.label}
-        </button>
-      );
-    })}
-  </div>
-</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
-        <StatCard
-          title="Total Products"
-          value={total}
-          icon={<Package className="w-5 h-5" />}
-          iconBg="bg-blue-50 border border-blue-100"
-          iconColor="text-blue-600"
-          footerLeft={
-            <span className="text-emerald-600 font-semibold">
-              {totalDelta >= 0 ? `↗ +${totalDelta}` : `↘ ${totalDelta}`}
-            </span>
-          }
-          footerRight={
-            projectId
-              ? "Custom Range"
-              : `${globalStats?.totalProjects ?? 0} projects`
-          }
-          onClick={() => onNavigate?.("aggregation", "all")}
-        />
-
-        <StatCard
-          title="Aggregated"
-          value={processed}
-          icon={<Activity className="w-5 h-5" />}
-          iconBg="bg-emerald-50 border border-emerald-100"
-          iconColor="text-emerald-600"
-          footerLeft={
-            <span className="text-emerald-600 font-semibold">
-              {processedPct >= 0
-                ? `↗ +${Math.round(processedPct)}%`
-                : `↘ ${Math.round(processedPct)}%`}
-            </span>
-          }
-          footerRight="Custom Range"
-          onClick={() => onNavigate?.("aggregation", "completed")}
-        />
-
-        <StatCard
-          title="Enriched"
-          value={enriched}
-          icon={<Sparkles className="w-5 h-5" />}
-          iconBg="bg-amber-50 border border-amber-100"
-          iconColor="text-amber-600"
-          footerLeft={
-            <span className="text-emerald-600 font-semibold">
-              {enrichedPct >= 0
-                ? `↗ +${Math.round(enrichedPct)}%`
-                : `↘ ${Math.round(enrichedPct)}%`}
-            </span>
-          }
-          footerRight="Custom Range"
-          onClick={() => onNavigate?.("aggregation", "completed")}
-        />
-
-        <StatCard
-          title="Cleansed"
-          value={cleaned}
-          icon={<Filter className="w-5 h-5" />}
-          iconBg="bg-teal-50 border border-teal-100"
-          iconColor="text-teal-600"
-          footerLeft={
-            <span className="text-emerald-600 font-semibold">
-              {cleanedPct >= 0
-                ? `↗ +${Math.round(cleanedPct)}%`
-                : `↘ ${Math.round(cleanedPct)}%`}
-            </span>
-          }
-          footerRight="Custom Range"
-        />
-
-        <StatCard
-          title="Pending"
-          value={pending}
-          icon={<Clock className="w-5 h-5" />}
-          iconBg="bg-yellow-50 border border-yellow-100"
-          iconColor="text-yellow-600"
-          footerLeft={
-            <span className="text-emerald-600 font-semibold">
-              ↗ {needsAttention?.pendingAggregation ?? pending} active
-            </span>
-          }
-          footerRight="across all stages"
-          onClick={() => onNavigate?.("aggregation", "pending")}
-        />
-
-        <StatCard
-          title="Failed Jobs"
-          value={failed}
-          icon={<AlertTriangle className="w-5 h-5" />}
-          iconBg="bg-red-50 border border-red-100"
-          iconColor="text-red-600"
-          footerLeft={
-            <span
-              className={`${failed > 0 ? "text-red-600" : "text-slate-500"} font-semibold`}
-            >
-              {failed > 0 ? "↘ -5%" : "0%"}
-            </span>
-          }
-          footerRight="need attention"
-          onClick={() => onNavigate?.("aggregation", "failed")}
-        />
-        <StatCard
-          title="Total Brands"
-          value={globalStats?.totalBrands ?? 0}
-          icon={<Tag className="w-5 h-5" />}
-          iconBg="bg-purple-50 border border-purple-100"
-          iconColor="text-purple-600"
-          footerRight="unique brands"
-        />
-
-        <StatCard
-          title="Total Categories"
-          value={globalStats?.totalCategories ?? 0}
-          icon={<Layers className="w-5 h-5" />}
-          iconBg="bg-cyan-50 border border-cyan-100"
-          iconColor="text-cyan-600"
-          footerRight="unique categories"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <ProgressCard
-          title="Enrichment Rate"
-          valuePct={enrichmentRatePct}
-          subtitle={`${enriched} of ${total} products enriched`}
-          barClass="bg-orange-500"
-          icon={<Sparkles className="w-5 h-5 text-orange-600" />}
-        />
-
-        <ProgressCard
-          title="Avg Completeness"
-          valuePct={avgCompleteness}
-          subtitle="across top 10 brands"
-          barClass="bg-blue-600"
-          icon={<Activity className="w-5 h-5 text-blue-600" />}
-        />
-
-        <ProgressCard
-          title="Category Coverage"
-          valuePct={categoryCoveragePct}
-          subtitle={`${uncategorized} products still uncategorised`}
-          barClass="bg-emerald-500"
-          icon={<Layers className="w-5 h-5 text-emerald-600" />}
-        />
-
-        <ProgressCard
-          title="Attr Validity"
-          valuePct={attrValidityPct}
-          subtitle={`${invalidAttributes} invalid attribute values flagged`}
-          barClass="bg-green-600"
-          icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
-        />
-      </div>
-      {attributeSummary.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h4 className="text-sm font-bold text-slate-900 mb-4">
-            Attribute Sets
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {attributeSummary.map((attr) => (
-              <div
-                key={attr.attribute_name}
-                className="p-4 bg-slate-50 rounded-xl border border-slate-200"
+      <div className="bg-white border-b border-slate-200">
+        <div className="flex items-center gap-2 px-6 overflow-x-auto">
+          {[
+            { id: "aggregation", label: "Aggregation", icon: Layers },
+            { id: "cleaning", label: "Cleansing", icon: Filter },
+            { id: "enrichment", label: "Enrichment", icon: Sparkles },
+            { id: "attributes", label: "Attributes", icon: Activity },
+          ].map((tab) => {
+            const isActive = activeMode === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveMode(tab.id as DashboardMode)}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+                  isActive
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+                type="button"
               >
-                <div className="text-sm font-semibold text-slate-800 truncate">
-                  {attr.attribute_name}
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-2xl font-bold text-slate-900">
-                    {attr.unique_values}
+                <tab.icon
+                  className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`}
+                />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {activeMode !== "attributes" && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+            <StatCard
+              title="Total Products"
+              value={total}
+              icon={<Package className="w-5 h-5" />}
+              iconBg="bg-blue-50 border border-blue-100"
+              iconColor="text-blue-600"
+              footerLeft={
+                <span className="text-emerald-600 font-semibold">
+                  {totalDelta >= 0 ? `↗ +${totalDelta}` : `↘ ${totalDelta}`}
+                </span>
+              }
+              footerRight={
+                projectId
+                  ? "Custom Range"
+                  : `${globalStats?.totalProjects ?? 0} projects`
+              }
+              onClick={() => onNavigate?.("aggregation", "all")}
+            />
+
+            {/* ONLY show Aggregated when in aggregation mode */}
+            {activeMode === "aggregation" && (
+              <StatCard
+                title="Aggregated"
+                value={processed}
+                icon={<Activity className="w-5 h-5" />}
+                iconBg="bg-emerald-50 border border-emerald-100"
+                iconColor="text-emerald-600"
+                footerLeft={
+                  <span className="text-emerald-600 font-semibold">
+                    {processedPct >= 0
+                      ? `↗ +${Math.round(processedPct)}%`
+                      : `↘ ${Math.round(processedPct)}%`}
                   </span>
-                  <span className="text-xs text-slate-500">unique values</span>
-                </div>
-                {attr.uoms?.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {attr.uoms.slice(0, 5).map((uom: string) => (
-                      <span
-                        key={uom}
-                        className="px-2 py-0.5 bg-white border border-slate-200 rounded-full text-xs text-slate-600"
-                      >
-                        {uom || "—"}
+                }
+                footerRight="Custom Range"
+                onClick={() => onNavigate?.("aggregation", "completed")}
+              />
+            )}
+
+            {/* ONLY show Enriched when in enrichment mode */}
+            {activeMode === "enrichment" && (
+              <StatCard
+                title="Enriched"
+                value={enriched}
+                icon={<Sparkles className="w-5 h-5" />}
+                iconBg="bg-amber-50 border border-amber-100"
+                iconColor="text-amber-600"
+                footerLeft={
+                  <span className="text-emerald-600 font-semibold">
+                    {enrichedPct >= 0
+                      ? `↗ +${Math.round(enrichedPct)}%`
+                      : `↘ ${Math.round(enrichedPct)}%`}
+                  </span>
+                }
+                footerRight="Custom Range"
+                onClick={() => onNavigate?.("aggregation", "completed")}
+              />
+            )}
+
+            {/* ONLY show Cleansed when in cleaning mode */}
+            {activeMode === "cleaning" && (
+              <StatCard
+                title="Cleansed"
+                value={cleaned}
+                icon={<Filter className="w-5 h-5" />}
+                iconBg="bg-teal-50 border border-teal-100"
+                iconColor="text-teal-600"
+                footerLeft={
+                  <span className="text-emerald-600 font-semibold">
+                    {cleanedPct >= 0
+                      ? `↗ +${Math.round(cleanedPct)}%`
+                      : `↘ ${Math.round(cleanedPct)}%`}
+                  </span>
+                }
+                footerRight="Custom Range"
+              />
+            )}
+
+            <StatCard
+              title="Pending"
+              value={pending}
+              icon={<Clock className="w-5 h-5" />}
+              iconBg="bg-yellow-50 border border-yellow-100"
+              iconColor="text-yellow-600"
+              footerLeft={
+                <span className="text-emerald-600 font-semibold">
+                  ↗ {needsAttention?.pendingAggregation ?? pending} active
+                </span>
+              }
+              footerRight="across all stages"
+              onClick={() => onNavigate?.("aggregation", "pending")}
+            />
+
+            <StatCard
+              title="Failed Jobs"
+              value={failed}
+              icon={<AlertTriangle className="w-5 h-5" />}
+              iconBg="bg-red-50 border border-red-100"
+              iconColor="text-red-600"
+              footerLeft={
+                <span
+                  className={`${failed > 0 ? "text-red-600" : "text-slate-500"} font-semibold`}
+                >
+                  {failed > 0 ? "↘ -5%" : "0%"}
+                </span>
+              }
+              footerRight="need attention"
+              onClick={() => onNavigate?.("aggregation", "failed")}
+            />
+
+            <StatCard
+              title="Total Brands"
+              value={globalStats?.totalBrands ?? 0}
+              icon={<Tag className="w-5 h-5" />}
+              iconBg="bg-purple-50 border border-purple-100"
+              iconColor="text-purple-600"
+              footerRight="unique brands"
+            />
+            <StatCard
+              title="Total Categories"
+              value={globalStats?.totalCategories ?? 0}
+              icon={<Layers className="w-5 h-5" />}
+              iconBg="bg-cyan-50 border border-cyan-100"
+              iconColor="text-cyan-600"
+              footerRight="unique categories"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+  {activeMode === "enrichment" && (
+    <ProgressCard
+      title="Enrichment Rate"
+      valuePct={enrichmentRatePct}
+      subtitle={`${enriched} of ${total} products enriched`}
+      barClass="bg-orange-500"
+      icon={<Sparkles className="w-5 h-5 text-orange-600" />}
+    />
+  )}
+
+  <ProgressCard title="Avg Completeness" valuePct={avgCompleteness} subtitle="across top 10 brands" barClass="bg-blue-600" icon={<Activity className="w-5 h-5 text-blue-600" />} />
+  <ProgressCard title="Category Coverage" valuePct={categoryCoveragePct} subtitle={`${uncategorized} products still uncategorised`} barClass="bg-emerald-500" icon={<Layers className="w-5 h-5 text-emerald-600" />} />
+
+  
+</div>
+        </>
+      )}
+      {activeMode === "attributes" && (
+        <>
+          {attributeSummary.length > 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <h4 className="text-sm font-bold text-slate-900 mb-4">
+                Attribute Sets
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {attributeSummary.map((attr) => (
+                  <div
+                    key={attr.attribute_name}
+                    className="p-4 bg-slate-50 rounded-xl border border-slate-200"
+                  >
+                    <div className="text-sm font-semibold text-slate-800 truncate">
+                      {attr.attribute_name}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-2xl font-bold text-slate-900">
+                        {attr.unique_values}
                       </span>
+                      <span className="text-xs text-slate-500">
+                        unique values
+                      </span>
+                    </div>
+                    {attr.uoms?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {attr.uoms.slice(0, 5).map((uom: string) => (
+                          <span
+                            key={uom}
+                            className="px-2 py-0.5 bg-white border border-slate-200 rounded-full text-xs text-slate-600"
+                          >
+                            {uom || "—"}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="py-12 bg-white border border-dashed border-slate-200 rounded-2xl text-center shadow-sm">
+              <Activity className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-slate-900">
+                No Attributes Found
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                There is no attribute data available for this selection.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+      {activeMode !== "attributes" && (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-emerald-600" /> Top 10 Brands
+                </h4>
+                <button className="text-xs font-bold text-blue-600 hover:underline">
+                  View all
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {brandFlowStats.slice(0, 10).map((row: any, idx: number) => {
+                  const pct =
+                    row.totalProducts > 0
+                      ? Math.round(
+                          (row.enrichmentProducts / row.totalProducts) * 100,
+                        )
+                      : 0;
+
+                  const delta = 0;
+
+                  return (
+                    <div key={`${row.brand}-${idx}`}>
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-5 text-xs text-slate-400 text-right">
+                            {idx + 1}
+                          </span>
+                          <span
+                            className="font-semibold text-slate-900 truncate"
+                            title={row.brand}
+                          >
+                            {row.brand}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 whitespace-nowrap">
+                          {row.totalProducts} products{" "}
+                          <span
+                            className={`ml-2 font-semibold ${delta >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                          >
+                            {delta === 0
+                              ? "0%"
+                              : delta > 0
+                                ? `+${delta}%`
+                                : `${delta}%`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="w-10 text-right text-xs font-semibold text-slate-700">
+                          {pct}%
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {brandFlowStats.length === 0 && (
+                  <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
+                    No brand data for this range.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-blue-600" /> Top 10 Categories
+                </h4>
+                <button className="text-xs font-bold text-blue-600 hover:underline">
+                  View all
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {categoryFlowStats.slice(0, 10).map((row: any, idx: number) => {
+                  const pct =
+                    row.totalProducts > 0
+                      ? Math.round(
+                          (row.enrichmentProducts / row.totalProducts) * 100,
+                        )
+                      : 0;
+
+                  return (
+                    <div key={`${row.category}-${idx}`}>
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-5 text-xs text-slate-400 text-right">
+                            {idx + 1}
+                          </span>
+                          <span
+                            className="font-semibold text-slate-900 truncate"
+                            title={row.category}
+                          >
+                            {row.category}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 whitespace-nowrap">
+                          {row.totalProducts} products{" "}
+                          <span className="ml-2 font-semibold text-slate-900">
+                            {pct}% enriched
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-orange-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="w-10 text-right text-xs font-semibold text-slate-700">
+                          {pct}%
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {categoryFlowStats.length === 0 && (
+                  <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
+                    No category data for this range.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">
+                    Custom Range
+                  </div>
+                  <div className="text-lg font-black text-slate-900 mt-0.5">
+                    Activity
+                  </div>
+                </div>
+                <div className="text-xs text-slate-500 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" /> Agg
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-orange-500" />{" "}
+                    Enrich
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
+                    Clean
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-7 gap-2 text-[11px] text-slate-400">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                  <div key={d} className="text-center">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 grid grid-cols-7 gap-2 items-end h-24">
+                {(() => {
+                  const rows = timelineStats.slice(-7);
+                  const max = Math.max(
+                    1,
+                    ...rows.map((r: any) => Number(r.totalProducts || 0)),
+                  );
+
+                  const padded =
+                    rows.length < 7
+                      ? new Array(7 - rows.length).fill(null).concat(rows)
+                      : rows;
+
+                  return padded.map((r: any, i: number) => {
+                    const v = r ? Number(r.totalProducts || 0) : 0;
+                    const h = Math.round((v / max) * 100);
+                    return (
+                      <div key={i} className="flex flex-col justify-end h-full">
+                        <div
+                          className="w-full rounded-md bg-slate-200"
+                          style={{ height: `${Math.max(6, h)}%` }}
+                          title={r?.period ? `${r.period}: ${v}` : ""}
+                        />
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div className="text-2xl font-black text-blue-600">
+                    {activityAgg}
+                  </div>
+                  <div className="text-xs text-slate-500">Aggregated</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-orange-600">
+                    {activityEnrich}
+                  </div>
+                  <div className="text-xs text-slate-500">Enriched</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-emerald-600">
+                    {activityClean}
+                  </div>
+                  <div className="text-xs text-slate-500">Cleansed</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-600" /> Timeline Overview
+              </h4>
+              <div className="flex items-center gap-2">
+                {(["day", "week", "month"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setSelectedPeriod(p)}
+                    className={`px-3 py-1 rounded-md text-xs font-bold ${
+                      selectedPeriod === p
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                  <tr>
+                    <th className="px-4 py-3">Period</th>
+                    <th className="px-4 py-3">Total</th>
+                    <th className="px-4 py-3">Aggregated</th>
+                    <th className="px-4 py-3">Moved to Enrichment</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {timelineStats.length > 0 ? (
+                    timelineStats.map((row: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3">{row.period}</td>
+                        <td className="px-4 py-3">{row.totalProducts}</td>
+                        <td className="px-4 py-3">{row.aggregatedProducts}</td>
+                        <td className="px-4 py-3">{row.movedToEnrichment}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-6 text-center text-slate-400"
+                      >
+                        No timeline data available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {!projectId &&
+            (projectsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              <ProjectsOverviewTab
+                projects={projectsOverview}
+                onOpenProject={(id) => onNavigate?.("aggregation", "all")}
+              />
+            ))}
+        </>
+      )}
+      {activeMode !== "attributes" && (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-8" />
+
+            <div className="xl:col-span-4 space-y-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-slate-700" /> Recent
+                  Activity
+                </h4>
+
+                {recentActivity.length === 0 ? (
+                  <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
+                    No recent activity available.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentActivity.slice(0, 6).map((a, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
+                          <ActivityIcon type={a.type} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-semibold text-slate-900 truncate">
+                              {a.title}
+                            </div>
+                            <div className="text-xs text-slate-500 whitespace-nowrap">
+                              {timeAgo(a.ts)}
+                            </div>
+                          </div>
+                          {a.subtitle && (
+                            <div className="text-xs text-slate-500 mt-1 line-clamp-2">
+                              {a.subtitle}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
-            ))}
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" /> Needs
+                  Attention
+                </h4>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-amber-700">
+                      {uncategorized} uncategorised products
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-amber-700" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100 hover:bg-red-100 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-red-700">
+                      {invalidAttributes} invalid attribute values
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-red-700" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("aggregation", "pending")}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-blue-700">
+                      {needsAttention?.pendingAggregation ?? pending} pending
+                      aggregation
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-blue-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-emerald-600" /> Top 10 Brands
-            </h4>
-            <button className="text-xs font-bold text-blue-600 hover:underline">
-              View all
-            </button>
-          </div>
-
-          <div className="space-y-5">
-            {brandFlowStats.slice(0, 10).map((row: any, idx: number) => {
-              const pct =
-                row.totalProducts > 0
-                  ? Math.round(
-                      (row.enrichmentProducts / row.totalProducts) * 100,
-                    )
-                  : 0;
-
-              const delta = 0;
-
-              return (
-                <div key={`${row.brand}-${idx}`}>
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-5 text-xs text-slate-400 text-right">
-                        {idx + 1}
-                      </span>
-                      <span
-                        className="font-semibold text-slate-900 truncate"
-                        title={row.brand}
-                      >
-                        {row.brand}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 whitespace-nowrap">
-                      {row.totalProducts} products{" "}
-                      <span
-                        className={`ml-2 font-semibold ${delta >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                      >
-                        {delta === 0
-                          ? "0%"
-                          : delta > 0
-                            ? `+${delta}%`
-                            : `${delta}%`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <div className="w-10 text-right text-xs font-semibold text-slate-700">
-                      {pct}%
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {brandFlowStats.length === 0 && (
-              <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
-                No brand data for this range.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-600" /> Top 10 Categories
-            </h4>
-            <button className="text-xs font-bold text-blue-600 hover:underline">
-              View all
-            </button>
-          </div>
-
-          <div className="space-y-5">
-            {categoryFlowStats.slice(0, 10).map((row: any, idx: number) => {
-              const pct =
-                row.totalProducts > 0
-                  ? Math.round(
-                      (row.enrichmentProducts / row.totalProducts) * 100,
-                    )
-                  : 0;
-
-              return (
-                <div key={`${row.category}-${idx}`}>
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-5 text-xs text-slate-400 text-right">
-                        {idx + 1}
-                      </span>
-                      <span
-                        className="font-semibold text-slate-900 truncate"
-                        title={row.category}
-                      >
-                        {row.category}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 whitespace-nowrap">
-                      {row.totalProducts} products{" "}
-                      <span className="ml-2 font-semibold text-slate-900">
-                        {pct}% enriched
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-orange-500"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <div className="w-10 text-right text-xs font-semibold text-slate-700">
-                      {pct}%
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {categoryFlowStats.length === 0 && (
-              <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
-                No category data for this range.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-sm font-bold text-slate-900">
-                Custom Range
-              </div>
-              <div className="text-lg font-black text-slate-900 mt-0.5">
-                Activity
-              </div>
-            </div>
-            <div className="text-xs text-slate-500 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-500" /> Agg
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-orange-500" /> Enrich
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Clean
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-7 gap-2 text-[11px] text-slate-400">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-              <div key={d} className="text-center">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 grid grid-cols-7 gap-2 items-end h-24">
-            {(() => {
-              const rows = timelineStats.slice(-7);
-              const max = Math.max(
-                1,
-                ...rows.map((r: any) => Number(r.totalProducts || 0)),
-              );
-
-              const padded =
-                rows.length < 7
-                  ? new Array(7 - rows.length).fill(null).concat(rows)
-                  : rows;
-
-              return padded.map((r: any, i: number) => {
-                const v = r ? Number(r.totalProducts || 0) : 0;
-                const h = Math.round((v / max) * 100);
-                return (
-                  <div key={i} className="flex flex-col justify-end h-full">
-                    <div
-                      className="w-full rounded-md bg-slate-200"
-                      style={{ height: `${Math.max(6, h)}%` }}
-                      title={r?.period ? `${r.period}: ${v}` : ""}
-                    />
-                  </div>
-                );
-              });
-            })()}
-          </div>
-
-          <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-            <div>
-              <div className="text-2xl font-black text-blue-600">
-                {activityAgg}
-              </div>
-              <div className="text-xs text-slate-500">Aggregated</div>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-orange-600">
-                {activityEnrich}
-              </div>
-              <div className="text-xs text-slate-500">Enriched</div>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-emerald-600">
-                {activityClean}
-              </div>
-              <div className="text-xs text-slate-500">Cleansed</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-blue-600" /> Timeline Overview
-          </h4>
-          <div className="flex items-center gap-2">
-            {(["day", "week", "month"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setSelectedPeriod(p)}
-                className={`px-3 py-1 rounded-md text-xs font-bold ${
-                  selectedPeriod === p
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-xl border border-slate-200">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
-              <tr>
-                <th className="px-4 py-3">Period</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Aggregated</th>
-                <th className="px-4 py-3">Moved to Enrichment</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {timelineStats.length > 0 ? (
-                timelineStats.map((row: any, idx: number) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-3">{row.period}</td>
-                    <td className="px-4 py-3">{row.totalProducts}</td>
-                    <td className="px-4 py-3">{row.aggregatedProducts}</td>
-                    <td className="px-4 py-3">{row.movedToEnrichment}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-center text-slate-400"
-                  >
-                    No timeline data available.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {!projectId &&
-        (projectsLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-          </div>
-        ) : (
-          <ProjectsOverviewTab
-            projects={projectsOverview}
-            onOpenProject={(id) => onNavigate?.("aggregation", "all")}
-          />
-        ))}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-8" />
-
-        <div className="xl:col-span-4 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-slate-700" /> Recent Activity
-            </h4>
-
-            {recentActivity.length === 0 ? (
-              <div className="text-xs text-slate-400 italic border border-dashed border-slate-200 rounded-xl p-6 text-center">
-                No recent activity available.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentActivity.slice(0, 6).map((a, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
-                      <ActivityIcon type={a.type} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-sm font-semibold text-slate-900 truncate">
-                          {a.title}
-                        </div>
-                        <div className="text-xs text-slate-500 whitespace-nowrap">
-                          {timeAgo(a.ts)}
-                        </div>
-                      </div>
-                      {a.subtitle && (
-                        <div className="text-xs text-slate-500 mt-1 line-clamp-2">
-                          {a.subtitle}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600" /> Needs
-              Attention
-            </h4>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors"
-              >
-                <span className="text-sm font-semibold text-amber-700">
-                  {uncategorized} uncategorised products
-                </span>
-                <ArrowRight className="w-4 h-4 text-amber-700" />
-              </button>
-
-              <button
-                type="button"
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100 hover:bg-red-100 transition-colors"
-              >
-                <span className="text-sm font-semibold text-red-700">
-                  {invalidAttributes} invalid attribute values
-                </span>
-                <ArrowRight className="w-4 h-4 text-red-700" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigate?.("aggregation", "pending")}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors"
-              >
-                <span className="text-sm font-semibold text-blue-700">
-                  {needsAttention?.pendingAggregation ?? pending} pending
-                  aggregation
-                </span>
-                <ArrowRight className="w-4 h-4 text-blue-700" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {projectId && (
+      {projectId && activeMode !== "attributes" && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -1299,8 +1326,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
           </div>
         </div>
       )}
-
-      
     </div>
   );
 }
