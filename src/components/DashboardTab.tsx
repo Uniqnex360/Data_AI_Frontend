@@ -224,6 +224,10 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [startDate, setStartDate] = useState<string>(
     toYMD(startOfMonth(new Date())),
   );
+  const [taxonomies, setTaxonomies] = useState<{taxonomy: string, count: number}[]>([]);
+const [selectedTaxonomy, setSelectedTaxonomy] = useState<string>("");
+const [taxonomyMetrics, setTaxonomyMetrics] = useState<any>(null);
+const [searchTerm, setSearchTerm] = useState("");
   const [activeMode, setActiveMode] = useState<DashboardMode>("aggregation");
 
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
@@ -275,6 +279,27 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     }
   }, [projectId]);
   useEffect(() => {
+  if (activeMode === "attributes") {
+    const fetchTaxonomies = async () => {
+      const data = await dashboardService.getTaxonomiesList(projectId);
+      setTaxonomies(data);
+      if (data.length > 0 && !selectedTaxonomy) {
+        setSelectedTaxonomy(data[0].taxonomy); 
+      }
+    };
+    fetchTaxonomies();
+  }
+}, [activeMode, projectId]);
+ const rangeParams = useMemo(
+    () => ({
+      start_date: startDate,
+      end_date: endDate,
+      date_field: dateField,
+      mode: activeMode,
+    }),
+    [startDate, endDate, dateField, activeMode],
+  );
+  useEffect(() => {
     const now = new Date();
     if (preset === "today") {
       setStartDate(toYMD(startOfDay(now)));
@@ -287,21 +312,36 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       setEndDate(toYMD(endOfMonth(now)));
     }
   }, [preset]);
-
+  useEffect(() => {
+    if (activeMode === "attributes" && selectedTaxonomy) {
+      const fetchTaxonomyDetails = async () => {
+        try {
+          // 1. Fetch the 3 Summary Cards for this category
+          const metrics = await dashboardService.getTaxonomyAttributeMetrics(selectedTaxonomy, projectId);
+          setTaxonomyMetrics(metrics);
+          
+          // 2. Fetch the grid of attribute sets filtered by this taxonomy
+          const details = await dashboardService.getAttributeSummary({
+            project_id: projectId,
+            taxonomy: selectedTaxonomy, // Ensure your service passes this to backend
+            ...rangeParams
+          });
+          setAttributeSummary(details);
+        } catch (error) {
+          console.error("Failed to load taxonomy details", error);
+        }
+      };
+      fetchTaxonomyDetails();
+    } else {
+      loadData(); // Your existing main load function
+    }
+  }, [selectedTaxonomy, activeMode, projectId, rangeParams]);
   useEffect(() => {
     if (!startDate || !endDate) return;
     if (startDate > endDate) setEndDate(startDate);
   }, [startDate, endDate]);
 
-  const rangeParams = useMemo(
-    () => ({
-      start_date: startDate,
-      end_date: endDate,
-      date_field: dateField,
-      mode: activeMode,
-    }),
-    [startDate, endDate, dateField, activeMode],
-  );
+ 
 
   useEffect(() => {
     loadData();
@@ -805,58 +845,97 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
         </>
       )}
       {activeMode === "attributes" && (
-        <>
-          {attributeSummary.length > 0 ? (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h4 className="text-sm font-bold text-slate-900 mb-4">
-                Attribute Sets
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {attributeSummary.map((attr) => (
-                  <div
-                    key={attr.attribute_name}
-                    className="p-4 bg-slate-50 rounded-xl border border-slate-200"
-                  >
-                    <div className="text-sm font-semibold text-slate-800 truncate">
-                      {attr.attribute_name}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-2xl font-bold text-slate-900">
-                        {attr.unique_values}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        unique values
-                      </span>
-                    </div>
-                    {attr.uoms?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {attr.uoms.slice(0, 5).map((uom: string) => (
-                          <span
-                            key={uom}
-                            className="px-2 py-0.5 bg-white border border-slate-200 rounded-full text-xs text-slate-600"
-                          >
-                            {uom || "—"}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+  <div className="space-y-6 animate-in fade-in duration-500">
+    {/* SEARCHABLE SELECT CATEGORY */}
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+      <label className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2 block">
+        Select Category Taxonomy
+      </label>
+      <div className="relative">
+        <select
+          value={selectedTaxonomy}
+          onChange={(e) => setSelectedTaxonomy(e.target.value)}
+          className="w-full h-12 pl-4 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold appearance-none focus:ring-2 focus:ring-blue-500 outline-none"
+        >
+          {taxonomies.map((t) => (
+            <option key={t.taxonomy} value={t.taxonomy}>
+              {t.taxonomy} ({t.count} products)
+            </option>
+          ))}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <Filter className="w-4 h-4" />
+        </div>
+      </div>
+    </div>
+
+    {/* TAXONOMY SUMMARY CARDS */}
+    {taxonomyMetrics && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase">Total Attributes</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{taxonomyMetrics.totalAttributes}</p>
+          </div>
+          <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
+            <Layers className="w-6 h-6" />
+          </div>
+        </div>
+        
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase">Total Products</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{taxonomyMetrics.totalProducts}</p>
+          </div>
+          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+            <Package className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase">Avg Unique Values</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{taxonomyMetrics.avgUniqueValues}</p>
+          </div>
+          <div className="w-12 h-12 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600">
+            <Activity className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ATTRIBUTE SETS GRID (Bottom) */}
+    <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+       <div className="flex items-center justify-between mb-6">
+          <h4 className="text-lg font-bold text-slate-900">Extracted Attribute Summary</h4>
+          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">
+            {attributeSummary.length} Attributes Found
+          </span>
+       </div>
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {attributeSummary.map((attr) => (
+            <div key={attr.attribute_name} className="p-5 bg-slate-50 border border-slate-100 rounded-2xl hover:border-blue-200 transition-colors group">
+              <p className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{attr.attribute_name}</p>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-2xl font-black text-slate-900">{attr.unique_values}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Unique Values</span>
               </div>
+              {attr.uoms?.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-1">
+                  {attr.uoms.map((uom: string) => (
+                    <span key={uom} className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-500 uppercase">
+                      {uom}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="py-12 bg-white border border-dashed border-slate-200 rounded-2xl text-center shadow-sm">
-              <Activity className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-900">
-                No Attributes Found
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                There is no attribute data available for this selection.
-              </p>
-            </div>
-          )}
-        </>
-      )}
+          ))}
+       </div>
+    </div>
+  </div>
+)}
+
       {activeMode !== "attributes" && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">

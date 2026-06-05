@@ -27,6 +27,34 @@ export const dashboardService = {
       };
     }
   },
+    async getTaxonomiesList(projectId?: string): Promise<{ taxonomy: string; count: number }[]> {
+    try {
+      const { data } = await api.get("/dashboard/taxonomies-list", { 
+        params: { project_id: projectId } 
+      });
+      return data || [];
+    } catch (error) {
+      console.error("Failed to fetch taxonomies list:", error);
+      return [];
+    }
+  },
+
+  async getTaxonomyAttributeMetrics(taxonomy: string, projectId?: string) {
+    try {
+      const { data } = await api.get("/dashboard/taxonomy-attribute-metrics", { 
+        params: { taxonomy, project_id: projectId } 
+      });
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch taxonomy attribute metrics:", error);
+      return {
+        totalProducts: 0,
+        totalAttributes: 0,
+        avgUniqueValues: 0,
+        avgDensity: 0
+      };
+    }
+  },
   async getNeedsAttention(params?: { projectId?: string } & DateRangeParams) {
     const { data } = await api.get("/dashboard/needs-attention", { params });
     return data;
