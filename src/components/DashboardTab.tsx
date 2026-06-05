@@ -1489,7 +1489,7 @@ const [brandSearch, setBrandSearch] = useState("");
                           <p className="text-[10px] font-black text-slate-300 uppercase">Quality</p>
                           <p className="text-lg font-black text-fuchsia-600">{row.quality}%</p>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-blue-500 transition-colors" />
+                      
                    </div>
                 </div>
               );
