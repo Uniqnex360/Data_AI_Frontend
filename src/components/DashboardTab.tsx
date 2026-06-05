@@ -316,15 +316,12 @@ const [searchTerm, setSearchTerm] = useState("");
     if (activeMode === "attributes" && selectedTaxonomy) {
       const fetchTaxonomyDetails = async () => {
         try {
-          // 1. Fetch the 3 Summary Cards for this category
           const metrics = await dashboardService.getTaxonomyAttributeMetrics(selectedTaxonomy, projectId);
           setTaxonomyMetrics(metrics);
           
-          // 2. Fetch the grid of attribute sets filtered by this taxonomy
           const details = await dashboardService.getAttributeSummary({
             project_id: projectId,
-            taxonomy: selectedTaxonomy, // Ensure your service passes this to backend
-            ...rangeParams
+            taxonomy: selectedTaxonomy,
           });
           setAttributeSummary(details);
         } catch (error) {

@@ -90,6 +90,7 @@ export const dashboardService = {
   },
 async getAttributeSummary(params?: {
   project_id?: string;
+   taxonomy?: string;
   start_date?: string;
   end_date?: string;
 }): Promise<any[]> {
