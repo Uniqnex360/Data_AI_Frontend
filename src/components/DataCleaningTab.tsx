@@ -1035,8 +1035,8 @@ export default function DataCleaningTab() {
   }, [availableAttributes, bulkSearch]);
 
   return (
-    <div className="p-4 bg-slate-50 h-[calc(100vh-64px)] overflow-hidden flex flex-col font-sans">
-      <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
+    <div className="space-y-4">
+        <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">
             Cleansing &amp; Standardization

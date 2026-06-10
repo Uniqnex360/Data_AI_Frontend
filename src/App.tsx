@@ -8,6 +8,7 @@ import {
   Shield,
   Sparkles,
   Target,
+  Users, // 👈 Add this icon
 } from "lucide-react";
 import DashboardTab from "./components/DashboardTab";
 import SourcesTab from "./components/SourcesTab";
@@ -24,6 +25,8 @@ import RegisterPage from "./components/RegisterPage.tsx";
 import UnauthorizedPage from "./components/UnauthorizedPage.tsx";
 import ReportingTab from "./components/ReportingTab.tsx";
 import { ChevronRight, ChevronLeft } from "lucide-react";
+import UserManagement from "./components/UserManagement.tsx";
+
 type TabId =
   | "dashboard"
   | "sources"
@@ -32,7 +35,8 @@ type TabId =
   | "enrichment"
   | "golden"
   | "cleaning"
-  | "reporting";
+  | "reporting"
+  | "users"; // 👈 Add this
 
 interface Tab {
   id: TabId;
@@ -41,20 +45,21 @@ interface Tab {
   component: React.ComponentType<any>;
   roles?: string[];
 }
+
 const tabs: Tab[] = [
   {
     id: "dashboard",
     label: "Dashboard",
     icon: BarChart3,
     component: DashboardTab,
-    roles: ["admin", "editor", "viewer"],
+    roles: ["admin", "user", "viewer"],
   },
   {
     id: "sources",
     label: "Input & Sources",
     icon: FileText,
     component: SourcesTab,
-    roles: ["admin", "editor", "viewer"],
+    roles: ["admin", "user", "viewer"],
   },
   {
     id: "rules",
@@ -68,56 +73,64 @@ const tabs: Tab[] = [
     label: "Aggregation",
     icon: GitMerge,
     component: AggregationTab,
-    roles: ["admin", "editor", "viewer"],
+    roles: ["admin", "user", "viewer"],
   },
   {
     id: "cleaning",
     label: "Cleansing & Standardization",
     icon: Sparkles,
     component: DataCleaningTab,
-    roles: ["admin", "editor", "viewer"],
+    roles: ["admin", "user", "viewer"],
   },
   {
     id: "enrichment",
     label: "Enrichment",
     icon: Target,
     component: EnrichmentTab,
-    roles: ["admin", "editor", "viewer"],
+    roles: ["admin", "user", "viewer"],
   },
   {
     id: "reporting",
     label: "Reporting",
     icon: BarChart3,
     component: ReportingTab,
-    roles: ["admin", "editor", "viewer"],
+    roles: ["admin", "user", "viewer"],
+  },
+  // 👇 ADD THIS - Admin Only Tab
+  {
+    id: "users",
+    label: "User Management",
+    icon: Users,
+    component: UserManagement,
+    roles: ["admin"], // 🔒 Admin only
   },
 ];
+
 function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
-  const [selectedProject, setSelectedProject] = useState<string | undefined>(
-    undefined,
-  );
+  const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
   const [resetKey, setResetKey] = useState(0);
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // ← ADD
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, logout } = useAuth();
 
   const allowedTabs = tabs.filter(
     (tab) => !tab.roles || (user && tab.roles.includes(user.role)),
   );
   const fallbackTab = allowedTabs[0]?.id || "dashboard";
-  const currentTab =
-    allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
+  const currentTab = allowedTabs.find((t) => t.id === activeTab) ?? allowedTabs[0];
   const ActiveComponent = currentTab?.component;
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
     setActiveTab("sources");
   };
+
   const handleNavigateToProject = (tab: TabId, projectId: string) => {
     setActiveTab(tab);
     setSelectedProject(projectId);
   };
+
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;
@@ -132,14 +145,13 @@ function AppShell() {
           <div
             className={`${
               sidebarCollapsed ? "w-16" : "w-48"
-            } px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center justify-center transition-all duration-300`}>
+            } px-4 py-3 border-r border-slate-200 shrink-0 hidden md:flex items-center justify-center transition-all duration-300`}
+          >
             <img
               src={logo}
               alt="Logo"
               className={`${
-                sidebarCollapsed
-                  ? "h-10 w-10 object-contain"
-                  : "w-full h-16 object-cover"
+                sidebarCollapsed ? "h-10 w-10 object-contain" : "w-full h-16 object-cover"
               } transition-all duration-300`}
             />
           </div>
@@ -164,12 +176,8 @@ function AppShell() {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-slate-900">
-                  {user?.full_name}
-                </p>
-                <p className="text-xs text-slate-500 capitalize">
-                  {user?.role}
-                </p>
+                <p className="text-sm font-medium text-slate-900">{user?.full_name}</p>
+                <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
               </div>
               <button
                 onClick={logout}
@@ -189,7 +197,6 @@ function AppShell() {
             sidebarCollapsed ? "w-16" : "w-48"
           } bg-white border-r border-slate-200 shrink-0 hidden md:flex md:flex-col transition-all duration-300 relative`}
         >
-          {/* Toggle button */}
           <button
             onClick={() => setSidebarCollapsed((s) => !s)}
             className="absolute -right-3 top-4 z-10 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center hover:bg-slate-50 shadow-sm"
@@ -221,35 +228,22 @@ function AppShell() {
                   }}
                   title={sidebarCollapsed ? tab.label : undefined}
                   className={`
-                    flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2.5"} w-full px-3 py-2 text-sm font-medium rounded-lg transition-all mb-1
-                    ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent"
+                    flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2.5"} 
+                    w-full px-3 py-2 text-sm font-medium rounded-lg transition-all mb-1
+                    ${isActive
+                      ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent"
                     }
                   `}
                 >
-                  <Icon
-                    className={`w-4 h-4 shrink-0 ${
-                      isActive ? "text-blue-600" : "text-slate-400"
-                    }`}
-                  />
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
                   {!sidebarCollapsed && (
                     <span className="text-left leading-tight">
                       {tab.label.split(" ").length > 2 ? (
                         <>
-                          {tab.label
-                            .split(" ")
-                            .slice(
-                              0,
-                              Math.ceil(tab.label.split(" ").length / 2),
-                            )
-                            .join(" ")}
+                          {tab.label.split(" ").slice(0, Math.ceil(tab.label.split(" ").length / 2)).join(" ")}
                           <br />
-                          {tab.label
-                            .split(" ")
-                            .slice(Math.ceil(tab.label.split(" ").length / 2))
-                            .join(" ")}
+                          {tab.label.split(" ").slice(Math.ceil(tab.label.split(" ").length / 2)).join(" ")}
                         </>
                       ) : (
                         tab.label
@@ -283,12 +277,14 @@ function AppShell() {
     </div>
   );
 }
+
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
+     
       <Route
         path="/*"
         element={
@@ -300,6 +296,7 @@ function AppRoutes() {
     </Routes>
   );
 }
+
 function App() {
   return (
     <AuthProvider>
@@ -308,4 +305,5 @@ function App() {
     </AuthProvider>
   );
 }
+
 export default App;

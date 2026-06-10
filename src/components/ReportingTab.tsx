@@ -178,7 +178,7 @@ export default function ReportingTab() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4">
       <div>
         <h3 className="text-2xl font-bold text-slate-900">
           Reporting & Data Quality

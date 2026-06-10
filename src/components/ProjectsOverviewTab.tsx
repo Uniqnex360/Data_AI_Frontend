@@ -87,8 +87,12 @@ export default function ProjectsOverviewTab({
   const [projectSources, setProjectSources] = useState<Record<string, any[]>>(
     {},
   );
-  const [downloading, setDownloading] = useState<Set<string>>(new Set());
-
+  const [downloadingInput, setDownloadingInput] = useState<Set<string>>(
+    new Set(),
+  );
+  const [downloadingOutput, setDownloadingOutput] = useState<Set<string>>(
+    new Set(),
+  );
   const [brandFilter, setBrandFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -212,7 +216,7 @@ export default function ProjectsOverviewTab({
   ) => {
     e.stopPropagation();
 
-    setDownloading((prev) => new Set(prev).add(projectId));
+    setDownloadingInput((prev) => new Set(prev).add(projectId)); // Changed
 
     try {
       const sources = await ensureSourcesLoaded(projectId);
@@ -228,7 +232,7 @@ export default function ProjectsOverviewTab({
       console.error("Input download failed:", error);
       notify.error("Failed to download input file");
     } finally {
-      setDownloading((prev) => {
+      setDownloadingInput((prev) => {
         const newSet = new Set(prev);
         newSet.delete(projectId);
         return newSet;
@@ -339,7 +343,7 @@ export default function ProjectsOverviewTab({
     const project = projects.find((p) => p.id === projectId);
     const projectName = project?.name || "project";
 
-    setDownloading((prev) => new Set(prev).add(projectId));
+    setDownloadingOutput((prev) => new Set(prev).add(projectId)); // Changed
     try {
       const sources = await ensureSourcesLoaded(projectId);
       const completedSource = sources.find((s) => s.status === "completed");
@@ -370,7 +374,8 @@ export default function ProjectsOverviewTab({
       console.error("Download failed:", error);
       notify.error("Failed to download output");
     } finally {
-      setDownloading((prev) => {
+      setDownloadingOutput((prev) => {
+        // Changed
         const newSet = new Set(prev);
         newSet.delete(projectId);
         return newSet;
@@ -547,7 +552,8 @@ export default function ProjectsOverviewTab({
               displayedProjects.map((p) => {
                 const isSelected = p.id === selectedProjectId;
                 const importFileName = getImportFileName(p.id);
-                const isDownloading = downloading.has(p.id);
+                const isDownloadingInput = downloadingInput.has(p.id);
+                const isDownloadingOutput = downloadingOutput.has(p.id);
 
                 return (
                   <tr
@@ -635,24 +641,24 @@ export default function ProjectsOverviewTab({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center gap-1.5">
-  <div className="relative group/tip">
-    <button
-      onClick={(e) => handleDownloadInput(e, p.id)}
-      disabled={isDownloading}
-      className="w-7 h-7 flex items-center justify-center rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 disabled:opacity-50"
-    >
-      {isDownloading ? (
-        <Loader2 className="w-3 h-3 animate-spin" />
-      ) : (
-        <Download className="w-3.5 h-3.5" />
-      )}
-    </button>
+                        <div className="relative group/tip">
+                          <button
+  onClick={(e) => handleDownloadInput(e, p.id)}
+  disabled={isDownloadingInput} 
+  className="w-7 h-7 flex items-center justify-center rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 disabled:opacity-50"
+>
+  {isDownloadingInput ? (  // Changed
+    <Loader2 className="w-3 h-3 animate-spin" />
+  ) : (
+    <Download className="w-3.5 h-3.5" />
+  )}
+</button>
 
-    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
-      Download Input File
-    </span>
-  </div>
-</div>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
+                            Download Input File
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td
                       className="px-4 py-3 text-center"
@@ -670,17 +676,17 @@ export default function ProjectsOverviewTab({
                         if (isCompleted) {
                           return (
                             <div className="relative group/tip">
-                              <button
-                                onClick={(e) => handleDownloadOutput(e, p.id)}
-                                disabled={isDownloading}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
-                              >
-                                {isDownloading ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Download className="w-3.5 h-3.5" />
-                                )}
-                              </button>
+                             <button
+  onClick={(e) => handleDownloadOutput(e, p.id)}
+  disabled={isDownloadingOutput}  // Changed
+  className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 bg-green-50 hover:bg-green-100 border border-green-100 disabled:opacity-50"
+>
+  {isDownloadingOutput ? (  // Changed
+    <Loader2 className="w-3 h-3 animate-spin" />
+  ) : (
+    <Download className="w-3.5 h-3.5" />
+  )}
+</button>
                               <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-white opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">
                                 Download Output
                               </span>
