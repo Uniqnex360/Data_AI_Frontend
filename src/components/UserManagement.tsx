@@ -288,7 +288,7 @@ export default function UserManagement() {
                   value={createForm.password}
                   onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
                   placeholder="Min. 8 characters"
-                  minLength={8}
+                  minLength={5}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
