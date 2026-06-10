@@ -22,7 +22,6 @@ export default function UserManagement() {
     email: "", full_name: "", password: "", role: "user"
   });
 
-  // Redirect non-admins
   if (currentUser?.role !== "admin") {
     return <Navigate to="/" replace />;
   }
@@ -113,7 +112,6 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-900">User Management</h1>
@@ -130,7 +128,6 @@ export default function UserManagement() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total</p>
@@ -146,7 +143,6 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
@@ -157,7 +153,6 @@ export default function UserManagement() {
         />
       </div>
 
-      {/* Users Table */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -199,7 +194,6 @@ export default function UserManagement() {
                 </td>
                 <td className="p-4">
                   <div className="flex items-center gap-1 justify-end">
-                    {/* Toggle Role */}
                     {user.id !== currentUser?.id && (
                       <button
                         onClick={() => handleToggleRole(user)}
@@ -210,7 +204,6 @@ export default function UserManagement() {
                       </button>
                     )}
 
-                    {/* Reset Password */}
                     <button
                       onClick={() => setShowPasswordModal(user.id)}
                       title="Reset Password"
@@ -219,7 +212,6 @@ export default function UserManagement() {
                       <Key className="w-4 h-4" />
                     </button>
 
-                    {/* Toggle Active */}
                     {user.id !== currentUser?.id && (
                       <button
                         onClick={() => handleToggleActive(user)}
@@ -230,7 +222,6 @@ export default function UserManagement() {
                       </button>
                     )}
 
-                    {/* Delete */}
                     {user.id !== currentUser?.id && (
                       <button
                         onClick={() => handleDelete(user.id)}
@@ -248,7 +239,6 @@ export default function UserManagement() {
         </table>
       </div>
 
-      {/* Create User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -319,7 +309,6 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Reset Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -336,8 +325,8 @@ export default function UserManagement() {
                   type="password"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Min. 8 characters"
-                  minLength={8}
+                  placeholder="Min. 5 characters"
+                  minLength={5}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
