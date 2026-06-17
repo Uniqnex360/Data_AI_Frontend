@@ -295,6 +295,7 @@ source_processing_status?: string;
 }
 export type DateRangeParams = {
   start_date?: string;
+  user_id?: string; 
   end_date?: string;
   date_field?: "created_at" | "updated_at";
 };

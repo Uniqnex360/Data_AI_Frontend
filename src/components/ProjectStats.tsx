@@ -204,6 +204,7 @@ export function ProjectStats({
         (p) =>
           p.product_name?.toLowerCase().includes(q) ||
           p.brand_name?.toLowerCase().includes(q) ||
+          p.mpn?.toLowerCase().includes(q)||
           p.category_3?.toLowerCase().includes(q),
       );
     }
@@ -600,7 +601,7 @@ export function ProjectStats({
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Search by product name, brand, category..."
+                  placeholder="Search by product name,mpn, brand, category..."
                   className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg pl-4 pr-8 py-2 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
                 />
                 {search && (

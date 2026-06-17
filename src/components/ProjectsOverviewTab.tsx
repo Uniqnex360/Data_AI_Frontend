@@ -1,11 +1,9 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Folder,
   Search,
   Download,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   AlertCircle,
   XCircle,
   Clock,
@@ -457,8 +455,6 @@ export default function ProjectsOverviewTab({
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
-                    onSearchChange?.(e.target.value);
-                    onPageChange?.(1);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") onSearchChange?.(search);

@@ -7,22 +7,16 @@ import {
   Edit,
   AlertCircle,
   ChevronDown,
-  ChevronUp,
   FolderOpen,
-  Search,
-  Clock,
-  XCircle,
   Globe,
   FileText,
   X,
   Loader2,
-  Calendar,
 } from "lucide-react";
 import { extractionService } from "../services/extractionService";
 import { projectService } from "../services/projectService";
 import type { Source, Project } from "../types/database.types";
 import { notify } from "../lib/notifications.ts";
-import { getStatusIcon } from "../utils/statusIcon";
 import { cleansingService } from "../services/cleansingService";
 import { pollBatchStatus } from "../../utils/polling";
 import {

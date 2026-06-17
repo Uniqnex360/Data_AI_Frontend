@@ -21,7 +21,6 @@ export default function ProjectDetailView({
   return (
     <div className="space-y-6">
       
-      {/* Back */}
       <button
         onClick={onBack}
         className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
@@ -30,7 +29,6 @@ export default function ProjectDetailView({
         Back to Projects
       </button>
 
-      {/* Header */}
       <div className="bg-white border border-slate-200 rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">{project.name}</h2>
 
@@ -42,7 +40,6 @@ export default function ProjectDetailView({
           <StatCard label="Failed" value={project.failed_count ?? 0} />
         </div>
 
-        {/* Completeness */}
         <div className="mt-6">
           <p className="text-sm text-slate-500 mb-2">Total Completeness</p>
           <div className="flex items-center gap-4">
@@ -61,7 +58,6 @@ export default function ProjectDetailView({
         </div>
       </div>
 
-      {/* ✅ Products Section */}
       <div className="bg-white border border-slate-200 rounded-lg">
         {children}
       </div>

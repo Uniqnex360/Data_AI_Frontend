@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Sparkles,
   Tag,
+  Users,
   XCircle,
 } from "lucide-react";
 import { dashboardService, type DateField } from "../services/dashboardService";
@@ -25,6 +26,7 @@ import {
 } from "../types/business-rules.types.ts";
 import { productService } from "../services/productService";
 import { ChevronRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext.tsx";
 
 interface Props {
   projectId?: string;
@@ -221,19 +223,32 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("week");
   const [preset, setPreset] = useState<Preset>("month");
+
   const [startDate, setStartDate] = useState<string>(
     toYMD(startOfMonth(new Date())),
   );
+  const { user: loggedInUser } = useAuth();
+  const isAdmin = loggedInUser?.role === "admin";
+
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => {
+    return localStorage.getItem("impersonated_user_id") || "all";
+  });
+  const [availableUsers, setAvailableUsers] = useState<
+    { id: string; full_name: string }[]
+  >([]);
+
   const [taxonomies, setTaxonomies] = useState<
     { taxonomy: string; count: number }[]
   >([]);
-  const [viewAllType, setViewAllType] = useState<"brands" | "categories" | null>(null);
-const [listSearch, setListSearch] = useState("");
+  const [viewAllType, setViewAllType] = useState<
+    "brands" | "categories" | null
+  >(null);
+  const [listSearch, setListSearch] = useState("");
   const [selectedTaxonomy, setSelectedTaxonomy] = useState<string>("");
   const [taxonomyMetrics, setTaxonomyMetrics] = useState<any>(null);
   const [activeMode, setActiveMode] = useState<DashboardMode>("aggregation");
   const [showAllBrands, setShowAllBrands] = useState(false);
-const [brandSearch, setBrandSearch] = useState("");
+  const [brandSearch, setBrandSearch] = useState("");
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
   const [attributeSummary, setAttributeSummary] = useState<any[]>([]);
 
@@ -278,10 +293,28 @@ const [brandSearch, setBrandSearch] = useState("");
     }
   };
   useEffect(() => {
+    if (isAdmin) {
+      dashboardService
+        .getUsersList()
+        .then(setAvailableUsers)
+        .catch((err) => console.error("Failed to fetch users", err));
+    }
+  }, [isAdmin]);
+  const rangeParams = useMemo(
+    () => ({
+      start_date: startDate,
+      end_date: endDate,
+      date_field: dateField,
+      mode: activeMode,
+      user_id: selectedUserId === "all" ? undefined : selectedUserId,
+    }),
+    [startDate, endDate, dateField, activeMode, selectedUserId],
+  );
+  useEffect(() => {
     if (!projectId) {
       loadProjectsOverview();
     }
-  }, [projectId]);
+  }, [projectId, selectedUserId]);
   useEffect(() => {
     if (activeMode === "attributes") {
       const fetchTaxonomies = async () => {
@@ -293,16 +326,8 @@ const [brandSearch, setBrandSearch] = useState("");
       };
       fetchTaxonomies();
     }
-  }, [activeMode, projectId]);
-  const rangeParams = useMemo(
-    () => ({
-      start_date: startDate,
-      end_date: endDate,
-      date_field: dateField,
-      mode: activeMode,
-    }),
-    [startDate, endDate, dateField, activeMode],
-  );
+  }, [activeMode, projectId, rangeParams]);
+
   useEffect(() => {
     const now = new Date();
     if (preset === "today") {
@@ -323,12 +348,14 @@ const [brandSearch, setBrandSearch] = useState("");
           const metrics = await dashboardService.getTaxonomyAttributeMetrics(
             selectedTaxonomy,
             projectId,
+            rangeParams.user_id,
           );
           setTaxonomyMetrics(metrics);
 
           const details = await dashboardService.getAttributeSummary({
             project_id: projectId,
             taxonomy: selectedTaxonomy,
+            ...rangeParams,
           });
           setAttributeSummary(details);
         } catch (error) {
@@ -353,6 +380,7 @@ const [brandSearch, setBrandSearch] = useState("");
     rangeParams.start_date,
     rangeParams.end_date,
     rangeParams.date_field,
+    rangeParams.user_id,
     activeMode,
   ]);
 
@@ -549,7 +577,20 @@ const [brandSearch, setBrandSearch] = useState("");
       icon: Clock,
     };
   }, [projectId, total, enriched, failed]);
-
+useEffect(() => {
+  const handleImpersonationChange = () => {
+    const storedId = localStorage.getItem('impersonated_user_id') || 'all';
+    setSelectedUserId(storedId);
+  };
+  
+  window.addEventListener('impersonation-changed', handleImpersonationChange);
+  window.addEventListener('storage', handleImpersonationChange);
+  
+  return () => {
+    window.removeEventListener('impersonation-changed', handleImpersonationChange);
+    window.removeEventListener('storage', handleImpersonationChange);
+  };
+}, []);
   const ActivityIcon = ({ type }: { type: string }) => {
     const t = (type || "").toLowerCase();
     if (t.includes("completed"))
@@ -594,6 +635,34 @@ const [brandSearch, setBrandSearch] = useState("");
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          {isAdmin && (
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
+              <Users className="w-4 h-4 text-slate-400" />
+              <select
+                value={selectedUserId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setSelectedUserId(newId);
+                  if (newId === 'all') {
+    localStorage.removeItem('impersonated_user_id');
+  } else {
+    localStorage.setItem('impersonated_user_id', newId);
+  }
+  
+  window.dispatchEvent(new Event('impersonation-changed'));
+                  localStorage.setItem("impersonated_user_id", newId);
+                }}
+                className="text-sm font-bold bg-transparent outline-none border-none cursor-pointer text-slate-700"
+              >
+                <option value="all">System View (All Users)</option>
+                {availableUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    User: {u.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="inline-flex rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <PillButton
               active={preset === "today"}
@@ -858,7 +927,6 @@ const [brandSearch, setBrandSearch] = useState("");
       )}
       {activeMode === "attributes" && (
         <div className="space-y-6 animate-in fade-in duration-500">
-          {/* SEARCHABLE SELECT CATEGORY */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <label className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2 block">
               Select Category Taxonomy
@@ -981,7 +1049,10 @@ const [brandSearch, setBrandSearch] = useState("");
               {/* Header */}
               <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                 <h4 className="text-base font-bold text-slate-900">Brands</h4>
-                <button className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"  onClick={() => setViewAllType("brands")} >
+                <button
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  onClick={() => setViewAllType("brands")}
+                >
                   View all <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1036,7 +1107,10 @@ const [brandSearch, setBrandSearch] = useState("");
                 <h4 className="text-base font-bold text-slate-900">
                   Categories
                 </h4>
-                <button className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"  onClick={() => setViewAllType("categories")} >
+                <button
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  onClick={() => setViewAllType("categories")}
+                >
                   View all <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1420,85 +1494,116 @@ const [brandSearch, setBrandSearch] = useState("");
         </div>
       )}
       {viewAllType && (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all">
-    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
-      
-      {/* Modal Header */}
-      <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-        <div>
-          <h3 className="text-3xl font-black text-slate-900">
-            All {viewAllType === "brands" ? "Brands" : "Categories"}
-          </h3>
-          <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">
-            Total {viewAllType === "brands" ? brandFlowStats.length : categoryFlowStats.length} Items found
-          </p>
-        </div>
-        <button 
-          onClick={() => { setViewAllType(null); setListSearch(""); }}
-          className="p-3 hover:bg-white hover:shadow-xl rounded-2xl transition-all group border border-transparent hover:border-slate-100"
-        >
-          <XCircle className="w-9 h-9 text-slate-300 group-hover:text-red-500 transition-colors" />
-        </button>
-      </div>
-      
-      {/* Search Section */}
-      <div className="p-6 bg-white">
-        <div className="relative">
-          <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input 
-            type="text"
-            placeholder={`Search ${viewAllType}...`}
-            className="w-full pl-14 pr-6 py-5 bg-slate-100 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl outline-none font-bold text-slate-700 transition-all text-lg shadow-inner"
-            value={listSearch}
-            onChange={(e) => setListSearch(e.target.value)}
-            autoFocus
-          />
-        </div>
-      </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-3xl font-black text-slate-900">
+                  All {viewAllType === "brands" ? "Brands" : "Categories"}
+                </h3>
+                <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">
+                  Total{" "}
+                  {viewAllType === "brands"
+                    ? brandFlowStats.length
+                    : categoryFlowStats.length}{" "}
+                  Items found
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setViewAllType(null);
+                  setListSearch("");
+                }}
+                className="p-3 hover:bg-white hover:shadow-xl rounded-2xl transition-all group border border-transparent hover:border-slate-100"
+              >
+                <XCircle className="w-9 h-9 text-slate-300 group-hover:text-red-500 transition-colors" />
+              </button>
+            </div>
 
-      {/* List Area */}
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
-        <div className="grid grid-cols-1 gap-3">
-          {(viewAllType === "brands" ? brandFlowStats : categoryFlowStats)
-            .filter(item => {
-                const name = viewAllType === "brands" ? item.brand : item.category;
-                return name.toLowerCase().includes(listSearch.toLowerCase());
-            })
-            .map((row: any, idx: number) => {
-              const name = viewAllType === "brands" ? row.brand : row.category;
-              // For categories, show the breadcrumb path nicely
-              const displayName = viewAllType === "categories" ? name.split('>').pop().trim() : name;
-              const subName = viewAllType === "categories" ? name : null;
+            {/* Search Section */}
+            <div className="p-6 bg-white">
+              <div className="relative">
+                <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={`Search ${viewAllType}...`}
+                  className="w-full pl-14 pr-6 py-5 bg-slate-100 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl outline-none font-bold text-slate-700 transition-all text-lg shadow-inner"
+                  value={listSearch}
+                  onChange={(e) => setListSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
 
-              return (
-                <div key={idx} className="flex items-center justify-between p-5 rounded-3xl hover:bg-slate-50 transition-all border border-slate-50 hover:border-blue-100 group">
-                   <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-black text-slate-900 text-lg truncate uppercase tracking-tight">{displayName}</span>
-                        <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full border border-blue-100">{row.count}</span>
-                      </div>
-                      {subName && <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">{subName}</p>}
-                   </div>
+            {/* List Area */}
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
+              <div className="grid grid-cols-1 gap-3">
+                {(viewAllType === "brands" ? brandFlowStats : categoryFlowStats)
+                  .filter((item) => {
+                    const name =
+                      viewAllType === "brands" ? item.brand : item.category;
+                    return name
+                      .toLowerCase()
+                      .includes(listSearch.toLowerCase());
+                  })
+                  .map((row: any, idx: number) => {
+                    const name =
+                      viewAllType === "brands" ? row.brand : row.category;
+                    // For categories, show the breadcrumb path nicely
+                    const displayName =
+                      viewAllType === "categories"
+                        ? name.split(">").pop().trim()
+                        : name;
+                    const subName = viewAllType === "categories" ? name : null;
 
-                   <div className="flex items-center gap-8 ml-4">
-                      <div className="text-right">
-                          <p className="text-[10px] font-black text-slate-300 uppercase">Completeness</p>
-                          <p className="text-lg font-black text-blue-600">{row.complete}%</p>
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-5 rounded-3xl hover:bg-slate-50 transition-all border border-slate-50 hover:border-blue-100 group"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="font-black text-slate-900 text-lg truncate uppercase tracking-tight">
+                              {displayName}
+                            </span>
+                            <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full border border-blue-100">
+                              {row.count}
+                            </span>
+                          </div>
+                          {subName && (
+                            <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                              {subName}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-8 ml-4">
+                          <div className="text-right">
+                            <p className="text-[10px] font-black text-slate-300 uppercase">
+                              Completeness
+                            </p>
+                            <p className="text-lg font-black text-blue-600">
+                              {row.complete}%
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-black text-slate-300 uppercase">
+                              Quality
+                            </p>
+                            <p className="text-lg font-black text-fuchsia-600">
+                              {row.quality}%
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                          <p className="text-[10px] font-black text-slate-300 uppercase">Quality</p>
-                          <p className="text-lg font-black text-fuchsia-600">{row.quality}%</p>
-                      </div>
-                      
-                   </div>
-                </div>
-              );
-            })}
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 }

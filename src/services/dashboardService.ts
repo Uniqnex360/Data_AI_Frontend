@@ -2,7 +2,6 @@ import api from "../lib/api.ts";
 import { ProjectOverview } from "../types/business-rules.types";
 import {
   BrandAttributesParams,
-  BrandFlowParams,
   CategoryParams,
   DashboardStats,
   DateRangeParams,
@@ -142,4 +141,13 @@ async getProjectsOverview(params?: {
     });
     return data;
   },
+  async getUsersList(): Promise<Array<{ id: string; full_name: string }>> {
+    try {
+      const { data } = await api.get("/dashboard/users-list");
+      return data || [];
+    } catch (error) {
+      console.error("Failed to fetch users list:", error);
+      return [];
+    }
+  }
 };
