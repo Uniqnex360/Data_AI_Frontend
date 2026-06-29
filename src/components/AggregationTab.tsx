@@ -174,20 +174,22 @@ export default function AggregationTab({
     return useCaseMap[type] || [];
   };
   const fetchJobProgress = useCallback(async (projectId: string) => {
-    
     try {
       const status =
         await aggregationService.getProjectAggregationStatus(projectId);
-        console.log(`Job status for ${projectId}:`, status); 
-        const jobId = status.job_id || status.id;
-     if (jobId && (status.status === "processing" || status.status === "pending")) {
-      const progress = await aggregationService.getJobProgress(jobId);
-      console.log(`Progress for ${projectId}:`, progress);
-      setJobProgress((prev) => ({
-        ...prev,
-        [projectId]: progress,
-      }));
-    }
+      console.log(`Job status for ${projectId}:`, status);
+      const jobId = status.job_id || status.id;
+      if (
+        jobId &&
+        (status.status === "processing" || status.status === "pending")
+      ) {
+        const progress = await aggregationService.getJobProgress(jobId);
+        console.log(`Progress for ${projectId}:`, progress);
+        setJobProgress((prev) => ({
+          ...prev,
+          [projectId]: progress,
+        }));
+      }
     } catch (error) {
       console.error(`Failed to fetch job progress for ${projectId}:`, error);
     }
@@ -662,7 +664,6 @@ export default function AggregationTab({
     if (selectedProjectIds.size > 0) return true;
     return false;
   }, [selectedProductIds, selectedProjectIds]);
- 
 
   const { trackProcessingProduct, removeTrackingProduct } = useProductMovement({
     projectId: expandedProjectId,
@@ -1513,8 +1514,8 @@ export default function AggregationTab({
                   Data Quality
                 </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
-      Algorithm
-    </th>
+                  Algorithm
+                </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500 bg-white border-b border-slate-200">
                   Status
                 </th>
@@ -1563,38 +1564,43 @@ export default function AggregationTab({
                       />
                     </td>
                     <td className="px-4 py-3">
-  <div className="flex items-center gap-2 flex-wrap">
-    <button
-      type="button"
-      className="font-semibold text-slate-900 hover:underline text-left"
-      onClick={(e) => {
-        e.stopPropagation();
-        openProjectStats(project.id);
-      }}
-    >
-      {project.name}
-    </button>
-    {aggregatingProjects.has(project.id) && (
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
-          <Loader2 className="w-3 h-3 animate-spin" />
-          Processing
-        </span>
-        {jobProgress[project.id] && (
-          <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-full">
-            {Math.round(jobProgress[project.id].progress_percentage || 0)}%
-          </span>
-        )}
-      </div>
-    )}
-  </div>
-  {/* Optional: Show current product being processed */}
-  {aggregatingProjects.has(project.id) && jobProgress[project.id]?.current_product && (
-    <p className="text-[10px] text-slate-400 mt-1 truncate max-w-[200px]">
-      Current: {jobProgress[project.id].current_product}
-    </p>
-  )}
-</td>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          className="font-semibold text-slate-900 hover:underline text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openProjectStats(project.id);
+                          }}
+                        >
+                          {project.name}
+                        </button>
+                        {aggregatingProjects.has(project.id) && (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Processing
+                            </span>
+                            {jobProgress[project.id] && (
+                              <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-full">
+                                {Math.round(
+                                  jobProgress[project.id].progress_percentage ||
+                                    0,
+                                )}
+                                %
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* Optional: Show current product being processed */}
+                      {aggregatingProjects.has(project.id) &&
+                        jobProgress[project.id]?.current_product && (
+                          <p className="text-[10px] text-slate-400 mt-1 truncate max-w-[200px]">
+                            Current: {jobProgress[project.id].current_product}
+                          </p>
+                        )}
+                    </td>
                     <td className="px-4 py-3">
                       {aggregatingProjects.has(project.id) &&
                       jobProgress[project.id] ? (
@@ -1607,7 +1613,6 @@ export default function AggregationTab({
                                 ? "pdf"
                                 : "—"}
                           </span>
-                          
                         </div>
                       ) : (
                         <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full capitalize">
@@ -1691,18 +1696,22 @@ export default function AggregationTab({
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-  {(project as any).algorithm_used ? (
-    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
-      {(project as any).algorithm_used}
-    </span>
-  ) : aggregatingProjects.has(project.id) && jobProgress[project.id] ? (
-    <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
-      {Math.round(jobProgress[project.id].progress_percentage || 0)}%
-    </span>
-  ) : (
-    <span className="text-slate-400 text-xs">—</span>
-  )}
-</td>
+                      {(project as any).algorithm_used ? (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                          {(project as any).algorithm_used}
+                        </span>
+                      ) : aggregatingProjects.has(project.id) &&
+                        jobProgress[project.id] ? (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                          {Math.round(
+                            jobProgress[project.id].progress_percentage || 0,
+                          )}
+                          %
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <span
                         title={project.source_status || "NA"}
