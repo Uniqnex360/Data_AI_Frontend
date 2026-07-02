@@ -141,6 +141,7 @@ export function ProductDetailView({
     };
   }, []);
   const loadViewData = useCallback(async () => {
+    
     setLoading(true);
     try {
       const sources = await extractionService.getSourcesByProject(projectId);
@@ -159,6 +160,7 @@ export function ProductDetailView({
         if (product.attributes && typeof product.attributes === "object") {
           Object.entries(product.attributes).forEach(
             ([attrName, attrValue]) => {
+              console.log('attrName:', attrName, 'attrValue:', attrValue, 'type:', typeof attrValue);
               if (typeof attrValue === "object" && attrValue !== null) {
                 productAttrs[attrName] = attrValue.value || "—";
                 if (attrValue.unit) {
@@ -174,7 +176,9 @@ export function ProductDetailView({
         newMap[product.id] = productAttrs;
         newUomMap[product.id] = productUoms;
       });
-
+      console.log('products:', products);
+console.log('first product attributes:', products[0]?.attributes);
+console.log('type:', typeof products[0]?.attributes);
       setAttrMap(newMap);
       setAttrUomMap(newUomMap);
     } catch (err) {

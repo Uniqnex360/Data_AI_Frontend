@@ -1,9 +1,5 @@
 import api from "../lib/api.ts";
-import { AggregationJob, ProjectWithStats } from "../types/business-rules.types.ts";
-import {
-  AggregationResponse,
-  ProductAggregationResponse,
-} from "../types/database.types";
+import { AggregatedAttribute, AggregationJob, Product, ProjectWithStats } from "../types/business-rules.types.ts";
 
 export const aggregationService = {
   async getProjectsWithAggregationStats(): Promise<ProjectWithStats[]> {

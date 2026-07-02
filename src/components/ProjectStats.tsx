@@ -128,7 +128,7 @@ export function ProjectStats({
           setAggregatingProducts(new Set());
           setSelectedProductIds(new Set());
           await loadData();
-          notify.success("All selected products have completed aggregation");
+            notify.success("All selected products have completed aggregation");
         }
       } catch (e) {
         console.error("Polling error:", e);
@@ -532,6 +532,7 @@ export function ProjectStats({
                       onClick={async () => {
                         const ids = Array.from(selectedProductIds);
                         setAggregatingProducts(new Set(ids));
+                        
                         let successCount = 0;
                         try {
                           for (const productId of ids) {

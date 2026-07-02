@@ -497,32 +497,101 @@ export default function AggregationTab({
 
     return () => clearInterval(interval);
   }, [aggregatingProjects, fetchJobProgress]);
+  // const pollProjectStatuses = useCallback(async () => {
+  //   if (aggregatingProjects.size === 0) return;
+  //   const newAggregatingProjects = new Set(aggregatingProjects);
+  //   const completedProjects: string[] = [];
+  //   for (const projectId of aggregatingProjects) {
+  //     try {
+  //       const job =
+  //         await aggregationService.getProjectAggregationStatus(projectId);
+  //       if (job.status === "completed" || job.status === "failed") {
+  //         newAggregatingProjects.delete(projectId);
+  //         completedProjects.push(projectId);
+  //         const projectName =
+  //           projects.find((p) => p.id === projectId)?.name || projectId;
+  //         if (job.status === "completed") {
+  //           notify.success(`Aggregation completed for "${projectName}"`);
+  //         } else {
+  //           notify.error(`Aggregation failed for "${projectName}"`);
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.error(`Failed to poll project ${projectId}:`, error);
+  //     }
+  //   }
+  //   if (completedProjects.length > 0) {
+  //     setAggregatingProjects(newAggregatingProjects);
+  //     loadProjects(true);
+  //     if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
+  //       try {
+  //         const freshResult = await productService.getProductsByProject(
+  //           expandedProjectId,
+  //           "aggregation",
+  //         );
+  //         const freshData = Array.isArray(freshResult)
+  //           ? freshResult
+  //           : (freshResult?.products ?? []);
+  //         setExpandedProjectProducts(freshData);
+  //       } catch (error) {
+  //         console.error("Failed to refresh expanded project:", error);
+  //       }
+  //     }
+  //   }
+  // }, [aggregatingProjects, expandedProjectId, projects]);
   const pollProjectStatuses = useCallback(async () => {
     if (aggregatingProjects.size === 0) return;
+    
+    // Reload projects to get latest statuses
+    const data = await projectService.getAllProjects({
+      operation_mode: "aggregation,pdf_extraction",
+      tab: "aggregation",
+    });
+    
     const newAggregatingProjects = new Set(aggregatingProjects);
     const completedProjects: string[] = [];
+    
     for (const projectId of aggregatingProjects) {
-      try {
-        const job =
-          await aggregationService.getProjectAggregationStatus(projectId);
-        if (job.status === "completed" || job.status === "failed") {
+      const updated = data.find((p: Project) => p.id === projectId);
+      const project = projects.find((p) => p.id === projectId);
+      const isPdfProject = project?.operation_mode === "pdf_extraction";
+      
+      if (isPdfProject) {
+        // For PDF projects, check source_status from reloaded data
+        if (updated && (updated.source_status === "Completed" || updated.source_status === "Failed")) {
           newAggregatingProjects.delete(projectId);
           completedProjects.push(projectId);
-          const projectName =
-            projects.find((p) => p.id === projectId)?.name || projectId;
-          if (job.status === "completed") {
-            notify.success(`Aggregation completed for "${projectName}"`);
+          if (updated.source_status === "Completed") {
+            notify.success(`Extraction completed for "${updated.name}"`);
           } else {
-            notify.error(`Aggregation failed for "${projectName}"`);
+            notify.error(`Extraction failed for "${updated.name}"`);
           }
         }
-      } catch (error) {
-        console.error(`Failed to poll project ${projectId}:`, error);
+      } else {
+        // For web aggregation, use existing job check
+        try {
+          const job = await aggregationService.getProjectAggregationStatus(projectId);
+          if (job.status === "completed" || job.status === "failed") {
+            newAggregatingProjects.delete(projectId);
+            completedProjects.push(projectId);
+            const projectName = projects.find((p) => p.id === projectId)?.name || projectId;
+            if (job.status === "completed") {
+              notify.success(`Aggregation completed for "${projectName}"`);
+            } else {
+              notify.error(`Aggregation failed for "${projectName}"`);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to poll project ${projectId}:`, error);
+        }
       }
     }
+    
     if (completedProjects.length > 0) {
       setAggregatingProjects(newAggregatingProjects);
-      loadProjects(true);
+      setProjects(data.filter(
+        (p: Project) => p.operation_mode === "aggregation" || p.operation_mode === "pdf_extraction"
+      ));
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
           const freshResult = await productService.getProductsByProject(
@@ -538,7 +607,7 @@ export default function AggregationTab({
         }
       }
     }
-  }, [aggregatingProjects, expandedProjectId, projects]);
+  }, [aggregatingProjects, expandedProjectId, projects]); 
   useEffect(() => {
     if (aggregatingProjects.size > 0) {
       const interval = setInterval(pollProjectStatuses, 5000);
@@ -985,6 +1054,12 @@ export default function AggregationTab({
     const projectIdsToExtract = Array.from(selectedProjectIds);
     setLoading(true);
     let successCount = 0;
+     setAggregatingProjects((prev) => {
+      const newSet = new Set(prev);
+      projectIdsToExtract.forEach((id) => newSet.add(id));
+      return newSet;
+    });
+    
     try {
       for (const projectId of projectIdsToExtract) {
         try {
@@ -997,8 +1072,10 @@ export default function AggregationTab({
             : (productsResult?.products ?? []);
           const pendingProducts = products.filter(
             (p) =>
-              p.completeness_score === 0 &&
-              p.enrichment_status !== "processing",
+              p.enrichment_status === "pending" ||
+              p.enrichment_status === "failed" ||
+              (p.enrichment_status === "completed" &&
+                p.completeness_score === 0),
           );
           for (const product of pendingProducts) {
             try {
@@ -1023,6 +1100,11 @@ export default function AggregationTab({
           successCount++;
         } catch (e) {
           console.error(`Failed to process project ${projectId}:`, e);
+          setAggregatingProjects((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(projectId); 
+        return newSet;
+      });
         }
       }
       if (successCount > 0) {
