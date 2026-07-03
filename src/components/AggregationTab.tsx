@@ -586,12 +586,12 @@ export default function AggregationTab({
         }
       }
     }
-    
-    if (completedProjects.length > 0) {
-      setAggregatingProjects(newAggregatingProjects);
-      setProjects(data.filter(
+       setProjects(data.filter(
         (p: Project) => p.operation_mode === "aggregation" || p.operation_mode === "pdf_extraction"
       ));
+    if (completedProjects.length > 0) {
+      setAggregatingProjects(newAggregatingProjects);
+     
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
           const freshResult = await productService.getProductsByProject(
@@ -1074,8 +1074,7 @@ export default function AggregationTab({
             (p) =>
               p.enrichment_status === "pending" ||
               p.enrichment_status === "failed" ||
-              (p.enrichment_status === "completed" &&
-                p.completeness_score === 0),
+              (p.enrichment_status === "completed")
           );
           for (const product of pendingProducts) {
             try {
@@ -1109,6 +1108,7 @@ export default function AggregationTab({
       }
       if (successCount > 0) {
         notify.success(`Extraction started for ${successCount} project(s)`);
+         loadProjects(true)
       }
       if (
         expandedProjectId &&

@@ -533,15 +533,26 @@ export function ProjectStats({
                         const ids = Array.from(selectedProductIds);
                         setAggregatingProducts(new Set(ids));
                         
-                        let successCount = 0;
-                        try {
-                          for (const productId of ids) {
-                            try {
-                              await aggregationService.aggregateProduct(
-                                productId,
-                                "openai",
-                              );
-                              successCount++;
+                        const isPdfProject = projectProp?.operation_mode === "pdf_extraction";
+    let successCount = 0;
+    try {
+      for (const productId of ids) {
+        try {
+          if (isPdfProject) {
+            const product = aggregationProducts.find(p => p.id === productId);
+            if (product) {
+              await extractionService.extractPdfForProduct(
+                product.product_code,
+                projectId,
+              );
+            }
+          } else {
+            await aggregationService.aggregateProduct(
+              productId,
+              "openai",
+            );
+          }
+          successCount++;
                             } catch (e) {
                               console.error(
                                 `Failed to aggregate ${productId}:`,
