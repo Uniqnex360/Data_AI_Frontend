@@ -26,6 +26,8 @@ import UnauthorizedPage from "./components/UnauthorizedPage.tsx";
 import ReportingTab from "./components/ReportingTab.tsx";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import UserManagement from "./components/UserManagement.tsx";
+import { useEffect } from 'react';
+import { dashboardService } from './services/dashboardService';
 
 type TabId =
   | "dashboard"
@@ -113,6 +115,12 @@ function AppShell() {
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, logout } = useAuth();
+  const [availableUsers,setAvailableUsers]=useState<{id:string;full_name:string}[]>([])
+  const [selectedUserId,setSelectedUserId]=useState<string>(()=>{
+    return localStorage.getItem('impersonated_user_id')||'all'
+
+  })
+  const isAdmin=user?.role=='admin'
 
   const allowedTabs = tabs.filter(
     (tab) => !tab.roles || (user && tab.roles.includes(user.role)),
@@ -130,7 +138,13 @@ function AppShell() {
     setActiveTab(tab);
     setSelectedProject(projectId);
   };
+  useEffect(()=>{
+    if(isAdmin)
+    {
+      dashboardService.getUsersList().then(setAvailableUsers).catch((err)=>console.error("Failed to fetch users",err))
 
+    }
+  },[isAdmin])
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;
@@ -175,6 +189,34 @@ function AppShell() {
               )}
             </div>
             <div className="flex items-center gap-4">
+              {isAdmin && (
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
+                  <Users className="w-4 h-4 text-slate-400"/>
+                  <select value={selectedUserId}
+                  onChange={(e)=>{
+                    const newId=e.target.value
+                    setSelectedUserId(newId)
+                    if(newId=='all')
+                    {
+                      localStorage.removeItem('impersonated_user_id')
+                    }
+                    else
+                    {
+                      localStorage.setItem("impersonated_user_id",newId)
+
+                    }
+                    window.dispatchEvent(new Event('impersonation-changed'))
+                  }}
+                  className="text-sm font-bold bg-transparent outline-none border-none cursor-pointer text-slate-700">
+                    <option value='all'>Admin View (All Users)</option>
+                    {availableUsers.map((u)=>(
+                      <option key={u.id} value={u.id}>
+                        User:{u.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="text-right">
                 <p className="text-sm font-medium text-slate-900">{user?.full_name}</p>
                 <p className="text-xs text-slate-500 capitalize">{user?.role}</p>

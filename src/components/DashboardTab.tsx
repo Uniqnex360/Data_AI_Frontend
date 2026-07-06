@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Sparkles,
   Tag,
-  Users,
   XCircle,
 } from "lucide-react";
 import { dashboardService, type DateField } from "../services/dashboardService";
@@ -577,20 +576,23 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       icon: Clock,
     };
   }, [projectId, total, enriched, failed]);
-useEffect(() => {
-  const handleImpersonationChange = () => {
-    const storedId = localStorage.getItem('impersonated_user_id') || 'all';
-    setSelectedUserId(storedId);
-  };
-  
-  window.addEventListener('impersonation-changed', handleImpersonationChange);
-  window.addEventListener('storage', handleImpersonationChange);
-  
-  return () => {
-    window.removeEventListener('impersonation-changed', handleImpersonationChange);
-    window.removeEventListener('storage', handleImpersonationChange);
-  };
-}, []);
+  useEffect(() => {
+    const handleImpersonationChange = () => {
+      const storedId = localStorage.getItem("impersonated_user_id") || "all";
+      setSelectedUserId(storedId);
+    };
+
+    window.addEventListener("impersonation-changed", handleImpersonationChange);
+    window.addEventListener("storage", handleImpersonationChange);
+
+    return () => {
+      window.removeEventListener(
+        "impersonation-changed",
+        handleImpersonationChange,
+      );
+      window.removeEventListener("storage", handleImpersonationChange);
+    };
+  }, []);
   const ActivityIcon = ({ type }: { type: string }) => {
     const t = (type || "").toLowerCase();
     if (t.includes("completed"))
@@ -635,34 +637,7 @@ useEffect(() => {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {isAdmin && (
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
-              <Users className="w-4 h-4 text-slate-400" />
-              <select
-                value={selectedUserId}
-                onChange={(e) => {
-                  const newId = e.target.value;
-                  setSelectedUserId(newId);
-                  if (newId === 'all') {
-    localStorage.removeItem('impersonated_user_id');
-  } else {
-    localStorage.setItem('impersonated_user_id', newId);
-  }
-  
-  window.dispatchEvent(new Event('impersonation-changed'));
-                  localStorage.setItem("impersonated_user_id", newId);
-                }}
-                className="text-sm font-bold bg-transparent outline-none border-none cursor-pointer text-slate-700"
-              >
-                <option value="all">Admin View (All Users)</option>
-                {availableUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    User: {u.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          
           <div className="inline-flex rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <PillButton
               active={preset === "today"}
