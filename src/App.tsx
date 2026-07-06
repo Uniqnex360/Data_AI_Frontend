@@ -115,7 +115,7 @@ function AppShell() {
   const [aggregationFilter, setAggregationFilter] = useState<string>("all");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, logout } = useAuth();
-  const [availableUsers,setAvailableUsers]=useState<{id:string;full_name:string}[]>([])
+  const [availableUsers,setAvailableUsers]=useState<{id:string;full_name:string,role:string}[]>([])
   const [selectedUserId,setSelectedUserId]=useState<string>(()=>{
     return localStorage.getItem('impersonated_user_id')||'all'
 
@@ -138,13 +138,14 @@ function AppShell() {
     setActiveTab(tab);
     setSelectedProject(projectId);
   };
-  useEffect(()=>{
-    if(isAdmin)
-    {
-      dashboardService.getUsersList().then(setAvailableUsers).catch((err)=>console.error("Failed to fetch users",err))
-
-    }
-  },[isAdmin])
+  useEffect(() => {
+  if (isAdmin) {
+    dashboardService
+      .getUsersList()
+      .then(setAvailableUsers)
+      .catch((err) => console.error("Failed to fetch users", err));
+  }
+}, [isAdmin]);
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;
@@ -301,7 +302,7 @@ function AppShell() {
         <main className="flex-1 overflow-y-auto bg-slate-50 p-2">
           {ActiveComponent && (
             <ActiveComponent
-              key={`${activeTab}-${selectedProject ?? "none"}-${resetKey}`}
+              key={`${activeTab}-${selectedProject ?? "none"}-${resetKey}-${selectedUserId}`}
               projectId={selectedProject}
               onProjectSelect={
                 currentTab?.id === "sources" ? handleProjectSelect : undefined
@@ -311,6 +312,7 @@ function AppShell() {
               initialFilter={
                 currentTab?.id === "aggregation" ? aggregationFilter : undefined
               }
+              impersonatedUserId={selectedUserId}
             />
           )}
           {!ActiveComponent && <Navigate to={`/${fallbackTab}`} replace />}
