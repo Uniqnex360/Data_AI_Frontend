@@ -654,7 +654,7 @@ useEffect(() => {
                 }}
                 className="text-sm font-bold bg-transparent outline-none border-none cursor-pointer text-slate-700"
               >
-                <option value="all">System View (All Users)</option>
+                <option value="all">Admin View (All Users)</option>
                 {availableUsers.map((u) => (
                   <option key={u.id} value={u.id}>
                     User: {u.full_name}
