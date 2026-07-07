@@ -405,13 +405,21 @@ console.log('type:', typeof products[0]?.attributes);
     },
     [onAggregate],
   );
+  // const dynamicColumns = useMemo(() => {
+  //   const keys = new Set<string>();
+  //   Object.values(attrMap).forEach((obj) =>
+  //     Object.keys(obj).forEach((k) => keys.add(k)),
+  //   );
+  //   return Array.from(keys);
+  // }, [attrMap]);
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
-    Object.values(attrMap).forEach((obj) =>
-      Object.keys(obj).forEach((k) => keys.add(k)),
-    );
+    filteredProducts.forEach((p) => {        
+      const attrs = attrMap[p.id] || {};
+      Object.keys(attrs).forEach((k) => keys.add(k));
+    });
     return Array.from(keys);
-  }, [attrMap]);
+}, [attrMap, filteredProducts]);
 
   const uniqueBrands = useMemo(
     () => [...new Set(localProducts.map((p) => p.brand_name).filter(Boolean))],
