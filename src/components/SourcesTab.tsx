@@ -1314,8 +1314,9 @@ export default function SourcesTab({
               const projectOperationMode =
                 project.operation_mode || project.operationMode;
               const sources = await extractionService.getSourcesByProject(id);
-
-              if (!sources || sources.length === 0) {
+              const latestSource = sources && sources.length > 0 ? sources[0] : null;
+  const isFailed = latestSource && latestSource.status === 'failed';
+             if (!sources || sources.length === 0 || isFailed) {
                 setSelectedProject(project);
                 setOperationMode(projectOperationMode as OperationMode);
                 setSelectedUseCase(project.use_case || "");
