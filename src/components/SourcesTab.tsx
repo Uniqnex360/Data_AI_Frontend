@@ -1315,7 +1315,7 @@ export default function SourcesTab({
                 project.operation_mode || project.operationMode;
               const sources = await extractionService.getSourcesByProject(id);
 
-              if (!sources || sources.length === 0) {
+              if (!sources || sources.length === 0||project.totalProducts === 0) {
                 setSelectedProject(project);
                 setOperationMode(projectOperationMode as OperationMode);
                 setSelectedUseCase(project.use_case || "");
