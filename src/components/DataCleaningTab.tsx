@@ -1600,10 +1600,12 @@ export default function DataCleaningTab() {
                   </thead>
                   <tbody>
                     {filteredSortedProducts
-                      .filter(
-                        (p) =>
-                          allProductsSelected || selectedProductIds.has(p.id),
-                      )
+                      .filter((p)=>{
+                        if(allProductsSelected)return true
+                        if(selectedProductIds.has(p.id))return true
+                        const isFiltering=!!(statusFilter||brandFilter||categoryFilter||searchTerm)
+                        return isFiltering
+})
                       .map((product) => (
                         <tr
                           key={product.id}

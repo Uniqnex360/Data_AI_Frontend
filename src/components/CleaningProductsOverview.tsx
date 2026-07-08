@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  FileText,
   ImageIcon,
   Loader2,
   Search,
@@ -65,7 +64,6 @@ export function CleaningProductsOverview({
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -125,7 +123,6 @@ export function CleaningProductsOverview({
           </div>
         )}
 
-      {/* "All Selected" Banner */}
       {allProductsSelected && (
         <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-center gap-2 text-sm text-blue-700">
           <span>
@@ -139,7 +136,6 @@ export function CleaningProductsOverview({
           </button>
         </div>
       )}
-      {/* Table */}
       <div
         className="overflow-auto"
         style={{ maxHeight: "calc(100vh - 350px)" }}
