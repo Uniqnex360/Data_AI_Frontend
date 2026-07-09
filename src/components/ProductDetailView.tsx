@@ -176,6 +176,8 @@ export function ProductDetailView({
         newMap[product.id] = productAttrs;
         newUomMap[product.id] = productUoms;
       });
+      console.log('first product attributes:', products[0]?.attributes);
+console.log('attrMap built:', newMap);
       console.log('products:', products);
 console.log('first product attributes:', products[0]?.attributes);
 console.log('type:', typeof products[0]?.attributes);
@@ -418,6 +420,9 @@ console.log('type:', typeof products[0]?.attributes);
       const attrs = attrMap[p.id] || {};
       Object.keys(attrs).forEach((k) => keys.add(k));
     });
+    console.log('dynamicColumns:', Array.from(keys));
+    console.log('filteredProducts count:', filteredProducts.length);
+    console.log('attrMap:', attrMap);
     return Array.from(keys);
 }, [attrMap, filteredProducts]);
 
