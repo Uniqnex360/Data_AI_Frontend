@@ -1035,16 +1035,21 @@ export default function AggregationTab({
       setIsDrawerOpen(false);
     }
   }, [selectedProduct, loadAttributes]);
-  useEffect(() => {
-    if (!projectId) {
-      setStatsProjectId(null);
-      setStatsProject(null);
-    } else {
-      setStatsProjectId(projectId);
-      const proj = projects.find((p) => p.id === projectId);
-      if (proj) setStatsProject(proj);
-    }
-  }, [projectId, projects]);
+ useEffect(() => {
+  if (!projectId) {
+    setStatsProjectId(null);
+    setStatsProject(null);
+  } else {
+    setStatsProjectId(projectId);
+  }
+}, [projectId]);
+
+useEffect(() => {
+  if (statsProjectId) {
+    const proj = projects.find((p) => p.id === statsProjectId);
+    if (proj) setStatsProject(proj);
+  }
+}, [projects, statsProjectId]);
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);

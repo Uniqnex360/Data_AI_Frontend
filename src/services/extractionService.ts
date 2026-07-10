@@ -1,5 +1,5 @@
 import api from "../lib/api.ts";
-import { Source } from "../types/database.types.ts";
+import { Source } from "../types/business-rules.types.ts";
 import { RawExtraction, ExtractionInput } from "../types/database.types";
 export const extractionService = {
   async extractFromSource(input: ExtractionInput): Promise<any> {

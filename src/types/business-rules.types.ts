@@ -173,27 +173,175 @@ export interface Project {
   failed_count?:number
   pending_count?:number
 }
+// src/types/database.types.ts
+
 export interface Product {
   id: string;
   product_name: string;
   product_code: string;
   brand_name: string;
-  category_1: string;
+  brand_id?: string;
+  brand_code?: string;
+  category_1?: string;
   category_2?: string;
   category_3?: string;
-  attribute_count?: number;
+  category_4?: string;
+  category_5?: string;
+  category_6?: string;
+  category_7?: string;
+  category_8?: string;
+  category_id?: string;
+  taxonomy?: string;
+  
+  // Identifiers
+  mpn?: string;
+  sku?: string;
+  gtin?: string;
+  ean?: string;
+  upc?: string;
+  unspc?: string;
+  model_number?: string;
+  parent_sku?: string;
+  
+  // Descriptions
   description?: string;
-  image_url_1?: string;
-  completeness_score?: number;
-  source_url?: string;
-  enrichment_status: string;
+  short_description?: string;
+  long_description?: string;
+  features?: string[];
+  
+  // Attributes
+  attributes?: Record<string, AttributeValue>;
   attributes_dict?: Record<string, {
     value: string;
     unit?: string;
     uom?: string;
   }>;
   attribute_names?: string[];
+  attribute_count?: number;
+  dynamic_attributes?: any[];
+  
+  // Validation
   validation_conflicts?: Record<string, string>;
+  
+  // Media
+  image_url_1?: string;
+  image_url_2?: string;
+  image_url_3?: string;
+  image_url_4?: string;
+  image_url_5?: string;
+  image_url_6?: string;
+  image_url_7?: string;
+  image_url_8?: string;
+  image_name_1?: string;
+  image_name_2?: string;
+  image_name_3?: string;
+  image_name_4?: string;
+  image_name_5?: string;
+  image_name_6?: string;
+  image_name_7?: string;
+  image_name_8?: string;
+  images?: Record<string, { name: string; url: string }>;
+  
+  video_url_1?: string;
+  video_url_2?: string;
+  video_url_3?: string;
+  video_name_1?: string;
+  video_name_2?: string;
+  video_name_3?: string;
+  videos?: Record<string, { name: string; url: string }>;
+  
+  document_url_1?: string;
+  document_url_2?: string;
+  document_url_3?: string;
+  document_url_4?: string;
+  document_url_5?: string;
+  document_name_1?: string;
+  document_name_2?: string;
+  document_name_3?: string;
+  document_name_4?: string;
+  document_name_5?: string;
+  documents?: Record<string, { name: string; url: string }>;
+  
+  // Sources
+  source_url?: string;
+  sources_consulted?: string[];
+  
+  // Scores & Status
+  completeness_score?: number;
+  data_quality_score?: number;
+  enrichment_status: string;
+  workflow_stage?: string;
+  
+  // Metadata
+  meta_title?: string;
+  meta_description?: string;
+  search_keywords?: string;
+  
+  // Pricing
+  currency?: string;
+  base_price?: number;
+  sale_price?: number;
+  list_price?: number;
+  
+  // Physical
+  weight?: string;
+  weight_unit?: string;
+  length?: string;
+  width?: string;
+  height?: string;
+  dimension_unit?: string;
+  country_of_origin?: string;
+  warranty?: string;
+  
+  // Business
+  vendor_id?: string;
+  vendor_name?: string;
+  vendor_code?: string;
+  industry_id?: string;
+  industry_name?: string;
+  industry_code?: string;
+  product_type?: string;
+  lifecycle_stage?: string;
+  launch_date?: string;
+  discontinue_status?: string;
+  
+  // Other
+  certification?: string;
+  safety_standard?: string;
+  hazardous_material?: string;
+  prop65_warning?: string;
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  needs_enrichment?: boolean;
+  ready_for_export?: boolean;
+  manual_edit_count?: number;
+  aggregation_index?: number;
+  routed_to_enrichment_at?: string | null;
+  used_llms?: string[];
+  last_algorithm_used?: string | null;
+}
+
+export interface AttributeValue {
+  name?: string;
+  value: string;
+  unit?: string | null;
+  uom?: string | null;
+  confidence?: number;
+  sources?: string[];
+  extraction_algorithm?: string;
+}
+
+export interface Source {
+  id: string;
+  source_type: string;
+  source_url: string;
+  project_id: string;
+  status: string;
+  content_data?: any;
+  source_metadata?: Record<string, any>;
+  uploaded_at?: string;
+  created_at?: string;
 }
 export interface ManualProductData {
   brand: string;

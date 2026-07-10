@@ -20,12 +20,13 @@ import {
 import { aggregationService } from "../services/aggregationService";
 import { extractionService } from "../services/extractionService";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
-import { Product, Source } from "../types/database.types";
 import { notify } from "../lib/notifications";
 import { cleansingService } from "../services/cleansingService.ts";
 import { SearchableDropdown } from "../utils/SearchableDropdown.tsx";
-import { ExternalLink } from 'lucide-react';
-import { ProductLogDrawer } from './ProductLogDrawer';
+import { ExternalLink } from "lucide-react";
+import { ProductLogDrawer } from "./ProductLogDrawer";
+import { Product, Source } from "../types/business-rules.types.ts";
+import { ProductDetailDrawer } from "./ProductDetailDrawer.tsx";
 
 interface Props {
   projectId: string;
@@ -52,6 +53,11 @@ export function ProductDetailView({
   const [pendingChanges, setPendingChanges] = useState<
     Record<string, Record<string, string>>
   >({});
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(
+  () => new Set(products.map((p) => p.id))
+);
+  const [detailDrawerOpen,setDetailDrawerOpen]=useState(false)
+  const [selectedProductForDetail,setSelectedProductForDetail]=useState<Product|null>(null)
   const [aggregatingIds, setAggregatingIds] = useState<Set<string>>(new Set());
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -80,15 +86,12 @@ export function ProductDetailView({
   ): { value: string; unit: string | null } => {
     if (!raw) return { value: "—", unit: null };
 
-    // Case 1: Already a proper object with .value and .unit
     if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
-      // Check if this is the attribute metadata object or a value wrapper
       if (
         raw.hasOwnProperty("value") &&
         typeof raw.value === "string" &&
         raw.value.startsWith("{'")
       ) {
-        // It's a double-wrapped Python dict string inside .value
         return parsePythonDictString(raw.value);
       }
       return {
@@ -97,7 +100,6 @@ export function ProductDetailView({
       };
     }
 
-    // Case 2: String that might be a Python dict
     if (typeof raw === "string") {
       if (raw.startsWith("{'") && raw.includes("'value'")) {
         return parsePythonDictString(raw);
@@ -108,7 +110,6 @@ export function ProductDetailView({
     return { value: "—", unit: null };
   };
 
-  // Helper to parse Python-style dict strings
   const parsePythonDictString = (
     str: string,
   ): { value: string; unit: string | null } => {
@@ -141,7 +142,6 @@ export function ProductDetailView({
     };
   }, []);
   const loadViewData = useCallback(async () => {
-    
     setLoading(true);
     try {
       const sources = await extractionService.getSourcesByProject(projectId);
@@ -149,7 +149,6 @@ export function ProductDetailView({
         setProjectSource(sources[0]);
       }
 
-      // Use product.attributes directly - no API call needed
       const newMap: Record<string, Record<string, string>> = {};
       const newUomMap: Record<string, Record<string, string>> = {};
 
@@ -160,7 +159,14 @@ export function ProductDetailView({
         if (product.attributes && typeof product.attributes === "object") {
           Object.entries(product.attributes).forEach(
             ([attrName, attrValue]) => {
-              console.log('attrName:', attrName, 'attrValue:', attrValue, 'type:', typeof attrValue);
+              console.log(
+                "attrName:",
+                attrName,
+                "attrValue:",
+                attrValue,
+                "type:",
+                typeof attrValue,
+              );
               if (typeof attrValue === "object" && attrValue !== null) {
                 productAttrs[attrName] = attrValue.value || "—";
                 if (attrValue.unit) {
@@ -176,11 +182,11 @@ export function ProductDetailView({
         newMap[product.id] = productAttrs;
         newUomMap[product.id] = productUoms;
       });
-      console.log('first product attributes:', products[0]?.attributes);
-console.log('attrMap built:', newMap);
-      console.log('products:', products);
-console.log('first product attributes:', products[0]?.attributes);
-console.log('type:', typeof products[0]?.attributes);
+      console.log("first product attributes:", products[0]?.attributes);
+      console.log("attrMap built:", newMap);
+      console.log("products:", products);
+      console.log("first product attributes:", products[0]?.attributes);
+      console.log("type:", typeof products[0]?.attributes);
       setAttrMap(newMap);
       setAttrUomMap(newUomMap);
     } catch (err) {
@@ -188,7 +194,7 @@ console.log('type:', typeof products[0]?.attributes);
     } finally {
       setLoading(false);
     }
-  }, [projectId, products]); // ← Removed the API call dependency
+  }, [projectId, products]);
 
   useEffect(() => {
     loadViewData();
@@ -197,8 +203,13 @@ console.log('type:', typeof products[0]?.attributes);
     setLocalProducts(products);
   }, [products]);
   const handleExport = async () => {
-    if (filteredProducts.length === 0) return;
-    setExporting(true);
+    // if (filteredProducts.length === 0) return;
+    // setExporting(true);
+    const idsToExport = filteredProducts
+    .filter((p) => selectedRowIds.has(p.id))
+    .map((p) => p.id);
+  if (idsToExport.length === 0) return;
+  setExporting(true);
     try {
       const productIds = filteredProducts.map((p) => p.id);
       const { blob, filename } = await aggregationService.exportSelectedItems(
@@ -318,7 +329,6 @@ console.log('type:', typeof products[0]?.attributes);
     categoryFilter,
     completenessFilter,
   ]);
-  // Add polling effect
   useEffect(() => {
     if (aggregatingIds.size === 0) {
       if (pollingRef.current) {
@@ -343,7 +353,6 @@ console.log('type:', typeof products[0]?.attributes);
           const product = localProducts.find((p) => p.id === id);
           if (!product) continue;
 
-          // Check if product status changed by re-fetching
           const freshAttrs = results[Array.from(aggregatingIds).indexOf(id)];
           if (freshAttrs && freshAttrs.length > 0) {
             stillProcessing.delete(id);
@@ -381,7 +390,6 @@ console.log('type:', typeof products[0]?.attributes);
   }, [aggregatingIds, localProducts]);
   const handleAggregateClick = useCallback(
     async (productId: string) => {
-      // Update local state immediately
       setLocalProducts((prev) =>
         prev.map((p) =>
           p.id === productId ? { ...p, enrichment_status: "processing" } : p,
@@ -407,6 +415,9 @@ console.log('type:', typeof products[0]?.attributes);
     },
     [onAggregate],
   );
+  useEffect(() => {
+  setSelectedRowIds(new Set(products.map((p) => p.id)));
+}, [products]);
   // const dynamicColumns = useMemo(() => {
   //   const keys = new Set<string>();
   //   Object.values(attrMap).forEach((obj) =>
@@ -416,15 +427,15 @@ console.log('type:', typeof products[0]?.attributes);
   // }, [attrMap]);
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
-    filteredProducts.forEach((p) => {        
+    filteredProducts.forEach((p) => {
       const attrs = attrMap[p.id] || {};
       Object.keys(attrs).forEach((k) => keys.add(k));
     });
-    console.log('dynamicColumns:', Array.from(keys));
-    console.log('filteredProducts count:', filteredProducts.length);
-    console.log('attrMap:', attrMap);
+    console.log("dynamicColumns:", Array.from(keys));
+    console.log("filteredProducts count:", filteredProducts.length);
+    console.log("attrMap:", attrMap);
     return Array.from(keys);
-}, [attrMap, filteredProducts]);
+  }, [attrMap, filteredProducts]);
 
   const uniqueBrands = useMemo(
     () => [...new Set(localProducts.map((p) => p.brand_name).filter(Boolean))],
@@ -435,12 +446,15 @@ console.log('type:', typeof products[0]?.attributes);
     [localProducts],
   );
 
-  const stats = useMemo(
-  () => {
+  const stats = useMemo(() => {
     const total = localProducts.length;
-    const avgCompleteness = total > 0 
-      ? localProducts.reduce((acc, p) => acc + (p.completeness_score || 0), 0) / total 
-      : 0;
+    const avgCompleteness =
+      total > 0
+        ? localProducts.reduce(
+            (acc, p) => acc + (p.completeness_score || 0),
+            0,
+          ) / total
+        : 0;
 
     return {
       total,
@@ -454,11 +468,9 @@ console.log('type:', typeof products[0]?.attributes);
       ).length,
       failed: localProducts.filter((p) => p.enrichment_status === "failed")
         .length,
-      avgCompleteness
+      avgCompleteness,
     };
-  },
-  [localProducts],
-);
+  }, [localProducts]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
@@ -650,8 +662,22 @@ console.log('type:', typeof products[0]?.attributes);
                 <th className="p-4 w-12 bg-slate-50 sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">
                   <input
                     type="checkbox"
-                    checked
-                    readOnly
+                    checked={filteredProducts.length>0&&filteredProducts.every((p)=>selectedRowIds.has(p.id))}
+                    onChange={()=>{
+                      setSelectedRowIds((prev)=>{
+
+                        const allSelected=filteredProducts.every((p)=>prev.has(p.id))
+                        if(allSelected)
+                        {
+                          const next=new Set(prev)
+                          filteredProducts.forEach((p)=>next.delete(p.id))
+                          return next
+                        }
+                        const next=new Set(prev)
+                        filteredProducts.forEach((p)=>next.add(p.id))
+                        return next
+                      })
+                    }}
                     className="rounded border-slate-300"
                   />
                 </th>
@@ -681,7 +707,7 @@ console.log('type:', typeof products[0]?.attributes);
                     </div>
                   </th>
                 ))}
-                
+
                 <th className="p-4 w-32 border-l border-slate-100 text-center">
                   Status
                 </th>
@@ -706,60 +732,81 @@ console.log('type:', typeof products[0]?.attributes);
                     key={p.id}
                     className="group hover:bg-slate-50 transition-colors"
                   >
-                    <td className="p-4 sticky left-0 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
-                      <input
-                        type="checkbox"
-                        checked
-                        readOnly
-                        className="rounded border-slate-300"
-                      />
-                    </td>
-                    <td className="p-4 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
-  <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100 flex items-center justify-center">
-    {p.image_url_1 ? (
-      <img
-        src={p.image_url_1}
-        alt={p.product_name || "Product"}
-        className="w-full h-full object-contain"
-        onError={(e) => {
-          // If image URL exists but fails to load, hide it and show fallback
-          (e.target as HTMLImageElement).style.display = "none";
-          (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
-        }}
-      />
-    ) : null}
-    <div className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}>
-      <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
-      <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
-          No<br/>Image
-        </span>
-    </div>
-  </div>
+                  <td
+  className="p-4 sticky left-0 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]"
+  onClick={(e) => e.stopPropagation()}
+>
+  <input
+    type="checkbox"
+    checked={selectedRowIds.has(p.id)}
+    onChange={() => {
+      setSelectedRowIds((prev) => {
+        const next = new Set(prev);
+        next.has(p.id) ? next.delete(p.id) : next.add(p.id);
+        return next;
+      });
+    }}
+    className="rounded border-slate-300"
+  />
 </td>
-                    <td className="p-4 sticky left-[112px] bg-white group-hover:bg-slate-50 z-10 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug">
-                          {p.product_name}
-                        </span>
-                        <span className="text-[10px] text-indigo-500 font-mono font-bold">
-                          MPN: {p.product_code}
-                        </span>
+                    <td className="p-4 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
+                      <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100 flex items-center justify-center">
+                        {p.image_url_1 ? (
+                          <img
+                            src={p.image_url_1}
+                            alt={p.product_name || "Product"}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                              (
+                                e.target as HTMLImageElement
+                              ).nextElementSibling?.classList.remove("hidden");
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}
+                        >
+                          <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
+                          <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
+                            No
+                            <br />
+                            Image
+                          </span>
+                        </div>
                       </div>
                     </td>
-                    <td className="p-4 border-l border-slate-50 text-center">
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      setSelectedProductForLogs(p);
-      setShowLogDrawer(true);
-    }}
-    className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
-    title="View Sources & Attributes"
-  >
-    <ExternalLink className="w-4 h-4" />
-  </button>
+                    <td className="p-4 sticky left-[112px] bg-white group-hover:bg-slate-50 z-10 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
+  <div className="flex flex-col gap-0.5">
+    <button
+      onClick={() => {
+        setSelectedProductForDetail(p);
+        setDetailDrawerOpen(true);
+      }}
+      className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug text-left hover:text-indigo-600 transition-colors cursor-pointer"
+    >
+      {p.product_name}
+    </button>
+    <span className="text-[10px] text-indigo-500 font-mono font-bold">
+      MPN: {p.product_code}
+    </span>
+  </div>
 </td>
-<td className="p-4 border-l border-slate-50">
+                    <td className="p-4 border-l border-slate-50 text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProductForLogs(p);
+                          setShowLogDrawer(true);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
+                        title="View Sources & Attributes"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    </td>
+                    <td className="p-4 border-l border-slate-50">
                       <div className="flex flex-col items-center gap-1.5">
                         <span className="text-xs font-black text-slate-700">
                           {p.completeness_score || 0}%
@@ -779,38 +826,41 @@ console.log('type:', typeof products[0]?.attributes);
                       {p.category_3}
                     </td>
                     {dynamicColumns.map((col) => (
-                      <td
-                        key={col}
-                        className="p-4 text-sm border-l border-slate-50 font-medium"
-                      >
-                        {editMode ? (
-                          <input
-                            defaultValue={attrMap[p.id]?.[col] || ""}
-                            onChange={(e) => {
-                              setPendingChanges((prev) => ({
-                                ...prev,
-                                [p.id]: {
-                                  ...(prev[p.id] || {}),
-                                  [col]: e.target.value,
-                                },
-                              }));
-                            }}
-                            className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 outline-none focus:border-blue-300 text-sm"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <span>
-                            {attrMap[p.id]?.[col] || "—"}
-                            {attrUomMap[p.id]?.[col] && (
-                              <span className="text-xs text-slate-400 ml-1">
-                                {attrUomMap[p.id][col]}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </td>
-                    ))}
-                    
+  <td
+    key={col}
+    className="p-4 text-sm border-l border-slate-50 font-medium"
+  >
+    {editMode ? (
+      <input
+        defaultValue={attrMap[p.id]?.[col] || ""}
+        onChange={(e) => {
+          setPendingChanges((prev) => ({
+            ...prev,
+            [p.id]: {
+              ...(prev[p.id] || {}),
+              [col]: e.target.value,
+            },
+          }));
+        }}
+        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 outline-none focus:border-blue-300 text-sm"
+        placeholder="—"
+      />
+    ) : (
+      <span 
+        className="block max-w-[180px] truncate" 
+        title={`${attrMap[p.id]?.[col] || "—"}${attrUomMap[p.id]?.[col] ? ` ${attrUomMap[p.id][col]}` : ""}`}
+      >
+        {attrMap[p.id]?.[col] || "—"}
+        {attrUomMap[p.id]?.[col] && (
+          <span className="text-xs text-slate-400 ml-1">
+            {attrUomMap[p.id][col]}
+          </span>
+        )}
+      </span>
+    )}
+  </td>
+))}
+
                     <td className="p-4 border-l border-slate-50 text-center">
                       {getStatusBadge(p.enrichment_status || "pending", true)}
                     </td>
@@ -842,16 +892,30 @@ console.log('type:', typeof products[0]?.attributes);
         </div>
       </div>
       {showLogDrawer && selectedProductForLogs && (
-  <ProductLogDrawer
-  productId={selectedProductForLogs.id} 
-    productName={selectedProductForLogs.product_name || selectedProductForLogs.product_code}
-    productCode={selectedProductForLogs.product_code}
-    productImage={selectedProductForLogs.image_url_1}
-    attributes={(selectedProductForLogs as any).attributes || {}}
-    sourcesConsulted={(selectedProductForLogs as any).sources_consulted || []}
+        <ProductLogDrawer
+          productId={selectedProductForLogs.id}
+          productName={
+            selectedProductForLogs.product_name ||
+            selectedProductForLogs.product_code
+          }
+          productCode={selectedProductForLogs.product_code}
+          productImage={selectedProductForLogs.image_url_1}
+          attributes={(selectedProductForLogs as any).attributes || {}}
+          sourcesConsulted={
+            (selectedProductForLogs as any).sources_consulted || []
+          }
+          onClose={() => {
+            setShowLogDrawer(false);
+            setSelectedProductForLogs(null);
+          }}
+        />
+      )}
+      {detailDrawerOpen && selectedProductForDetail && (
+  <ProductDetailDrawer
+    product={selectedProductForDetail}
     onClose={() => {
-      setShowLogDrawer(false);
-      setSelectedProductForLogs(null);
+      setDetailDrawerOpen(false);
+      setSelectedProductForDetail(null);
     }}
   />
 )}

@@ -1,0 +1,481 @@
+
+
+import { useState } from "react";
+import {
+  X,
+  Box,
+  ImageIcon,
+  Film,
+  FileText,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Download,
+} from "lucide-react";
+import type { Product } from "../types/database.types";
+import { downloadService } from "../services/downloadService.ts";
+
+type TabKey = "description" | "attributes" | "media" | "documents";
+
+interface Props {
+  product: Product;
+  onClose: () => void;
+}
+
+export function ProductDetailDrawer({ product, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<TabKey>("description");
+  const [expandedFeatures, setExpandedFeatures] = useState(false);
+
+  const tabs: { id: TabKey; label: string }[] = [
+    { id: "description", label: "Description" },
+    { id: "attributes", label: "Attributes" },
+    { id: "media", label: "Images/Videos" },
+    { id: "documents", label: "Documents" },
+  ];
+
+  
+  const getImages = (): string[] => {
+    const images: string[] = [];
+    for (let i = 1; i <= 8; i++) {
+      const key = `image_url_${i}` as keyof Product;
+      const url = product[key];
+      if (typeof url === "string" && url) images.push(url);
+    }
+    return images;
+  };
+
+  
+  const getVideos = (): { name: string; url: string }[] => {
+    const videos: { name: string; url: string }[] = [];
+
+    
+    if (product.videos && typeof product.videos === "object") {
+      Object.values(product.videos).forEach((v) => {
+        if (v?.url) {
+          videos.push({ name: v.name || "Video", url: v.url });
+        }
+      });
+    }
+
+    
+    for (let i = 1; i <= 3; i++) {
+      const urlKey = `video_url_${i}` as keyof Product;
+      const nameKey = `video_name_${i}` as keyof Product;
+      const url = product[urlKey];
+      const name = product[nameKey];
+      if (
+        typeof url === "string" &&
+        url &&
+        !videos.find((v) => v.url === url)
+      ) {
+        videos.push({
+          name: typeof name === "string" ? name : `Video ${i}`,
+          url,
+        });
+      }
+    }
+
+    return videos;
+  };
+const handleDownload=async(url:string,filename?:string)=>{
+    try {
+        await downloadService.downloadFile(url,filename)
+
+    } catch (error) {
+        console.error('Download failed',error)
+        window.open(url,"_blank")
+    }
+}
+  
+  const getDocuments = (): { name: string; url: string }[] => {
+    const docs: { name: string; url: string }[] = [];
+
+    
+    if (product.documents && typeof product.documents === "object") {
+      Object.values(product.documents).forEach((d) => {
+        if (d?.url && d.url.toLowerCase().endsWith('.pdf')) {
+          docs.push({ name: d.name || "Document", url: d.url });
+        }
+      });
+    }
+
+    
+    for (let i = 1; i <= 5; i++) {
+      const urlKey = `document_url_${i}` as keyof Product;
+      const nameKey = `document_name_${i}` as keyof Product;
+      const url = product[urlKey];
+      const name = product[nameKey];
+      if (typeof url === "string" && url.toLowerCase().endsWith(".pdf") && !docs.find((d) => d.url === url)) {
+        docs.push({
+          name: typeof name === "string" ? name : `Document ${i}`,
+          url,
+        });
+      }
+    }
+
+    
+    if (product.sources_consulted) {
+      product.sources_consulted.forEach((url: string) => {
+        if (url.toLowerCase().endsWith(".pdf") && !docs.find((d) => d.url === url)) {
+        docs.push({ name: url.split("/").pop() || "PDF Document", url });
+      }
+      });
+    }
+
+    return docs;
+  };
+
+  const images = getImages();
+  const videos = getVideos();
+  const documents = getDocuments();
+  const features = product.features || [];
+
+  
+  const hasDescription = !!product.long_description || features.length > 0;
+  const hasAttributes =
+    !!product.attributes && Object.keys(product.attributes).length > 0;
+  const hasMedia = images.length > 0 || videos.length > 0;
+  const hasDocuments =
+    documents.length > 0 || (product.sources_consulted?.length ?? 0) > 0;
+
+  const parseAttrValue = (attr: unknown): string => {
+    if (!attr) return "—";
+    if (typeof attr === "object" && attr !== null && "value" in attr) {
+      return String((attr as Record<string, unknown>).value || "—");
+    }
+    return String(attr);
+  };
+
+  const parseAttrUnit = (attr: unknown): string | null => {
+    if (typeof attr === "object" && attr !== null) {
+      const obj = attr as Record<string, unknown>;
+      if (obj.unit) return String(obj.unit);
+      if (obj.uom) return String(obj.uom);
+    }
+    return null;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Drawer */}
+      <div className="relative w-full max-w-xl bg-white shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between shrink-0 bg-white sticky top-0 z-10">
+          <div className="flex-1 min-w-0 pr-4">
+            <h2 className="text-lg font-bold text-slate-900 leading-tight line-clamp-2">
+              {product.product_name}
+            </h2>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="text-xs font-mono bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100">
+                {product.product_code}
+              </span>
+              {product.brand_name && (
+                <span className="text-xs text-slate-500 font-medium">
+                  {product.brand_name}
+                </span>
+              )}
+              {product.category_3 && (
+                <span className="text-xs text-slate-400">
+                  • {product.category_3}
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors shrink-0"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {images.length > 0 && (
+          <div className="px-6 py-4 border-b border-slate-100 shrink-0">
+            <div className="aspect-video rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+              <img
+                src={images[0]}
+                alt={product.product_name}
+                className="max-h-full max-w-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex border-b border-slate-200 shrink-0 px-6">
+          {tabs.map((tab) => {
+            const hasContent =
+              (tab.id === "description" && hasDescription) ||
+              (tab.id === "attributes" && hasAttributes) ||
+              (tab.id === "media" && hasMedia) ||
+              (tab.id === "documents" && hasDocuments);
+
+            if (!hasContent) return null;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  activeTab === tab.id
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Description Tab */}
+          {activeTab === "description" && (
+            <div className="space-y-6">
+              {product.long_description && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    Description
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {product.long_description}
+                  </p>
+                </div>
+              )}
+
+              {product.short_description && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    Short Description
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    {product.short_description}
+                  </p>
+                </div>
+              )}
+
+              {features.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    Features ({features.length})
+                  </h3>
+                  <ul className="space-y-2">
+                    {features
+                      .slice(0, expandedFeatures ? features.length : 5)
+                      .map((feature: string, idx: number) => (
+                        <li
+                          key={idx}
+                          className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed"
+                        >
+                          <span className="text-indigo-400 mt-1 shrink-0">
+                            •
+                          </span>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                  </ul>
+                  {features.length > 5 && (
+                    <button
+                      onClick={() => setExpandedFeatures(!expandedFeatures)}
+                      className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                      {expandedFeatures ? (
+                        <>
+                          <ChevronUp className="w-3.5 h-3.5" /> Show Less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5" /> Show All (
+                          {features.length})
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!hasDescription && (
+                <div className="text-center py-12 text-slate-400">
+                  <Box className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm">No description available</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Attributes Tab */}
+{activeTab === "attributes" && (
+  <div>
+    {hasAttributes && product.attributes ? (
+      <div className="border border-slate-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <tbody>
+            {Object.entries(product.attributes).map(([key, attr], idx) => (
+              <tr
+                key={key}
+                className={
+                  idx % 2 === 0
+                    ? "bg-white"
+                    : "bg-slate-50"
+                }
+              >
+                <td className="px-4 py-3 text-sm text-slate-700 font-medium border-r border-slate-200 w-1/2 align-top">
+                  {key}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-900 w-1/2 align-top">
+                  <span className="font-semibold">
+                    {parseAttrValue(attr)}
+                  </span>
+                  {parseAttrUnit(attr) && (
+                    <span className="text-xs text-slate-500 font-normal ml-1">
+                      {parseAttrUnit(attr)}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div className="text-center py-12 text-slate-400">
+        <Box className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+        <p className="text-sm">No attributes available</p>
+      </div>
+    )}
+  </div>
+)}
+
+          {/* Media Tab */}
+          {activeTab === "media" && (
+            <div className="space-y-8">
+              {images.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                    Images ({images.length})
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {images.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="aspect-square rounded-lg border border-slate-200 overflow-hidden bg-slate-50 hover:border-indigo-300 transition-colors group relative"
+                      >
+                        <img
+                          src={url}
+                          alt={`Product image ${idx + 1}`}
+                          className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                          }}
+                        />
+                        {/* Download button overlay */}
+                     <button
+      onClick={() => handleDownload(url, `image_${idx + 1}.jpg`)}
+      className="absolute bottom-2 right-2 p-2 bg-white/90 rounded-lg shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+      title="Download image"
+    >
+      <Download className="w-4 h-4 text-slate-600" />
+    </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {videos.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                    Videos ({videos.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {videos.map((video, idx) => (
+                      <a
+                        key={idx}
+                        href={video.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-indigo-200 transition-colors group"
+                      >
+                        <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
+                          <Film className="w-5 h-5 text-indigo-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-700 truncate">
+                            {video.name}
+                          </p>
+                          <p className="text-xs text-slate-400 truncate">
+                            {video.url}
+                          </p>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!hasMedia && (
+                <div className="text-center py-12 text-slate-400">
+                  <ImageIcon className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm">No media available</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Documents Tab */}
+        {activeTab === "documents" && (
+  <div>
+    {documents.length > 0 ? (
+      <div>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+          Documents ({documents.length})
+        </h3>
+        <div className="space-y-2">
+          {documents.map((doc, idx) => (
+            <div
+              key={idx}
+              className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-indigo-200 transition-colors group"
+            >
+              <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-700 truncate">{doc.name}</p>
+                <p className="text-xs text-slate-400 truncate">{doc.url}</p>
+              </div>
+              <button
+                onClick={() => handleDownload(doc.url, doc.name)}
+                className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
+                title="Download"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <div className="text-center py-12 text-slate-400">
+        <FileText className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+        <p className="text-sm">No documents available</p>
+      </div>
+    )}
+  </div>
+)}
+        </div>
+      </div>
+    </div>
+  );
+}
