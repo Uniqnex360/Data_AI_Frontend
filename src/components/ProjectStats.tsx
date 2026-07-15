@@ -948,8 +948,31 @@ export function ProjectStats({
                           {(p as any).data_quality_score ?? 100}%
                         </span>
                       </td>
-                      <td className="py-2 text-center">
-                        {getStatusBadge(p.enrichment_status || "pending", true)}
+                                           <td className="py-2 text-center">
+                        {p.enrichment_status === "failed" && (p as any).failure_reason ? (
+                          <div className="group relative inline-block">
+                            {getStatusBadge("failed", true)}
+                            {/* Tooltip on hover */}
+                            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity absolute z-50 left-1/2 -translate-x-1/2 mt-1 w-80 p-3 bg-slate-900 text-white text-[10px] rounded shadow-lg pointer-events-none">
+                              <div className="font-bold mb-1 text-rose-300 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                Failure Reason:
+                              </div>
+                              <div className="break-words leading-relaxed">
+                                {(p as any).failure_reason}
+                              </div>
+                              {(p as any).failed_at && (
+                                <div className="text-[9px] text-slate-400 mt-1.5 border-t border-slate-700 pt-1">
+                                  Failed: {new Date((p as any).failed_at).toLocaleString()}
+                                </div>
+                              )}
+                              {/* Tooltip arrow */}
+                              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
+                            </div>
+                          </div>
+                        ) : (
+                          getStatusBadge(p.enrichment_status || "pending", true)
+                        )}
                       </td>
                       <td className="py-2 text-right text-slate-400">
                         {p.updated_at
