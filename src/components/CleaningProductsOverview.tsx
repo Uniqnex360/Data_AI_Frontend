@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { Product, Project } from "../types/business-rules.types";
 import { getStatusBadge } from "../utils/projectStatusColorizer";
+import { ProductDetailDrawer } from './ProductDetailDrawer';
+import { extractionService } from "../services/extractionService.ts";
 
 interface CleaningProductsOverviewProps {
   project: Project;
@@ -22,7 +24,7 @@ interface CleaningProductsOverviewProps {
   onBack: () => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
-  onProductClick: (product: Product) => void;
+  // onProductClick: (product: Product) => void;
   onAdvancedEdit: () => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
@@ -44,7 +46,7 @@ export function CleaningProductsOverview({
   onBack,
   onPageChange,
   onPageSizeChange,
-  onProductClick,
+  // onProductClick,
   onAdvancedEdit,
   searchTerm,
   onSearchChange,
@@ -61,7 +63,29 @@ export function CleaningProductsOverview({
   const getTotalAttributes = (product: Product): number => {
     return product.attribute_count || 0;
   };
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
+const handleProductClick = async (product: Product) => {
+  setLoadingDetail(true);
+  try {
+    const fullProduct = await extractionService.getProductById(product.id);
+    if (fullProduct) {
+      setSelectedProductForDetail(fullProduct);
+    } else {
+      // Fallback if API returns null
+      setSelectedProductForDetail(product);
+      console.warn(`No full product data available for ${product.id}`);
+    }
+  } catch (error) {
+    console.error("Failed to fetch product details:", error);
+    // Use basic product data as fallback
+    setSelectedProductForDetail(product);
+  } finally {
+    setLoadingDetail(false);
+  }
+};
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -189,7 +213,7 @@ export function CleaningProductsOverview({
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-slate-500">
+                <td colSpan={9} className="p-8 text-center text-slate-500">
                   No products found
                 </td>
               </tr>
@@ -198,7 +222,12 @@ export function CleaningProductsOverview({
                 <tr
                   key={product.id}
                   className="hover:bg-slate-50 cursor-pointer transition-colors"
-                  onClick={() => onProductClick(product)}
+                  onClick={() => {
+                     
+      handleProductClick(product);
+
+    setDetailDrawerOpen(true);
+  }}
                 >
                   <td
                     className="px-4 py-3 text-center"
@@ -330,6 +359,16 @@ export function CleaningProductsOverview({
           </button>
         </div>
       </div>
+      {detailDrawerOpen && selectedProductForDetail && (
+        <ProductDetailDrawer
+          product={selectedProductForDetail}
+          loading={loadingDetail}
+          onClose={() => {
+            setDetailDrawerOpen(false);
+            setSelectedProductForDetail(null);
+          }}
+        />
+      )}
     </div>
   );
 }

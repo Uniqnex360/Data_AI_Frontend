@@ -48,6 +48,7 @@ export function ProductDetailView({
   initialBrandFilter = [],
 }: Props) {
   const [loading, setLoading] = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<
@@ -913,6 +914,7 @@ export function ProductDetailView({
       {detailDrawerOpen && selectedProductForDetail && (
   <ProductDetailDrawer
     product={selectedProductForDetail}
+    loading={loadingDetail}
     onClose={() => {
       setDetailDrawerOpen(false);
       setSelectedProductForDetail(null);

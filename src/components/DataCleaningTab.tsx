@@ -666,31 +666,67 @@ export default function DataCleaningTab() {
     }
     return [String(dynAttr.value)];
   };
+  // const handleAttributeChange = (
+  //   productId: string,
+  //   attrName: string,
+  //   field: "value" | "uom",
+  //   newValue: string,
+  // ) => {
+  //   setEditingAttributes((prev) => ({
+  //     ...prev,
+  //     [productId]: {
+  //       ...(prev[productId] || {}),
+  //       [attrName]: {
+  //         ...prev[productId]?.[attrName],
+  //         value:
+  //           field === "value"
+  //             ? newValue
+  //             : (prev[productId]?.[attrName]?.value ?? ""),
+  //         uom:
+  //           field === "uom"
+  //             ? newValue
+  //             : (prev[productId]?.[attrName]?.uom ?? ""),
+  //         values: prev[productId]?.[attrName]?.values,
+  //       },
+  //     },
+  //   }));
+  // };
   const handleAttributeChange = (
-    productId: string,
-    attrName: string,
-    field: "value" | "uom",
-    newValue: string,
-  ) => {
-    setEditingAttributes((prev) => ({
+  productId: string,
+  attrName: string,
+  field: "value" | "uom",
+  newValue: string,
+) => {
+  setEditingAttributes((prev) => {
+    const existing = prev[productId]?.[attrName];
+    
+    // Get the current product data
+    const product = products.find(p => p.id === productId);
+    const dynAttr = (product as any)?.attributes_dict?.[attrName];
+    
+    // Initialize full object if not exists
+    const fullEntry = {
+      value: existing?.value ?? (dynAttr as any)?.value ?? "",
+      uom: existing?.uom ?? (dynAttr as any)?.unit ?? (dynAttr as any)?.uom ?? "",
+      values: existing?.values,
+    };
+    
+    // Now update only the field being edited
+    if (field === "value") {
+      fullEntry.value = newValue;
+    } else {
+      fullEntry.uom = newValue;
+    }
+    
+    return {
       ...prev,
       [productId]: {
         ...(prev[productId] || {}),
-        [attrName]: {
-          ...prev[productId]?.[attrName],
-          value:
-            field === "value"
-              ? newValue
-              : (prev[productId]?.[attrName]?.value ?? ""),
-          uom:
-            field === "uom"
-              ? newValue
-              : (prev[productId]?.[attrName]?.uom ?? ""),
-          values: prev[productId]?.[attrName]?.values,
-        },
+        [attrName]: fullEntry,
       },
-    }));
-  };
+    };
+  });
+};
   const handleRemoveAttributeValue = (
     product: Product,
     attrName: string,
@@ -726,36 +762,72 @@ export default function DataCleaningTab() {
       },
     });
   };
+  // const handleSaveAttributes = async (productId: string) => {
+  //   const changes = editingAttributes[productId];
+  //   if (!changes || Object.keys(changes).length === 0) return;
+  //   setSavingAttributes((prev) => ({ ...prev, [productId]: true }));
+  //   try {
+  //     const attributes: Record<string, string> = {};
+  //     for (const [key, val] of Object.entries(changes)) {
+  //       attributes[key] = val.values ? val.values.join(" | ") : val.value;
+  //       if (val.uom) {
+  //         attributes[key] = `${attributes[key]} ${val.uom}`;
+  //       }
+  //     }
+  //     await cleansingService.updateProductAttributes(productId, attributes);
+  //     notify.success("Attributes updated");
+  //     await loadProducts();
+  //     setEditingAttributes((prev) => {
+  //       const s = { ...prev };
+  //       delete s[productId];
+  //       return s;
+  //     });
+  //   } catch {
+  //     notify.error("Failed to update attributes");
+  //   } finally {
+  //     setSavingAttributes((prev) => {
+  //       const s = { ...prev };
+  //       delete s[productId];
+  //       return s;
+  //     });
+  //   }
+  // };
   const handleSaveAttributes = async (productId: string) => {
-    const changes = editingAttributes[productId];
-    if (!changes || Object.keys(changes).length === 0) return;
-    setSavingAttributes((prev) => ({ ...prev, [productId]: true }));
-    try {
-      const attributes: Record<string, string> = {};
-      for (const [key, val] of Object.entries(changes)) {
-        attributes[key] = val.values ? val.values.join(" | ") : val.value;
-        if (val.uom) {
-          attributes[key] = `${attributes[key]} ${val.uom}`;
-        }
-      }
-      await cleansingService.updateProductAttributes(productId, attributes);
-      notify.success("Attributes updated");
-      await loadProducts();
-      setEditingAttributes((prev) => {
-        const s = { ...prev };
-        delete s[productId];
-        return s;
-      });
-    } catch {
-      notify.error("Failed to update attributes");
-    } finally {
-      setSavingAttributes((prev) => {
-        const s = { ...prev };
-        delete s[productId];
-        return s;
-      });
+  const changes = editingAttributes[productId];
+  if (!changes || Object.keys(changes).length === 0) return;
+
+  setSavingAttributes((prev) => ({ ...prev, [productId]: true }));
+  try {
+    // Send as object with value and uom, NOT as string
+    const attributes: Record<string, { value: string; uom: string }> = {};
+    
+    for (const [key, val] of Object.entries(changes)) {
+      const rawValue = val.values ? val.values.join(" | ") : (val.value || "");
+      
+      attributes[key] = {
+        value: rawValue,
+        uom: val.uom || ""
+      };
     }
-  };
+
+    await cleansingService.updateProductAttributes(productId, attributes);
+    notify.success("Attributes updated");
+    await loadProducts();
+    setEditingAttributes((prev) => {
+      const s = { ...prev };
+      delete s[productId];
+      return s;
+    });
+  } catch {
+    notify.error("Failed to update attributes");
+  } finally {
+    setSavingAttributes((prev) => {
+      const s = { ...prev };
+      delete s[productId];
+      return s;
+    });
+  }
+};
   const pollCleaning = (taskId: string, productIds: string[]) => {
     const iv = setInterval(async () => {
       try {
@@ -1723,6 +1795,12 @@ export default function DataCleaningTab() {
                               (dynAttr as any)?.unit ??
                               (dynAttr as any)?.uom ??
                               "";
+                              console.log({
+  edited,
+  dynAttr,
+  curVal,
+  curUom
+});
                             const conflict =
                               product.validation_conflicts?.[attr];
                             return (

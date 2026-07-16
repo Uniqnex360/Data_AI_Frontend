@@ -11,6 +11,15 @@ export const extractionService = {
       throw new Error("AI extraction failed to process source");
     }
   },
+  async getProductById(productId: string): Promise<any> {
+  try {
+    const { data } = await api.get(`/products/${productId}`);
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch product details", error);
+    return null;
+  }
+},
   async parseMpnsFromExcel(formData: FormData): Promise<any> {
   const { data } = await api.post('/extraction/pdf/parse-mpns-excel', formData);
   return data;
@@ -123,7 +132,7 @@ export const extractionService = {
       if (projectId) {
         formData.append("projectId", projectId);
       }
-      const { data } = await api.post("/sources/batch-aggregate", formData, {
+      const { data } = await api.post("/sources/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

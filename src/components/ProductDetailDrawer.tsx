@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Loader2,
 } from "lucide-react";
 import type { Product } from "../types/database.types";
 import { downloadService } from "../services/downloadService.ts";
@@ -20,9 +21,20 @@ type TabKey = "description" | "attributes" | "media" | "documents";
 interface Props {
   product: Product;
   onClose: () => void;
+  loading?: boolean; 
 }
 
-export function ProductDetailDrawer({ product, onClose }: Props) {
+export function ProductDetailDrawer({ product, onClose,loading }: Props) {
+   if (loading || !product) {
+    return (
+      <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+        <div className="relative w-full max-w-xl bg-white shadow-2xl h-full flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+        </div>
+      </div>
+    );
+  }
   const [activeTab, setActiveTab] = useState<TabKey>("description");
   const [expandedFeatures, setExpandedFeatures] = useState(false);
 
@@ -213,28 +225,28 @@ const handleDownload=async(url:string,filename?:string)=>{
         {/* Tabs */}
         <div className="flex border-b border-slate-200 shrink-0 px-6">
           {tabs.map((tab) => {
-            const hasContent =
-              (tab.id === "description" && hasDescription) ||
-              (tab.id === "attributes" && hasAttributes) ||
-              (tab.id === "media" && hasMedia) ||
-              (tab.id === "documents" && hasDocuments);
+  const hasContent =
+    (tab.id === "description") ||  // Always show
+    (tab.id === "attributes" && hasAttributes) ||
+    (tab.id === "media") ||  // Always show - change this
+    (tab.id === "documents");  // Always show - change this
 
-            if (!hasContent) return null;
+  if (!hasContent) return null;
 
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  activeTab === tab.id
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+  return (
+    <button
+      key={tab.id}
+      onClick={() => setActiveTab(tab.id)}
+      className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
+        activeTab === tab.id
+          ? "border-indigo-600 text-indigo-600"
+          : "border-transparent text-slate-500 hover:text-slate-700"
+      }`}
+    >
+      {tab.label}
+    </button>
+  );
+})}
         </div>
 
         {/* Content */}

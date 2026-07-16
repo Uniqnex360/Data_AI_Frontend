@@ -71,23 +71,23 @@ export const cleansingService = {
       throw new Error("Failed to clean attributes");
     }
   },
-  async updateProductAttributes(
-    productId: string,
-    attributes: Record<string, string>,
-  ): Promise<any> {
-    try {
-      const { data } = await api.put(
-        `/cleansing/products/${productId}/attributes`,
-        {
-          attributes: attributes,
-        },
-      );
-      return data;
-    } catch (error) {
-      console.error("Failed to update product attributes:", error);
-      throw new Error("Failed to update attributes");
-    }
-  },
+ async updateProductAttributes(
+  productId: string,
+  attributes: Record<string, { value: string; uom: string }>, 
+): Promise<any> {
+  try {
+    const { data } = await api.put(
+      `/cleansing/products/${productId}/attributes`,
+      {
+        attributes: attributes,
+      },
+    );
+    return data;
+  } catch (error) {
+    console.error("Failed to update product attributes:", error);
+    throw new Error("Failed to update attributes");
+  }
+},
   async getDataQualityReport(params?: {
   project_id?: string;
   brand_name?: string;
