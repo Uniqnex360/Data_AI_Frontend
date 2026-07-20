@@ -122,50 +122,83 @@ export default function EnrichmentTab({
     setStatsProjectId(null);
     setStatsProject(null);
   }, []);
-  const loadProjects = useCallback(async () => {
-    setProjectsLoading(true);
-    try {
-      const data = await projectService.getAllProjects({
-        operation_mode: "aggregation,pdf_extraction,enrichment",
-        tab: "enrichment",
-      });
-      const enrichmentProjects = data.filter(
-        (p: Project) =>
-          p.operation_mode === "enrichment",
-      );
-      setProjects(enrichmentProjects);
-      const counts:Record<string,number>={}
-      enrichmentProjects.forEach((p:Project)=>{
-        counts[p.id]=(p as any).enrichment_pending_count?? 0
-      })
-       setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
-      const uniqueUseCases = [
-        ...new Set(
-          enrichmentProjects
-            .map((p: Project) => p.use_case)
-            .filter(Boolean) as string[],
-        ),
-      ];
-      const sortedUseCases = uniqueUseCases.sort((a, b) => {
-        const aIsAggregation =
-          a === "Products with Category Assignments" ||
-          a === "Products without Category Assignments";
-        const bIsAggregation =
-          b === "Products with Category Assignments" ||
-          b === "Products without Category Assignments";
-        if (aIsAggregation && !bIsAggregation) return -1;
-        if (!aIsAggregation && bIsAggregation) return 1;
-        return a.localeCompare(b);
-      });
-      setUseCases(sortedUseCases);
-    } catch (error) {
-      console.error("Failed to load enrichment projects:", error);
-      notify.error("Failed to load enrichment projects");
-    } finally {
-      setProjectsLoading(false);
-    }
-  }, []);
-  
+  // const loadProjects = useCallback(async () => {
+  //   setProjectsLoading(true);
+  //   try {
+  //     const data = await projectService.getAllProjects({
+  //       operation_mode: "aggregation,pdf_extraction,enrichment",
+  //       tab: "enrichment",
+  //     });
+  //     const enrichmentProjects = data.filter(
+  //       (p: Project) =>
+  //         p.operation_mode === "enrichment",
+  //     );
+  //     setProjects(enrichmentProjects);
+  //     const counts:Record<string,number>={}
+  //     enrichmentProjects.forEach((p:Project)=>{
+  //       counts[p.id]=(p as any).enrichment_pending_count?? 0
+  //     })
+  //      setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
+  //     const uniqueUseCases = [
+  //       ...new Set(
+  //         enrichmentProjects
+  //           .map((p: Project) => p.use_case)
+  //           .filter(Boolean) as string[],
+  //       ),
+  //     ];
+  //     const sortedUseCases = uniqueUseCases.sort((a, b) => {
+  //       const aIsAggregation =
+  //         a === "Products with Category Assignments" ||
+  //         a === "Products without Category Assignments";
+  //       const bIsAggregation =
+  //         b === "Products with Category Assignments" ||
+  //         b === "Products without Category Assignments";
+  //       if (aIsAggregation && !bIsAggregation) return -1;
+  //       if (!aIsAggregation && bIsAggregation) return 1;
+  //       return a.localeCompare(b);
+  //     });
+  //     setUseCases(sortedUseCases);
+  //   } catch (error) {
+  //     console.error("Failed to load enrichment projects:", error);
+  //     notify.error("Failed to load enrichment projects");
+  //   } finally {
+  //     setProjectsLoading(false);
+  //   }
+  // }, []);
+  const loadProjects = useCallback(async (silent = false) => {
+  if (!silent) setProjectsLoading(true);
+  try {
+    const data = await projectService.getAllProjects({
+      operation_mode: "aggregation,pdf_extraction,enrichment",
+      tab: "enrichment",
+    });
+    const enrichmentProjects = data.filter(
+      (p: Project) => p.operation_mode === "enrichment",
+    );
+    setProjects(enrichmentProjects);
+    const counts: Record<string, number> = {};
+    enrichmentProjects.forEach((p: Project) => {
+      counts[p.id] = (p as any).enrichment_pending_count ?? 0;
+    });
+    setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
+    const uniqueUseCases = [
+      ...new Set(enrichmentProjects.map((p: Project) => p.use_case).filter(Boolean) as string[]),
+    ];
+    const sortedUseCases = uniqueUseCases.sort((a, b) => {
+      const aIsAggregation = a === "Products with Category Assignments" || a === "Products without Category Assignments";
+      const bIsAggregation = b === "Products with Category Assignments" || b === "Products without Category Assignments";
+      if (aIsAggregation && !bIsAggregation) return -1;
+      if (!aIsAggregation && bIsAggregation) return 1;
+      return a.localeCompare(b);
+    });
+    setUseCases(sortedUseCases);
+  } catch (error) {
+    console.error("Failed to load enrichment projects:", error);
+    if (!silent) notify.error("Failed to load enrichment projects");
+  } finally {
+    if (!silent) setProjectsLoading(false);
+  }
+}, []);
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -372,6 +405,7 @@ export default function EnrichmentTab({
       await aggregationService.aggregateProduct(productId, selectedLLM);
       setPollingProductIds((prev) => new Set(prev).add(productId));
       notify.success("Enrichment started");
+      loadProjects(true);
       if (expandedProjectId) {
         const fresh = await productService.getProductsByProject(
           expandedProjectId,
@@ -445,7 +479,10 @@ export default function EnrichmentTab({
       );
       notify.success(
         `Enrichment started for ${pendingProducts.length} product(s)`,
+        
       );
+        loadProjects(true);
+
     } catch (error) {
       console.error("Batch enrichment failed", error);
       notify.error("Batch enrichment failed");
@@ -513,6 +550,7 @@ export default function EnrichmentTab({
           completedOrFailed.forEach((id) => updated.delete(id));
           return updated;
         });
+        loadProjects(true);
       }
       if (selectedProduct && completedOrFailed.includes(selectedProduct)) {
         await loadAttributes(selectedProduct);
@@ -520,7 +558,7 @@ export default function EnrichmentTab({
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes]);
+  }, [pollingProductIds, expandedProjectId, selectedProduct, loadAttributes,loadProjects]);
   const handleEnrichSelectedProjects = useCallback(async () => {
     if (selectedProjectIds.size === 0) return;
     const projectIdsToEnrich = Array.from(selectedProjectIds);
@@ -576,6 +614,7 @@ export default function EnrichmentTab({
       }
       if (successCount > 0) {
         notify.success(`Enrichment started for ${successCount} project(s)`);
+        loadProjects(true);
       }
     } catch (error) {
       console.error("Failed to enrich:", error);
@@ -610,6 +649,7 @@ export default function EnrichmentTab({
     }
     if (completedProjects.length > 0) {
       setEnrichingProjects(newEnrichingProjects);
+      loadProjects(true);
       if (expandedProjectId && completedProjects.includes(expandedProjectId)) {
         try {
           const fresh = await productService.getProductsByProject(
@@ -622,7 +662,7 @@ export default function EnrichmentTab({
         }
       }
     }
-  }, [enrichingProjects, expandedProjectId, projects]);
+  }, [enrichingProjects, expandedProjectId, projects,loadProjects]);
   useEffect(() => {
     if (enrichingProjects.size > 0) {
       const interval = setInterval(pollProjectStatuses, 3000);
