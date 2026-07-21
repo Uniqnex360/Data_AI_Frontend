@@ -148,46 +148,8 @@ export function ProjectStats({
       }
     };
   }, []);
-  const loadAttributes = useCallback(async (productId: string) => {
-    try {
-      setAttributesLoading(true);
-      const data = await aggregationService.getAggregatedAttributes(productId);
-      setAttributes(data);
-    } catch (error) {
-      console.error("Failed to load attributes:", error);
-      notify.error("Failed to load attributes");
-    } finally {
-      setAttributesLoading(false);
-    }
-  }, []);
-  const getAlgorithmLabel = (
-    llmProvider?: string,
-    missingProvider?: string,
-  ) => {
-    if (!llmProvider) return "Not specified";
-
-    if (llmProvider === "openai" && missingProvider === "gemini")
-      return "Algo 1 & 2";
-    if (llmProvider === "gemini" && missingProvider === "openai")
-      return "Algo 2 & 1";
-    if (llmProvider === "openai" && missingProvider === "claude")
-      return "Algo 1 & 3";
-    if (llmProvider === "claude" && missingProvider === "openai")
-      return "Algo 3 & 1";
-
-    // Single algorithms
-    switch (llmProvider) {
-      case "openai":
-        return "Datavio Algo-1";
-      case "gemini":
-        return "Datavio Algo-2";
-      case "claude":
-        return "Datavio Algo-3";
-      default:
-        return llmProvider;
-    }
-  };
-
+  
+ 
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
@@ -205,7 +167,7 @@ export function ProjectStats({
           p.product_name?.toLowerCase().includes(q) ||
           p.brand_name?.toLowerCase().includes(q) ||
           p.mpn?.toLowerCase().includes(q) ||
-          p.sku?.toLowerCaser().includes(q)||
+           p.sku?.toLowerCase().includes(q) ||
           p.category_3?.toLowerCase().includes(q),
       );
     }
