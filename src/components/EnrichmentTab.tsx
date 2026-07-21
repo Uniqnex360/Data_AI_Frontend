@@ -435,27 +435,19 @@ export default function EnrichmentTab({
   };
   const handleEnrichAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
-    const selectedPendingProducts = expandedProjectProducts.filter(
-      (p) =>
-        selectedProductIds.has(p.id) &&
-        (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
-    );
-    const pendingProducts =
-      selectedProductIds.size > 0
-        ? selectedPendingProducts
-        : expandedProjectProducts.filter(
-            (p) =>
-              p.enrichment_status === "pending" ||
-              p.enrichment_status === "failed",
-          );
-    if (pendingProducts.length === 0) {
-      notify.info(
-        selectedProductIds.size > 0
-          ? "No pending selected products in this project"
-          : "No pending products in this project",
-      );
-      return;
-    }
+    // const selectedPendingProducts = expandedProjectProducts.filter(
+    //   (p) =>
+    //     selectedProductIds.has(p.id) &&
+    //     (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
+    // );
+    const pendingProducts =selectedProductIds.size > 0
+    ? expandedProjectProducts.filter((p) => selectedProductIds.has(p.id))
+    : expandedProjectProducts;
+
+  if (pendingProducts.length === 0) {
+    notify.info("No products found to process in this project");
+    return;
+  }
     setLoading(true);
     try {
       pendingProducts.forEach((p) => trackProcessingProduct(p.id));
