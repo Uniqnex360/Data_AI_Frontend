@@ -192,7 +192,7 @@ export interface Product {
   category_8?: string;
   category_id?: string;
   taxonomy?: string;
-  
+   cleansed_attribute_count?: number; 
   // Identifiers
   mpn?: string;
   sku?: string;

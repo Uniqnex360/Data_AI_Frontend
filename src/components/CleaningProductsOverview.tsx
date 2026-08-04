@@ -57,12 +57,12 @@ export function CleaningProductsOverview({
   onSelectAllAcrossPages,
 }: CleaningProductsOverviewProps) {
   const getProcessedCount = (product: Product): number => {
-    return product.attribute_count || 0;
-  };
+  return product.cleansed_attribute_count || 0;   
+};
 
-  const getTotalAttributes = (product: Product): number => {
-    return product.attribute_count || 0;
-  };
+const getTotalAttributes = (product: Product): number => {
+  return product.attribute_count || 0;           
+};
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
