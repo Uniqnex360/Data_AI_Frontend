@@ -70,7 +70,7 @@ const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product
 const handleProductClick = async (product: Product) => {
   setLoadingDetail(true);
   try {
-    const fullProduct = await extractionService.getProductById(product.id);
+const fullProduct = await extractionService.getProductById(product.id, project.id);
     if (fullProduct) {
       setSelectedProductForDetail(fullProduct);
     } else {

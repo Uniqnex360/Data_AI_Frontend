@@ -157,6 +157,40 @@ const handleDownload=async(url:string,filename?:string)=>{
     }
     return String(attr);
   };
+  const normKey = (s: string) => (s || "").toLowerCase().replace(/[\s_-]/g, "");
+
+  const attrs = product.attributes ?? {};
+const order = product.attribute_order ?? []; // export order from backend
+const category = product.category_attribute_names ?? []; // optional
+
+const orderNorm = new Set(order.map(normKey));
+const categoryNorm = new Set(category.map(normKey));
+
+const used = new Set<string>();
+const orderedKeys: string[] = [];
+
+// 1) First follow attribute_order (Excel-like order)
+for (const t of order) {
+  const match = Object.keys(attrs).find((k) => normKey(k) === normKey(t));
+  if (match && !used.has(match)) {
+    // Hide category attributes in drawer (since you said drawer shouldn't show category attrs)
+    if (!categoryNorm.has(normKey(match))) {
+      orderedKeys.push(match);
+    }
+    used.add(match);
+  }
+}
+
+// 2) OPTIONAL: add remaining keys, but ONLY if they are part of order (prevents Brand/MPN/etc showing up)
+for (const k of Object.keys(attrs)) {
+  if (!used.has(k) && orderNorm.has(normKey(k)) && !categoryNorm.has(normKey(k))) {
+    orderedKeys.push(k);
+    used.add(k);
+  }
+}
+
+// 3) Fallback if backend didn’t send attribute_order
+const finalKeys = orderedKeys.length ? orderedKeys : Object.keys(attrs);
 
   const parseAttrUnit = (attr: unknown): string | null => {
     if (typeof attr === "object" && attr !== null) {
@@ -332,7 +366,7 @@ const handleDownload=async(url:string,filename?:string)=>{
       <div className="border border-slate-200 rounded-lg overflow-hidden">
         <table className="w-full">
           <tbody>
-            {Object.entries(product.attributes).map(([key, attr], idx) => (
+            {/* {Object.entries(product.attributes).map(([key, attr], idx) => (
               <tr
                 key={key}
                 className={
@@ -355,7 +389,28 @@ const handleDownload=async(url:string,filename?:string)=>{
                   )}
                 </td>
               </tr>
-            ))}
+            ))} */}
+            {finalKeys.map((key, idx) => {
+  const attr = (attrs as any)[key];
+  return (
+    <tr
+      key={key}
+      className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+    >
+      <td className="px-4 py-3 text-sm text-slate-700 font-medium border-r border-slate-200 w-1/2 align-top">
+        {key}
+      </td>
+      <td className="px-4 py-3 text-sm text-slate-900 w-1/2 align-top">
+        <span className="font-semibold">{parseAttrValue(attr)}</span>
+        {parseAttrUnit(attr) && (
+          <span className="text-xs text-slate-500 font-normal ml-1">
+            {parseAttrUnit(attr)}
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+})}
           </tbody>
         </table>
       </div>

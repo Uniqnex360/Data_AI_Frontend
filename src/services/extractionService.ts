@@ -11,9 +11,11 @@ export const extractionService = {
       throw new Error("AI extraction failed to process source");
     }
   },
-  async getProductById(productId: string): Promise<any> {
+ async getProductById(productId: string, projectId?: string): Promise<any> {
   try {
-    const { data } = await api.get(`/products/${productId}`);
+    const { data } = await api.get(`/products/${productId}`, {
+      params: projectId ? { project_id: projectId } : undefined,
+    });
     return data;
   } catch (error) {
     console.error("Failed to fetch product details", error);
