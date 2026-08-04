@@ -810,7 +810,8 @@ export default function DataCleaningTab() {
       };
     }
 
-    await cleansingService.updateProductAttributes(productId, attributes);
+    await cleansingService.updateProductAttributes(selectedProjectId, productId, attributes);
+
     notify.success("Attributes updated");
     await loadProducts();
     setEditingAttributes((prev) => {

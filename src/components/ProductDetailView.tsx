@@ -263,6 +263,7 @@ export function ProductDetailView({
         }
         if (Object.keys(formattedAttrs).length > 0) {
           await cleansingService.updateProductAttributes(
+            projectId,   
             productId,
             formattedAttrs as any,
           );

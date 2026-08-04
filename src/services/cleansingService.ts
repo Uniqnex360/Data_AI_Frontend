@@ -72,15 +72,15 @@ export const cleansingService = {
     }
   },
  async updateProductAttributes(
+  projectId: string,
   productId: string,
-  attributes: Record<string, { value: string; uom: string }>, 
+  attributes: Record<string, { value: string; uom: string }>,
 ): Promise<any> {
   try {
     const { data } = await api.put(
       `/cleansing/products/${productId}/attributes`,
-      {
-        attributes: attributes,
-      },
+      { attributes },
+      { params: { project_id: projectId } } // ✅ send project context
     );
     return data;
   } catch (error) {
