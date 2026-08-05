@@ -726,6 +726,12 @@ export function ProjectStats({
                     Product Name & MPN
                   </th>
                   <th
+  className="py-2 border-b border-slate-200"
+  style={{ width: 300 }}
+>
+  Recommended Title
+</th>
+                  <th
                     className="py-2 border-b border-slate-200 whitespace-nowrap"
                     style={{ width: 120 }}
                   >
@@ -861,9 +867,19 @@ export function ProjectStats({
                             >
                               MPN: {p.product_code}
                             </span>
+                            
                           </div>
                         </div>
+                        
                       </td>
+                      <td className="py-2">
+  <div
+    className="text-xs text-slate-700 line-clamp-2"
+    title={p.title_recommendation}
+  >
+    {p.title_recommendation || "—"}
+  </div>
+</td>
                       <td
                         className="py-2 text-slate-500 truncate"
                         title={p.brand_name}

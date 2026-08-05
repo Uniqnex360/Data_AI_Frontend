@@ -214,9 +214,19 @@ const finalKeys = orderedKeys.length ? orderedKeys : Object.keys(attrs);
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between shrink-0 bg-white sticky top-0 z-10">
           <div className="flex-1 min-w-0 pr-4">
-            <h2 className="text-lg font-bold text-slate-900 leading-tight line-clamp-2">
-              {product.product_name}
-            </h2>
+           <h2 className="text-lg font-bold text-slate-900 leading-tight line-clamp-2">
+  {product.product_name}
+</h2>
+{product.title_recommendation && (
+  <div className="mt-1 text-xs">
+    <span className="font-medium text-slate-500">
+      Recommended Title:
+    </span>{" "}
+    <span className="text-indigo-600">
+      {product.title_recommendation}
+    </span>
+  </div>
+)}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span className="text-xs font-mono bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100">
                 {product.product_code}

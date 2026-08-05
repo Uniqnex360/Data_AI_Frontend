@@ -1,945 +1,945 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import {
-  X,
-  Download,
-  Search,
-  Filter,
-  Columns,
-  Box,
-  Loader2,
-  ChevronRight as BreadcrumbSeparator,
-  CheckCircle2,
-  Lock,
-  RefreshCw,
-  AlertCircle,
-  FileDown,
-  Edit,
-  Check,
-  ImageIcon,
-} from "lucide-react";
-import { aggregationService } from "../services/aggregationService";
-import { extractionService } from "../services/extractionService";
-import { getStatusBadge } from "../utils/projectStatusColorizer";
-import { notify } from "../lib/notifications";
-import { cleansingService } from "../services/cleansingService.ts";
-import { SearchableDropdown } from "../utils/SearchableDropdown.tsx";
-import { ExternalLink } from "lucide-react";
-import { ProductLogDrawer } from "./ProductLogDrawer";
-import { Product, Source } from "../types/business-rules.types.ts";
-import { ProductDetailDrawer } from "./ProductDetailDrawer.tsx";
+  import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+  import {
+    X,
+    Download,
+    Search,
+    Filter,
+    Columns,
+    Box,
+    Loader2,
+    ChevronRight as BreadcrumbSeparator,
+    CheckCircle2,
+    Lock,
+    RefreshCw,
+    AlertCircle,
+    FileDown,
+    Edit,
+    Check,
+    ImageIcon,
+  } from "lucide-react";
+  import { aggregationService } from "../services/aggregationService";
+  import { extractionService } from "../services/extractionService";
+  import { getStatusBadge } from "../utils/projectStatusColorizer";
+  import { notify } from "../lib/notifications";
+  import { cleansingService } from "../services/cleansingService.ts";
+  import { SearchableDropdown } from "../utils/SearchableDropdown.tsx";
+  import { ExternalLink } from "lucide-react";
+  import { ProductLogDrawer } from "./ProductLogDrawer";
+  import { Product, Source } from "../types/business-rules.types.ts";
+  import { ProductDetailDrawer } from "./ProductDetailDrawer.tsx";
 
-interface Props {
-  projectId: string;
-  projectName: string;
-  products: Product[];
-  onBack: () => void;
-  onNavigateToOverview?: () => void;
-  onAggregate?: (productId: string) => Promise<void>;
-  initialBrandFilter?: string[];
-}
+  interface Props {
+    projectId: string;
+    projectName: string;
+    products: Product[];
+    onBack: () => void;
+    onNavigateToOverview?: () => void;
+    onAggregate?: (productId: string) => Promise<void>;
+    initialBrandFilter?: string[];
+  }
 
-export function ProductDetailView({
-  projectId,
-  projectName,
-  products,
-  onBack,
-  onNavigateToOverview,
-  onAggregate,
-  initialBrandFilter = [],
-}: Props) {
-  const [loading, setLoading] = useState(true);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  export function ProductDetailView({
+    projectId,
+    projectName,
+    products,
+    onBack,
+    onNavigateToOverview,
+    onAggregate,
+    initialBrandFilter = [],
+  }: Props) {
+    const [loading, setLoading] = useState(true);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const [editMode, setEditMode] = useState(false);
-  const [pendingChanges, setPendingChanges] = useState<
-    Record<string, Record<string, string>>
-  >({});
-  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(
-  () => new Set(products.map((p) => p.id))
-);
-  const [detailDrawerOpen,setDetailDrawerOpen]=useState(false)
-  const [selectedProductForDetail,setSelectedProductForDetail]=useState<Product|null>(null)
-  const [aggregatingIds, setAggregatingIds] = useState<Set<string>>(new Set());
-  const [localProducts, setLocalProducts] = useState<Product[]>(products);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const [savingAll, setSavingAll] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [attrMap, setAttrMap] = useState<
-    Record<string, Record<string, string>>
-  >({});
-  const [projectSource, setProjectSource] = useState<Source | null>(null);
-  const [attrUomMap, setAttrUomMap] = useState<
-    Record<string, Record<string, string>>
-  >({});
-  const [showLogDrawer, setShowLogDrawer] = useState(false);
-  const [selectedProductForLogs, setSelectedProductForLogs] =
-    useState<Product | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [completenessFilter, setCompletenessFilter] = useState("all");
-  const [brandFilter, setBrandFilter] = useState<string[]>(
-    initialBrandFilter.length > 0 ? initialBrandFilter : [],
+    const [editMode, setEditMode] = useState(false);
+    const [pendingChanges, setPendingChanges] = useState<
+      Record<string, Record<string, string>>
+    >({});
+    const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(
+    () => new Set(products.map((p) => p.id))
   );
-  const [categoryFilter, setCategoryFilter] = useState("all");
+    const [detailDrawerOpen,setDetailDrawerOpen]=useState(false)
+    const [selectedProductForDetail,setSelectedProductForDetail]=useState<Product|null>(null)
+    const [aggregatingIds, setAggregatingIds] = useState<Set<string>>(new Set());
+    const [localProducts, setLocalProducts] = useState<Product[]>(products);
+    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    const [savingAll, setSavingAll] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const [attrMap, setAttrMap] = useState<
+      Record<string, Record<string, string>>
+    >({});
+    const [projectSource, setProjectSource] = useState<Source | null>(null);
+    const [attrUomMap, setAttrUomMap] = useState<
+      Record<string, Record<string, string>>
+    >({});
+    const [showLogDrawer, setShowLogDrawer] = useState(false);
+    const [selectedProductForLogs, setSelectedProductForLogs] =
+      useState<Product | null>(null);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [completenessFilter, setCompletenessFilter] = useState("all");
+    const [brandFilter, setBrandFilter] = useState<string[]>(
+      initialBrandFilter.length > 0 ? initialBrandFilter : [],
+    );
+    const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const parseValueAndUnit = (
-    raw: any,
-  ): { value: string; unit: string | null } => {
-    if (!raw) return { value: "—", unit: null };
+    const parseValueAndUnit = (
+      raw: any,
+    ): { value: string; unit: string | null } => {
+      if (!raw) return { value: "—", unit: null };
 
-    if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
-      if (
-        raw.hasOwnProperty("value") &&
-        typeof raw.value === "string" &&
-        raw.value.startsWith("{'")
-      ) {
-        return parsePythonDictString(raw.value);
+      if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+        if (
+          raw.hasOwnProperty("value") &&
+          typeof raw.value === "string" &&
+          raw.value.startsWith("{'")
+        ) {
+          return parsePythonDictString(raw.value);
+        }
+        return {
+          value: raw.value || "—",
+          unit: raw.unit || null,
+        };
       }
-      return {
-        value: raw.value || "—",
-        unit: raw.unit || null,
-      };
-    }
 
-    if (typeof raw === "string") {
-      if (raw.startsWith("{'") && raw.includes("'value'")) {
-        return parsePythonDictString(raw);
+      if (typeof raw === "string") {
+        if (raw.startsWith("{'") && raw.includes("'value'")) {
+          return parsePythonDictString(raw);
+        }
+        return { value: raw, unit: null };
       }
-      return { value: raw, unit: null };
-    }
 
-    return { value: "—", unit: null };
-  };
-
-  const parsePythonDictString = (
-    str: string,
-  ): { value: string; unit: string | null } => {
-    try {
-      const jsonStr = str
-        .replace(/'/g, '"')
-        .replace(/None/g, "null")
-        .replace(/True/g, "true")
-        .replace(/False/g, "false");
-      const parsed = JSON.parse(jsonStr);
-      return {
-        value: parsed.value || "—",
-        unit: parsed.unit || null,
-      };
-    } catch {
       return { value: "—", unit: null };
-    }
-  };
-
-  const viewLabel = useMemo(() => {
-    if (products.length === 1)
-      return (
-        products[0].product_name || products[0].product_code || "Product Detail"
-      );
-    return "Products View";
-  }, [products]);
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, []);
-  const loadViewData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const sources = await extractionService.getSourcesByProject(projectId);
-      if (sources && sources.length > 0) {
-        setProjectSource(sources[0]);
+
+    const parsePythonDictString = (
+      str: string,
+    ): { value: string; unit: string | null } => {
+      try {
+        const jsonStr = str
+          .replace(/'/g, '"')
+          .replace(/None/g, "null")
+          .replace(/True/g, "true")
+          .replace(/False/g, "false");
+        const parsed = JSON.parse(jsonStr);
+        return {
+          value: parsed.value || "—",
+          unit: parsed.unit || null,
+        };
+      } catch {
+        return { value: "—", unit: null };
       }
+    };
 
-      const newMap: Record<string, Record<string, string>> = {};
-      const newUomMap: Record<string, Record<string, string>> = {};
-
-      products.forEach((product) => {
-        const productAttrs: Record<string, string> = {};
-        const productUoms: Record<string, string> = {};
-
-        if (product.attributes && typeof product.attributes === "object") {
-          Object.entries(product.attributes).forEach(
-            ([attrName, attrValue]) => {
-              console.log(
-                "attrName:",
-                attrName,
-                "attrValue:",
-                attrValue,
-                "type:",
-                typeof attrValue,
-              );
-              if (typeof attrValue === "object" && attrValue !== null) {
-                productAttrs[attrName] = attrValue.value || "—";
-                if (attrValue.unit) {
-                  productUoms[attrName] = attrValue.unit;
-                }
-              } else {
-                productAttrs[attrName] = String(attrValue);
-              }
-            },
-          );
+    const viewLabel = useMemo(() => {
+      if (products.length === 1)
+        return (
+          products[0].product_name || products[0].product_code || "Product Detail"
+        );
+      return "Products View";
+    }, [products]);
+    useEffect(() => {
+      return () => {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+      };
+    }, []);
+    const loadViewData = useCallback(async () => {
+      setLoading(true);
+      try {
+        const sources = await extractionService.getSourcesByProject(projectId);
+        if (sources && sources.length > 0) {
+          setProjectSource(sources[0]);
         }
 
-        newMap[product.id] = productAttrs;
-        newUomMap[product.id] = productUoms;
-      });
-      console.log("first product attributes:", products[0]?.attributes);
-      console.log("attrMap built:", newMap);
-      console.log("products:", products);
-      console.log("first product attributes:", products[0]?.attributes);
-      console.log("type:", typeof products[0]?.attributes);
-      setAttrMap(newMap);
-      setAttrUomMap(newUomMap);
-    } catch (err) {
-      console.error("Failed to load view data", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, products]);
+        const newMap: Record<string, Record<string, string>> = {};
+        const newUomMap: Record<string, Record<string, string>> = {};
 
-  useEffect(() => {
-    loadViewData();
-  }, [loadViewData]);
-  useEffect(() => {
-    setLocalProducts(products);
-  }, [products]);
-  const handleExport = async () => {
-    // if (filteredProducts.length === 0) return;
-    // setExporting(true);
-    const idsToExport = filteredProducts
-    .filter((p) => selectedRowIds.has(p.id))
-    .map((p) => p.id);
-  if (idsToExport.length === 0) return;
-  setExporting(true);
-    try {
-      const productIds = filteredProducts.map((p) => p.id);
-      const { blob, filename } = await aggregationService.exportSelectedItems(
-        [],
-        productIds,
-      );
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || `${projectName}_Export.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      notify.success("Export successful");
-    } catch (error) {
-      notify.error("Export failed");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleDownloadInput = async () => {
-    if (!projectSource) {
-      notify.error("No input source found");
-      return;
-    }
-    try {
-      await extractionService.download(projectSource.id, "input");
-    } catch (e) {
-      notify.error("Failed to download input");
-      console.log(e);
-    }
-  };
-  const handleSaveAll = async () => {
-    setSavingAll(true);
-    try {
-      const updatedProductIds = new Set<string>();
-
-      for (const [productId, attrs] of Object.entries(pendingChanges)) {
-        const formattedAttrs: Record<string, { value: string; uom: string }> =
-          {};
-        for (const [key, val] of Object.entries(attrs)) {
-          if (val && val.trim() && val !== attrMap[productId]?.[key]) {
-            formattedAttrs[key] = {
-              value: val.trim(),
-              uom: attrUomMap[productId]?.[key] || "",
-            };
-          }
-        }
-        if (Object.keys(formattedAttrs).length > 0) {
-          await cleansingService.updateProductAttributes(
-            projectId,   
-            productId,
-            formattedAttrs as any,
-          );
-          updatedProductIds.add(productId);
-        }
-      }
-
-      if (updatedProductIds.size > 0) {
-        for (const productId of updatedProductIds) {
-          const attrs =
-            await aggregationService.getAggregatedAttributes(productId);
+        products.forEach((product) => {
           const productAttrs: Record<string, string> = {};
           const productUoms: Record<string, string> = {};
-          attrs.forEach((a: any) => {
-            const { value } = parseValueAndUnit(a.values?.[0]);
-            productAttrs[a.attribute_name] = value;
-          });
-          setAttrMap((prev) => ({
-            ...prev,
-            [productId]: { ...prev[productId], ...productAttrs },
-          }));
-        }
-      }
 
-      notify.success("Changes saved and values cleaned");
-      setPendingChanges({});
-      setEditMode(false);
-    } catch {
-      notify.error("Failed to save changes");
-    } finally {
-      setSavingAll(false);
-    }
-  };
-  const filteredProducts = useMemo(() => {
-    return localProducts.filter((p) => {
-      const matchesSearch =
-        !search ||
-        p.product_name?.toLowerCase().includes(search.toLowerCase()) ||
-        p.product_code?.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || p.enrichment_status === statusFilter;
-      const matchesBrand =
-        brandFilter.length === 0 || brandFilter.includes(p.brand_name ?? "");
-      const matchesCategory =
-        categoryFilter === "all" || p.category_3 === categoryFilter;
-      const score = p.completeness_score || 0;
-      const matchesComp =
-        completenessFilter === "all" ||
-        (completenessFilter === "high" && score > 80) ||
-        (completenessFilter === "mid" && score >= 50 && score <= 80) ||
-        (completenessFilter === "low" && score < 50);
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesBrand &&
-        matchesCategory &&
-        matchesComp
-      );
-    });
-  }, [
-    localProducts,
-    search,
-    statusFilter,
-    brandFilter,
-    categoryFilter,
-    completenessFilter,
-  ]);
-  useEffect(() => {
-    if (aggregatingIds.size === 0) {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-      return;
-    }
+          if (product.attributes && typeof product.attributes === "object") {
+            Object.entries(product.attributes).forEach(
+              ([attrName, attrValue]) => {
+                console.log(
+                  "attrName:",
+                  attrName,
+                  "attrValue:",
+                  attrValue,
+                  "type:",
+                  typeof attrValue,
+                );
+                if (typeof attrValue === "object" && attrValue !== null) {
+                  productAttrs[attrName] = attrValue.value || "—";
+                  if (attrValue.unit) {
+                    productUoms[attrName] = attrValue.unit;
+                  }
+                } else {
+                  productAttrs[attrName] = String(attrValue);
+                }
+              },
+            );
+          }
 
-    pollingRef.current = setInterval(async () => {
+          newMap[product.id] = productAttrs;
+          newUomMap[product.id] = productUoms;
+        });
+        console.log("first product attributes:", products[0]?.attributes);
+        console.log("attrMap built:", newMap);
+        console.log("products:", products);
+        console.log("first product attributes:", products[0]?.attributes);
+        console.log("type:", typeof products[0]?.attributes);
+        setAttrMap(newMap);
+        setAttrUomMap(newUomMap);
+      } catch (err) {
+        console.error("Failed to load view data", err);
+      } finally {
+        setLoading(false);
+      }
+    }, [projectId, products]);
+
+    useEffect(() => {
+      loadViewData();
+    }, [loadViewData]);
+    useEffect(() => {
+      setLocalProducts(products);
+    }, [products]);
+    const handleExport = async () => {
+      // if (filteredProducts.length === 0) return;
+      // setExporting(true);
+      const idsToExport = filteredProducts
+      .filter((p) => selectedRowIds.has(p.id))
+      .map((p) => p.id);
+    if (idsToExport.length === 0) return;
+    setExporting(true);
       try {
-        const results = await Promise.all(
-          Array.from(aggregatingIds).map((id) =>
-            aggregationService.getAggregatedAttributes(id).catch(() => null),
-          ),
+        const productIds = filteredProducts.map((p) => p.id);
+        const { blob, filename } = await aggregationService.exportSelectedItems(
+          [],
+          productIds,
         );
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || `${projectName}_Export.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        notify.success("Export successful");
+      } catch (error) {
+        notify.error("Export failed");
+      } finally {
+        setExporting(false);
+      }
+    };
 
-        const stillProcessing = new Set(aggregatingIds);
-        const updatedProducts = [...localProducts];
+    const handleDownloadInput = async () => {
+      if (!projectSource) {
+        notify.error("No input source found");
+        return;
+      }
+      try {
+        await extractionService.download(projectSource.id, "input");
+      } catch (e) {
+        notify.error("Failed to download input");
+        console.log(e);
+      }
+    };
+    const handleSaveAll = async () => {
+      setSavingAll(true);
+      try {
+        const updatedProductIds = new Set<string>();
 
-        for (const id of aggregatingIds) {
-          const product = localProducts.find((p) => p.id === id);
-          if (!product) continue;
-
-          const freshAttrs = results[Array.from(aggregatingIds).indexOf(id)];
-          if (freshAttrs && freshAttrs.length > 0) {
-            stillProcessing.delete(id);
-            const idx = updatedProducts.findIndex((p) => p.id === id);
-            if (idx !== -1) {
-              updatedProducts[idx] = {
-                ...updatedProducts[idx],
-                enrichment_status: "completed",
+        for (const [productId, attrs] of Object.entries(pendingChanges)) {
+          const formattedAttrs: Record<string, { value: string; uom: string }> =
+            {};
+          for (const [key, val] of Object.entries(attrs)) {
+            if (val && val.trim() && val !== attrMap[productId]?.[key]) {
+              formattedAttrs[key] = {
+                value: val.trim(),
+                uom: attrUomMap[productId]?.[key] || "",
               };
             }
           }
+          if (Object.keys(formattedAttrs).length > 0) {
+            await cleansingService.updateProductAttributes(
+              projectId,   
+              productId,
+              formattedAttrs as any,
+            );
+            updatedProductIds.add(productId);
+          }
         }
 
-        if (stillProcessing.size === 0) {
-          clearInterval(pollingRef.current!);
-          pollingRef.current = null;
-          setAggregatingIds(new Set());
-          notify.success("Aggregation completed");
-        } else {
-          setAggregatingIds(stillProcessing);
+        if (updatedProductIds.size > 0) {
+          for (const productId of updatedProductIds) {
+            const attrs =
+              await aggregationService.getAggregatedAttributes(productId);
+            const productAttrs: Record<string, string> = {};
+            const productUoms: Record<string, string> = {};
+            attrs.forEach((a: any) => {
+              const { value } = parseValueAndUnit(a.values?.[0]);
+              productAttrs[a.attribute_name] = value;
+            });
+            setAttrMap((prev) => ({
+              ...prev,
+              [productId]: { ...prev[productId], ...productAttrs },
+            }));
+          }
         }
 
-        setLocalProducts(updatedProducts);
-      } catch (e) {
-        console.error("Polling error:", e);
-      }
-    }, 3000);
-
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
+        notify.success("Changes saved and values cleaned");
+        setPendingChanges({});
+        setEditMode(false);
+      } catch {
+        notify.error("Failed to save changes");
+      } finally {
+        setSavingAll(false);
       }
     };
-  }, [aggregatingIds, localProducts]);
-  const handleAggregateClick = useCallback(
-    async (productId: string) => {
-      setLocalProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, enrichment_status: "processing" } : p,
-        ),
-      );
-      setAggregatingIds((prev) => new Set(prev).add(productId));
+    const filteredProducts = useMemo(() => {
+      return localProducts.filter((p) => {
+        const matchesSearch =
+          !search ||
+          p.product_name?.toLowerCase().includes(search.toLowerCase()) ||
+          p.product_code?.toLowerCase().includes(search.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || p.enrichment_status === statusFilter;
+        const matchesBrand =
+          brandFilter.length === 0 || brandFilter.includes(p.brand_name ?? "");
+        const matchesCategory =
+          categoryFilter === "all" || p.category_3 === categoryFilter;
+        const score = p.completeness_score || 0;
+        const matchesComp =
+          completenessFilter === "all" ||
+          (completenessFilter === "high" && score > 80) ||
+          (completenessFilter === "mid" && score >= 50 && score <= 80) ||
+          (completenessFilter === "low" && score < 50);
+        return (
+          matchesSearch &&
+          matchesStatus &&
+          matchesBrand &&
+          matchesCategory &&
+          matchesComp
+        );
+      });
+    }, [
+      localProducts,
+      search,
+      statusFilter,
+      brandFilter,
+      categoryFilter,
+      completenessFilter,
+    ]);
+    useEffect(() => {
+      if (aggregatingIds.size === 0) {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        return;
+      }
 
-      try {
-        await onAggregate?.(productId);
-      } catch {
-        // Revert on failure
+      pollingRef.current = setInterval(async () => {
+        try {
+          const results = await Promise.all(
+            Array.from(aggregatingIds).map((id) =>
+              aggregationService.getAggregatedAttributes(id).catch(() => null),
+            ),
+          );
+
+          const stillProcessing = new Set(aggregatingIds);
+          const updatedProducts = [...localProducts];
+
+          for (const id of aggregatingIds) {
+            const product = localProducts.find((p) => p.id === id);
+            if (!product) continue;
+
+            const freshAttrs = results[Array.from(aggregatingIds).indexOf(id)];
+            if (freshAttrs && freshAttrs.length > 0) {
+              stillProcessing.delete(id);
+              const idx = updatedProducts.findIndex((p) => p.id === id);
+              if (idx !== -1) {
+                updatedProducts[idx] = {
+                  ...updatedProducts[idx],
+                  enrichment_status: "completed",
+                };
+              }
+            }
+          }
+
+          if (stillProcessing.size === 0) {
+            clearInterval(pollingRef.current!);
+            pollingRef.current = null;
+            setAggregatingIds(new Set());
+            notify.success("Aggregation completed");
+          } else {
+            setAggregatingIds(stillProcessing);
+          }
+
+          setLocalProducts(updatedProducts);
+        } catch (e) {
+          console.error("Polling error:", e);
+        }
+      }, 3000);
+
+      return () => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      };
+    }, [aggregatingIds, localProducts]);
+    const handleAggregateClick = useCallback(
+      async (productId: string) => {
         setLocalProducts((prev) =>
           prev.map((p) =>
-            p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+            p.id === productId ? { ...p, enrichment_status: "processing" } : p,
           ),
         );
-        setAggregatingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(productId);
-          return next;
-        });
-      }
-    },
-    [onAggregate],
-  );
-  useEffect(() => {
-  setSelectedRowIds(new Set(products.map((p) => p.id)));
-}, [products]);
-  // const dynamicColumns = useMemo(() => {
-  //   const keys = new Set<string>();
-  //   Object.values(attrMap).forEach((obj) =>
-  //     Object.keys(obj).forEach((k) => keys.add(k)),
-  //   );
-  //   return Array.from(keys);
-  // }, [attrMap]);
-  const dynamicColumns = useMemo(() => {
-    const keys = new Set<string>();
-    filteredProducts.forEach((p) => {
-      const attrs = attrMap[p.id] || {};
-      Object.keys(attrs).forEach((k) => keys.add(k));
-    });
-    console.log("dynamicColumns:", Array.from(keys));
-    console.log("filteredProducts count:", filteredProducts.length);
-    console.log("attrMap:", attrMap);
-    return Array.from(keys);
-  }, [attrMap, filteredProducts]);
+        setAggregatingIds((prev) => new Set(prev).add(productId));
 
-  const uniqueBrands = useMemo(
-    () => [...new Set(localProducts.map((p) => p.brand_name).filter(Boolean))],
-    [localProducts],
-  );
-  const uniqueCategories = useMemo(
-    () => [...new Set(localProducts.map((p) => p.category_3).filter(Boolean))],
-    [localProducts],
-  );
+        try {
+          await onAggregate?.(productId);
+        } catch {
+          // Revert on failure
+          setLocalProducts((prev) =>
+            prev.map((p) =>
+              p.id === productId ? { ...p, enrichment_status: "failed" } : p,
+            ),
+          );
+          setAggregatingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(productId);
+            return next;
+          });
+        }
+      },
+      [onAggregate],
+    );
+    useEffect(() => {
+    setSelectedRowIds(new Set(products.map((p) => p.id)));
+  }, [products]);
+    // const dynamicColumns = useMemo(() => {
+    //   const keys = new Set<string>();
+    //   Object.values(attrMap).forEach((obj) =>
+    //     Object.keys(obj).forEach((k) => keys.add(k)),
+    //   );
+    //   return Array.from(keys);
+    // }, [attrMap]);
+    const dynamicColumns = useMemo(() => {
+      const keys = new Set<string>();
+      filteredProducts.forEach((p) => {
+        const attrs = attrMap[p.id] || {};
+        Object.keys(attrs).forEach((k) => keys.add(k));
+      });
+      console.log("dynamicColumns:", Array.from(keys));
+      console.log("filteredProducts count:", filteredProducts.length);
+      console.log("attrMap:", attrMap);
+      return Array.from(keys);
+    }, [attrMap, filteredProducts]);
 
-  const stats = useMemo(() => {
-    const total = localProducts.length;
-    const avgCompleteness =
-      total > 0
-        ? localProducts.reduce(
-            (acc, p) => acc + (p.completeness_score || 0),
-            0,
-          ) / total
-        : 0;
+    const uniqueBrands = useMemo(
+      () => [...new Set(localProducts.map((p) => p.brand_name).filter(Boolean))],
+      [localProducts],
+    );
+    const uniqueCategories = useMemo(
+      () => [...new Set(localProducts.map((p) => p.category_3).filter(Boolean))],
+      [localProducts],
+    );
 
-    return {
-      total,
-      aggregated: localProducts.filter(
-        (p) => p.enrichment_status === "completed",
-      ).length,
-      enrichment: localProducts.filter((p) => p.workflow_stage === "enrichment")
-        .length,
-      progress: localProducts.filter(
-        (p) => p.enrichment_status === "processing",
-      ).length,
-      failed: localProducts.filter((p) => p.enrichment_status === "failed")
-        .length,
-      avgCompleteness,
-    };
-  }, [localProducts]);
+    const stats = useMemo(() => {
+      const total = localProducts.length;
+      const avgCompleteness =
+        total > 0
+          ? localProducts.reduce(
+              (acc, p) => acc + (p.completeness_score || 0),
+              0,
+            ) / total
+          : 0;
 
-  return (
-    <div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
-      <div className="px-4 py-4 flex items-center justify-between bg-white border-b border-slate-200 shrink-0 rounded-2xl">
-        <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-          <button
-            onClick={onNavigateToOverview || onBack}
-            className="hover:text-indigo-600 transition-colors"
-          >
-            Projects
-          </button>
-          <BreadcrumbSeparator className="w-4 h-4" />
-          <button
-            onClick={onBack}
-            className="hover:text-indigo-600 transition-colors"
-          >
-            {projectName}
-          </button>
-          <BreadcrumbSeparator className="w-4 h-4" />
-          <span
-            className="hover:text-indigo-600 transition-colors"
-            title={viewLabel}
-          >
-            {viewLabel}
-          </span>
+      return {
+        total,
+        aggregated: localProducts.filter(
+          (p) => p.enrichment_status === "completed",
+        ).length,
+        enrichment: localProducts.filter((p) => p.workflow_stage === "enrichment")
+          .length,
+        progress: localProducts.filter(
+          (p) => p.enrichment_status === "processing",
+        ).length,
+        failed: localProducts.filter((p) => p.enrichment_status === "failed")
+          .length,
+        avgCompleteness,
+      };
+    }, [localProducts]);
+
+    return (
+      <div className="flex flex-col h-full bg-slate-50 text-slate-900 w-full">
+        <div className="px-4 py-4 flex items-center justify-between bg-white border-b border-slate-200 shrink-0 rounded-2xl">
+          <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+            <button
+              onClick={onNavigateToOverview || onBack}
+              className="hover:text-indigo-600 transition-colors"
+            >
+              Projects
+            </button>
+            <BreadcrumbSeparator className="w-4 h-4" />
+            <button
+              onClick={onBack}
+              className="hover:text-indigo-600 transition-colors"
+            >
+              {projectName}
+            </button>
+            <BreadcrumbSeparator className="w-4 h-4" />
+            <span
+              className="hover:text-indigo-600 transition-colors"
+              title={viewLabel}
+            >
+              {viewLabel}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadInput}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              <FileDown className="w-4 h-4" /> Download Input
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Export
+            </button>
+            <button
+              onClick={onBack}
+              className="p-2 bg-slate-100 text-slate-500 rounded-full hover:bg-rose-50 hover:text-rose-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleDownloadInput}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
-          >
-            <FileDown className="w-4 h-4" /> Download Input
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {exporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
-            Export
-          </button>
-          <button
-            onClick={onBack}
-            className="p-2 bg-slate-100 text-slate-500 rounded-full hover:bg-rose-50 hover:text-rose-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+        <div className="px-4 py-4 grid grid-cols-5 gap-3 shrink-0">
+          <StatCard
+            label="Total Products"
+            value={stats.total}
+            icon={<Box className="w-4 h-4 text-slate-400" />}
+          />
+          <StatCard
+            label="Aggregated"
+            value={stats.aggregated}
+            color="text-emerald-600"
+            icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          />
+          <StatCard
+            label="Enrichment"
+            value={stats.enrichment}
+            color="text-orange-600"
+            icon={<Lock className="w-4 h-4 text-orange-500" />}
+          />
+          <StatCard
+            label="In Progress"
+            value={stats.progress}
+            color="text-blue-600"
+            icon={<RefreshCw className="w-4 h-4 text-blue-500" />}
+          />
+          <StatCard
+            label="Failed"
+            value={stats.failed}
+            color="text-rose-600"
+            icon={<AlertCircle className="w-4 h-4 text-rose-500" />}
+          />
         </div>
-      </div>
 
-      <div className="px-4 py-4 grid grid-cols-5 gap-3 shrink-0">
-        <StatCard
-          label="Total Products"
-          value={stats.total}
-          icon={<Box className="w-4 h-4 text-slate-400" />}
-        />
-        <StatCard
-          label="Aggregated"
-          value={stats.aggregated}
-          color="text-emerald-600"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-        />
-        <StatCard
-          label="Enrichment"
-          value={stats.enrichment}
-          color="text-orange-600"
-          icon={<Lock className="w-4 h-4 text-orange-500" />}
-        />
-        <StatCard
-          label="In Progress"
-          value={stats.progress}
-          color="text-blue-600"
-          icon={<RefreshCw className="w-4 h-4 text-blue-500" />}
-        />
-        <StatCard
-          label="Failed"
-          value={stats.failed}
-          color="text-rose-600"
-          icon={<AlertCircle className="w-4 h-4 text-rose-500" />}
-        />
-      </div>
+        <div className="px-4 flex items-center justify-between mb-3 gap-3 shrink-0">
+          <div className="flex items-center gap-3 flex-1 flex-wrap">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products..."
+                className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
 
-      <div className="px-4 flex items-center justify-between mb-3 gap-3 shrink-0">
-        <div className="flex items-center gap-3 flex-1 flex-wrap">
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
-              className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+            <SearchableDropdown
+              label="All Brands"
+              options={uniqueBrands as string[]}
+              value={brandFilter}
+              onChange={(v) => setBrandFilter(v as string[])}
+              multi={true}
             />
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
+            >
+              <option value="all">All Categories</option>
+              {uniqueCategories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
+            >
+              <option value="all">All Status</option>
+              <option value="completed">Aggregated</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+
+            <select
+              value={completenessFilter}
+              onChange={(e) => setCompletenessFilter(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
+            >
+              <option value="all">All Completeness</option>
+              <option value="high">High (&gt;80%)</option>
+              <option value="mid">Mid (50% - 80%)</option>
+              <option value="low">Low (&lt;50%)</option>
+            </select>
           </div>
 
-          <SearchableDropdown
-            label="All Brands"
-            options={uniqueBrands as string[]}
-            value={brandFilter}
-            onChange={(v) => setBrandFilter(v as string[])}
-            multi={true}
-          />
-
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
-          >
-            <option value="all">All Categories</option>
-            {uniqueCategories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
-          >
-            <option value="all">All Status</option>
-            <option value="completed">Aggregated</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-          </select>
-
-          <select
-            value={completenessFilter}
-            onChange={(e) => setCompletenessFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none"
-          >
-            <option value="all">All Completeness</option>
-            <option value="high">High (&gt;80%)</option>
-            <option value="mid">Mid (50% - 80%)</option>
-            <option value="low">Low (&lt;50%)</option>
-          </select>
+          <div className="flex items-center gap-2">
+            {editMode && (
+              <>
+                <button
+                  onClick={handleSaveAll}
+                  disabled={savingAll || Object.keys(pendingChanges).length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                >
+                  {savingAll ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
+                  Save All
+                </button>
+                <button
+                  onClick={() => {
+                    setEditMode(false);
+                    setPendingChanges({});
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setEditMode(!editMode)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
+                editMode
+                  ? "bg-blue-600 text-white"
+                  : "bg-white border border-slate-200 text-slate-600"
+              }`}
+            >
+              <Edit className="w-3.5 h-3.5" />
+              {editMode ? "Editing" : "Edit"}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {editMode && (
-            <>
-              <button
-                onClick={handleSaveAll}
-                disabled={savingAll || Object.keys(pendingChanges).length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
-              >
-                {savingAll ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Check className="w-3.5 h-3.5" />
-                )}
-                Save All
-              </button>
-              <button
-                onClick={() => {
-                  setEditMode(false);
-                  setPendingChanges({});
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600"
-              >
-                <X className="w-3.5 h-3.5" /> Cancel
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => setEditMode(!editMode)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
-              editMode
-                ? "bg-blue-600 text-white"
-                : "bg-white border border-slate-200 text-slate-600"
-            }`}
-          >
-            <Edit className="w-3.5 h-3.5" />
-            {editMode ? "Editing" : "Edit"}
-          </button>
-        </div>
-      </div>
+        <div className="flex-1 overflow-hidden px-4 pb-4 flex flex-col">
+          <div className="flex-1 overflow-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <table className="w-full text-left border-collapse table-fixed">
+              <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">
+                <tr className="text-[13px] font-semibold text-slate-500">
+                  <th className="p-4 w-12 bg-slate-50 sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">
+                    <input
+                      type="checkbox"
+                      checked={filteredProducts.length>0&&filteredProducts.every((p)=>selectedRowIds.has(p.id))}
+                      onChange={()=>{
+                        setSelectedRowIds((prev)=>{
 
-      <div className="flex-1 overflow-hidden px-4 pb-4 flex flex-col">
-        <div className="flex-1 overflow-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
-          <table className="w-full text-left border-collapse table-fixed">
-            <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-200">
-              <tr className="text-[13px] font-semibold text-slate-500">
-                <th className="p-4 w-12 bg-slate-50 sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">
-                  <input
-                    type="checkbox"
-                    checked={filteredProducts.length>0&&filteredProducts.every((p)=>selectedRowIds.has(p.id))}
-                    onChange={()=>{
-                      setSelectedRowIds((prev)=>{
-
-                        const allSelected=filteredProducts.every((p)=>prev.has(p.id))
-                        if(allSelected)
-                        {
+                          const allSelected=filteredProducts.every((p)=>prev.has(p.id))
+                          if(allSelected)
+                          {
+                            const next=new Set(prev)
+                            filteredProducts.forEach((p)=>next.delete(p.id))
+                            return next
+                          }
                           const next=new Set(prev)
-                          filteredProducts.forEach((p)=>next.delete(p.id))
+                          filteredProducts.forEach((p)=>next.add(p.id))
                           return next
-                        }
-                        const next=new Set(prev)
-                        filteredProducts.forEach((p)=>next.add(p.id))
-                        return next
-                      })
-                    }}
-                    className="rounded border-slate-300"
-                  />
-                </th>
-                <th className="p-4 w-20 bg-slate-50 sticky left-12 z-30 shadow-[1px_0_0_0_#e2e8f0]">
-                  Image
-                </th>
-                <th className="p-4 w-72 bg-slate-50 sticky left-[112px] z-30 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
-                  Product Name
-                </th>
-                <th className="p-4 w-20 border-l border-slate-100 text-center">
-                  Logs
-                </th>
-                <th className="p-4 w-36 text-center border-l border-slate-100">
-                  Completeness
-                </th>
-                <th className="p-4 w-36 border-l border-slate-100">Brand</th>
-                <th className="p-4 w-36 border-l border-slate-100">Category</th>
-                {dynamicColumns.map((col, idx) => (
-                  <th key={col} className="p-4 w-48 border-l border-slate-100">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] text-slate-400 font-bold">
-                        Attribute {idx + 1}
-                      </span>
-                      <span className="text-slate-700 truncate" title={col}>
-                        {col}
-                      </span>
-                    </div>
+                        })
+                      }}
+                      className="rounded border-slate-300"
+                    />
                   </th>
-                ))}
-
-                <th className="p-4 w-32 border-l border-slate-100 text-center">
-                  Status
-                </th>
-                <th className="p-4 w-16 text-center border-l border-slate-100">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={100}
-                    className="py-32 text-center text-slate-400 font-medium"
-                  >
-                    Syncing dynamic data...
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="group hover:bg-slate-50 transition-colors"
-                  >
-                  <td
-  className="p-4 sticky left-0 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]"
-  onClick={(e) => e.stopPropagation()}
->
-  <input
-    type="checkbox"
-    checked={selectedRowIds.has(p.id)}
-    onChange={() => {
-      setSelectedRowIds((prev) => {
-        const next = new Set(prev);
-        next.has(p.id) ? next.delete(p.id) : next.add(p.id);
-        return next;
-      });
-    }}
-    className="rounded border-slate-300"
-  />
-</td>
-                    <td className="p-4 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
-                      <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100 flex items-center justify-center">
-                        {p.image_url_1 ? (
-                          <img
-                            src={p.image_url_1}
-                            alt={p.product_name || "Product"}
-                            className="w-full h-full object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                              (
-                                e.target as HTMLImageElement
-                              ).nextElementSibling?.classList.remove("hidden");
-                            }}
-                          />
-                        ) : null}
-                        <div
-                          className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}
-                        >
-                          <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
-                          <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
-                            No
-                            <br />
-                            Image
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 sticky left-[112px] bg-white group-hover:bg-slate-50 z-10 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
-  <div className="flex flex-col gap-0.5">
-    <button
-      onClick={() => {
-        setSelectedProductForDetail(p);
-        setDetailDrawerOpen(true);
-      }}
-      className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug text-left hover:text-indigo-600 transition-colors cursor-pointer"
-    >
-      {p.product_name}
-    </button>
-    <span className="text-[10px] text-indigo-500 font-mono font-bold">
-      MPN: {p.product_code}
-    </span>
-  </div>
-</td>
-                    <td className="p-4 border-l border-slate-50 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProductForLogs(p);
-                          setShowLogDrawer(true);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
-                        title="View Sources & Attributes"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-                    </td>
-                    <td className="p-4 border-l border-slate-50">
-                      <div className="flex flex-col items-center gap-1.5">
-                        <span className="text-xs font-black text-slate-700">
-                          {p.completeness_score || 0}%
+                  <th className="p-4 w-20 bg-slate-50 sticky left-12 z-30 shadow-[1px_0_0_0_#e2e8f0]">
+                    Image
+                  </th>
+                  <th className="p-4 w-72 bg-slate-50 sticky left-[112px] z-30 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
+                    Product Name
+                  </th>
+                  <th className="p-4 w-20 border-l border-slate-100 text-center">
+                    Logs
+                  </th>
+                  <th className="p-4 w-36 text-center border-l border-slate-100">
+                    Completeness
+                  </th>
+                  <th className="p-4 w-36 border-l border-slate-100">Brand</th>
+                  <th className="p-4 w-36 border-l border-slate-100">Category</th>
+                  {dynamicColumns.map((col, idx) => (
+                    <th key={col} className="p-4 w-48 border-l border-slate-100">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-slate-400 font-bold">
+                          Attribute {idx + 1}
                         </span>
-                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500"
-                            style={{ width: `${p.completeness_score || 0}%` }}
-                          />
-                        </div>
+                        <span className="text-slate-700 truncate" title={col}>
+                          {col}
+                        </span>
                       </div>
-                    </td>
-                    <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
-                      {p.brand_name || "—"}
-                    </td>
-                    <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
-                      {p.category_3}
-                    </td>
-                    {dynamicColumns.map((col) => (
-  <td
-    key={col}
-    className="p-4 text-sm border-l border-slate-50 font-medium"
-  >
-    {editMode ? (
-      <input
-        defaultValue={attrMap[p.id]?.[col] || ""}
-        onChange={(e) => {
-          setPendingChanges((prev) => ({
-            ...prev,
-            [p.id]: {
-              ...(prev[p.id] || {}),
-              [col]: e.target.value,
-            },
-          }));
-        }}
-        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 outline-none focus:border-blue-300 text-sm"
-        placeholder="—"
-      />
-    ) : (
-      <span 
-        className="block max-w-[180px] truncate" 
-        title={`${attrMap[p.id]?.[col] || "—"}${attrUomMap[p.id]?.[col] ? ` ${attrUomMap[p.id][col]}` : ""}`}
-      >
-        {attrMap[p.id]?.[col] || "—"}
-        {attrUomMap[p.id]?.[col] && (
-          <span className="text-xs text-slate-400 ml-1">
-            {attrUomMap[p.id][col]}
-          </span>
-        )}
-      </span>
-    )}
-  </td>
-))}
+                    </th>
+                  ))}
 
-                    <td className="p-4 border-l border-slate-50 text-center">
-                      {getStatusBadge(p.enrichment_status || "pending", true)}
-                    </td>
-                    <td className="p-4 text-center border-l border-slate-100">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAggregateClick(p.id);
-                        }}
-                        disabled={
-                          p.enrichment_status === "processing" ||
-                          aggregatingIds.has(p.id)
-                        }
-                        className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-md hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 disabled:opacity-50"
-                      >
-                        {p.enrichment_status === "processing" ||
-                        aggregatingIds.has(p.id) ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          "Aggregate"
-                        )}
-                      </button>
+                  <th className="p-4 w-32 border-l border-slate-100 text-center">
+                    Status
+                  </th>
+                  <th className="p-4 w-16 text-center border-l border-slate-100">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={100}
+                      className="py-32 text-center text-slate-400 font-medium"
+                    >
+                      Syncing dynamic data...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {showLogDrawer && selectedProductForLogs && (
-        <ProductLogDrawer
-          productId={selectedProductForLogs.id}
-          productName={
-            selectedProductForLogs.product_name ||
-            selectedProductForLogs.product_code
-          }
-          productCode={selectedProductForLogs.product_code}
-          productImage={selectedProductForLogs.image_url_1}
-          attributes={(selectedProductForLogs as any).attributes || {}}
-          sourcesConsulted={
-            (selectedProductForLogs as any).sources_consulted || []
-          }
-          onClose={() => {
-            setShowLogDrawer(false);
-            setSelectedProductForLogs(null);
-          }}
-        />
-      )}
-      {detailDrawerOpen && selectedProductForDetail && (
-  <ProductDetailDrawer
-    product={selectedProductForDetail}
-    loading={loadingDetail}
-    onClose={() => {
-      setDetailDrawerOpen(false);
-      setSelectedProductForDetail(null);
-    }}
-  />
-)}
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon }: any) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-      <div className="flex justify-between items-start">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          {label}
-        </span>
-        <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-          {icon}
-        </div>
-      </div>
-      <span className="text-3xl font-black text-slate-900 mt-4">
-        {value.toLocaleString()}
+                ) : (
+                  filteredProducts.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="group hover:bg-slate-50 transition-colors"
+                    >
+                    <td
+    className="p-4 sticky left-0 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]"
+    onClick={(e) => e.stopPropagation()}
+  >
+    <input
+      type="checkbox"
+      checked={selectedRowIds.has(p.id)}
+      onChange={() => {
+        setSelectedRowIds((prev) => {
+          const next = new Set(prev);
+          next.has(p.id) ? next.delete(p.id) : next.add(p.id);
+          return next;
+        });
+      }}
+      className="rounded border-slate-300"
+    />
+  </td>
+                      <td className="p-4 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
+                        <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100 flex items-center justify-center">
+                          {p.image_url_1 ? (
+                            <img
+                              src={p.image_url_1}
+                              alt={p.product_name || "Product"}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                                (
+                                  e.target as HTMLImageElement
+                                ).nextElementSibling?.classList.remove("hidden");
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}
+                          >
+                            <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
+                            <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
+                              No
+                              <br />
+                              Image
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 sticky left-[112px] bg-white group-hover:bg-slate-50 z-10 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]">
+    <div className="flex flex-col gap-0.5">
+      <button
+        onClick={() => {
+          setSelectedProductForDetail(p);
+          setDetailDrawerOpen(true);
+        }}
+        className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug text-left hover:text-indigo-600 transition-colors cursor-pointer"
+      >
+        {p.product_name}
+      </button>
+      <span className="text-[10px] text-indigo-500 font-mono font-bold">
+        MPN: {p.product_code}
       </span>
     </div>
-  );
-}
+  </td>
+                      <td className="p-4 border-l border-slate-50 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProductForLogs(p);
+                            setShowLogDrawer(true);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
+                          title="View Sources & Attributes"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                      </td>
+                      <td className="p-4 border-l border-slate-50">
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="text-xs font-black text-slate-700">
+                            {p.completeness_score || 0}%
+                          </span>
+                          <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500"
+                              style={{ width: `${p.completeness_score || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
+                        {p.brand_name || "—"}
+                      </td>
+                      <td className="p-4 text-sm text-slate-600 font-medium border-l border-slate-50">
+                        {p.category_3}
+                      </td>
+                      {dynamicColumns.map((col) => (
+    <td
+      key={col}
+      className="p-4 text-sm border-l border-slate-50 font-medium"
+    >
+      {editMode ? (
+        <input
+          defaultValue={attrMap[p.id]?.[col] || ""}
+          onChange={(e) => {
+            setPendingChanges((prev) => ({
+              ...prev,
+              [p.id]: {
+                ...(prev[p.id] || {}),
+                [col]: e.target.value,
+              },
+            }));
+          }}
+          className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 outline-none focus:border-blue-300 text-sm"
+          placeholder="—"
+        />
+      ) : (
+        <span 
+          className="block max-w-[180px] truncate" 
+          title={`${attrMap[p.id]?.[col] || "—"}${attrUomMap[p.id]?.[col] ? ` ${attrUomMap[p.id][col]}` : ""}`}
+        >
+          {attrMap[p.id]?.[col] || "—"}
+          {attrUomMap[p.id]?.[col] && (
+            <span className="text-xs text-slate-400 ml-1">
+              {attrUomMap[p.id][col]}
+            </span>
+          )}
+        </span>
+      )}
+    </td>
+  ))}
+
+                      <td className="p-4 border-l border-slate-50 text-center">
+                        {getStatusBadge(p.enrichment_status || "pending", true)}
+                      </td>
+                      <td className="p-4 text-center border-l border-slate-100">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAggregateClick(p.id);
+                          }}
+                          disabled={
+                            p.enrichment_status === "processing" ||
+                            aggregatingIds.has(p.id)
+                          }
+                          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-md hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 disabled:opacity-50"
+                        >
+                          {p.enrichment_status === "processing" ||
+                          aggregatingIds.has(p.id) ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            "Aggregate"
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {showLogDrawer && selectedProductForLogs && (
+          <ProductLogDrawer
+            productId={selectedProductForLogs.id}
+            productName={
+              selectedProductForLogs.product_name ||
+              selectedProductForLogs.product_code
+            }
+            productCode={selectedProductForLogs.product_code}
+            productImage={selectedProductForLogs.image_url_1}
+            attributes={(selectedProductForLogs as any).attributes || {}}
+            sourcesConsulted={
+              (selectedProductForLogs as any).sources_consulted || []
+            }
+            onClose={() => {
+              setShowLogDrawer(false);
+              setSelectedProductForLogs(null);
+            }}
+          />
+        )}
+        {detailDrawerOpen && selectedProductForDetail && (
+    <ProductDetailDrawer
+      product={selectedProductForDetail}
+      loading={loadingDetail}
+      onClose={() => {
+        setDetailDrawerOpen(false);
+        setSelectedProductForDetail(null);
+      }}
+    />
+  )}
+      </div>
+    );
+  }
+
+  function StatCard({ label, value, icon }: any) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+        <div className="flex justify-between items-start">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            {label}
+          </span>
+          <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+            {icon}
+          </div>
+        </div>
+        <span className="text-3xl font-black text-slate-900 mt-4">
+          {value.toLocaleString()}
+        </span>
+      </div>
+    );
+  }
