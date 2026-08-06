@@ -48,17 +48,8 @@ const endOfWeek = (d: Date, weekStartsOn: 0 | 1 = 1) => {
   e.setDate(s.getDate() + 6);
   return endOfDay(e);
 };
-const fmt = (d: Date) =>
-  d.toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-const formatRange = (start: Date, end: Date) => `${fmt(start)} – ${fmt(end)}`;
-const toDateInputValue = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
+
+
 export default function SourcesTab({
   projectId,
   onProjectSelect,

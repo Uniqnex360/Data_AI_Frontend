@@ -26,6 +26,7 @@ import {
 import { productService } from "../services/productService";
 import { ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext.tsx";
+import { ProgressCard, StatCard } from "../utils/dashboardHelper.tsx";
 
 interface Props {
   projectId?: string;
@@ -54,7 +55,9 @@ const startOfWeek = (d: Date) => {
   date.setDate(date.getDate() - diff);
   return date;
 };
-
+const OVERVIEW_PAGE_SIZE = 20;
+const [projectsOverviewPage, setProjectsOverviewPage] = useState(1);
+const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
 const endOfWeek = (d: Date) => {
   const s = startOfWeek(d);
   const e = new Date(s);
@@ -66,7 +69,6 @@ const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const endOfMonth = (d: Date) =>
   endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 
-const clampPercent = (n: number) => Math.max(0, Math.min(100, n));
 
 const parseYMD = (s: string) => {
   const [yy, mm, dd] = s.split("-").map(Number);
@@ -126,93 +128,6 @@ function PillButton({
   );
 }
 
-function StatCard({
-  title,
-  value,
-  icon,
-  iconBg,
-  iconColor,
-  footerLeft,
-  footerRight,
-  onClick,
-}: {
-  title: string;
-  value: number | string;
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  footerLeft?: React.ReactNode;
-  footerRight?: React.ReactNode;
-  onClick?: () => void;
-}) {
-  const clickable = !!onClick;
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow ${
-        clickable ? "cursor-pointer" : ""
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-600">{title}</p>
-        <div
-          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${iconBg}`}
-        >
-          <span className={iconColor}>{icon}</span>
-        </div>
-      </div>
-
-      <div className="mt-4 text-4xl font-black text-slate-900">{value}</div>
-
-      {(footerLeft || footerRight) && (
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <div className="text-xs text-slate-600">{footerLeft}</div>
-          <div className="text-xs text-slate-500">{footerRight}</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProgressCard({
-  title,
-  valuePct,
-  subtitle,
-  barClass,
-  icon,
-}: {
-  title: string;
-  valuePct: number;
-  subtitle: string;
-  barClass: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-extrabold tracking-wider uppercase text-slate-500">
-            {title}
-          </p>
-          <div className="mt-2 text-4xl font-black text-slate-900">
-            {Math.round(valuePct)}%
-          </div>
-          <div className="mt-1 text-sm text-slate-500">{subtitle}</div>
-        </div>
-        <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700">
-          {icon}
-        </div>
-      </div>
-
-      <div className="mt-5 w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${barClass}`}
-          style={{ width: `${clampPercent(valuePct)}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
@@ -279,10 +194,14 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   const [prevStats, setPrevStats] = useState<DashboardStats | null>(null);
 
   const todayYMD = useMemo(() => toYMD(new Date()), []);
-  const loadProjectsOverview = async () => {
+  const loadProjectsOverview = async (page=1) => {
     setProjectsLoading(true);
     try {
-      const data = await dashboardService.getProjectsOverview();
+      const data = await dashboardService.getProjectsOverview({
+      page,page_size:OVERVIEW_PAGE_SIZE,
+      });
+       const projects = Array.isArray(data?.projects) ? data.projects : [];
+    const total = Number.isFinite(data?.total) ? data.total : 0;
       setProjectsOverview(data.projects || []);
       setTotalProjectCount(data.total || 0);
     } catch (error) {
@@ -313,7 +232,13 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
     if (!projectId) {
       loadProjectsOverview();
     }
-  }, [projectId, selectedUserId]);
+  }, [projectId, selectedUserId,projectsOverviewPage]);
+  const handleProjectsOverviewPageChange = (page: number): void => {
+  if (!Number.isFinite(page) || page < 1 || page > projectsOverviewTotalPages) {
+    return;
+  }
+  setProjectsOverviewPage(page);
+};
   useEffect(() => {
     if (activeMode === "attributes") {
       const fetchTaxonomies = async () => {
@@ -764,7 +689,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               onClick={() => onNavigate?.("aggregation", "all")}
             />
 
-            {/* ONLY show Aggregated when in aggregation mode */}
             {activeMode === "aggregation" && (
               <StatCard
                 title="Aggregated"
@@ -784,7 +708,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               />
             )}
 
-            {/* ONLY show Enriched when in enrichment mode */}
             {activeMode === "enrichment" && (
               <StatCard
                 title="Enriched"
@@ -804,7 +727,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               />
             )}
 
-            {/* ONLY show Cleansed when in cleaning mode */}
             {activeMode === "cleaning" && (
               <StatCard
                 title="Cleansed"
@@ -924,7 +846,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
           </div>
 
-          {/* TAXONOMY SUMMARY CARDS */}
           {taxonomyMetrics && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
@@ -971,7 +892,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
           )}
 
-          {/* ATTRIBUTE SETS GRID (Bottom) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-lg font-bold text-slate-900">
@@ -1032,7 +952,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
                 </button>
               </div>
 
-              {/* Scrollable List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
                 {brandFlowStats.map((row: any, idx: number) => (
                   <button
@@ -1077,7 +996,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
 
             <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[500px]">
-              {/* Header */}
               <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                 <h4 className="text-base font-bold text-slate-900">
                   Categories
@@ -1279,18 +1197,20 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
             </div>
           </div>
           {!projectId &&
-            (projectsLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-              </div>
-            ) : (
-              <ProjectsOverviewTab
-                projects={projectsOverview}
-                onOpenProject={(id) => onNavigate?.("aggregation", "all")}
-              />
-            ))}
-        </>
-      )}
+  (projectsLoading ? (
+    <div className="flex justify-center py-8">
+      <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+    </div>
+  ) : (
+    <ProjectsOverviewTab
+      projects={projectsOverview}
+      totalCount={totalProjectCount}
+      page={projectsOverviewPage}
+      totalPages={projectsOverviewTotalPages}
+      onPageChange={handleProjectsOverviewPageChange}
+      onOpenProject={(id) => onNavigate?.("aggregation", "all")}
+    />
+  ))}
       {activeMode !== "attributes" && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -1471,7 +1391,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
       {viewAllType && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all">
           <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-3xl font-black text-slate-900">
@@ -1496,7 +1415,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </button>
             </div>
 
-            {/* Search Section */}
             <div className="p-6 bg-white">
               <div className="relative">
                 <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -1511,7 +1429,6 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </div>
             </div>
 
-            {/* List Area */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
               <div className="grid grid-cols-1 gap-3">
                 {(viewAllType === "brands" ? brandFlowStats : categoryFlowStats)
