@@ -195,22 +195,31 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
   const [prevStats, setPrevStats] = useState<DashboardStats | null>(null);
 
   const todayYMD = useMemo(() => toYMD(new Date()), []);
-  const loadProjectsOverview = async (page=1) => {
-    setProjectsLoading(true);
-    try {
-      const data = await dashboardService.getProjectsOverview({
-      page,page_size:OVERVIEW_PAGE_SIZE,
-      });
-       const projects = Array.isArray(data?.projects) ? data.projects : [];
+  const loadProjectsOverview = async (page = 1): Promise<void> => {
+  setProjectsLoading(true);
+  try {
+    const data = await dashboardService.getProjectsOverview({
+      page,
+      page_size: OVERVIEW_PAGE_SIZE,
+    });
+
+    const projects = Array.isArray(data?.projects) ? data.projects : [];
     const total = Number.isFinite(data?.total) ? data.total : 0;
-      setProjectsOverview(data.projects || []);
-      setTotalProjectCount(data.total || 0);
-    } catch (error) {
-      console.error("Failed to load projects overview:", error);
-    } finally {
-      setProjectsLoading(false);
-    }
-  };
+
+    setProjectsOverview(projects);
+    setTotalProjectCount(total);
+    setProjectsOverviewTotalPages(
+      Math.max(1, Math.ceil(total / OVERVIEW_PAGE_SIZE)),
+    );
+  } catch (error) {
+    console.error("Failed to load projects overview:", error);
+    setProjectsOverview([]);
+    setTotalProjectCount(0);
+    setProjectsOverviewTotalPages(1);
+  } finally {
+    setProjectsLoading(false);
+  }
+};
   useEffect(() => {
     if (isAdmin) {
       dashboardService
@@ -229,11 +238,11 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
     }),
     [startDate, endDate, dateField, activeMode, selectedUserId],
   );
-  useEffect(() => {
-    if (!projectId) {
-      loadProjectsOverview();
-    }
-  }, [projectId, selectedUserId,projectsOverviewPage]);
+ useEffect(() => {
+  if (!projectId) {
+    loadProjectsOverview(projectsOverviewPage);
+  }
+}, [projectId, selectedUserId, projectsOverviewPage]);
   const handleProjectsOverviewPageChange = (page: number): void => {
   if (!Number.isFinite(page) || page < 1 || page > projectsOverviewTotalPages) {
     return;
