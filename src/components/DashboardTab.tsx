@@ -55,9 +55,7 @@ const startOfWeek = (d: Date) => {
   date.setDate(date.getDate() - diff);
   return date;
 };
-const OVERVIEW_PAGE_SIZE = 20;
-const [projectsOverviewPage, setProjectsOverviewPage] = useState(1);
-const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
+
 const endOfWeek = (d: Date) => {
   const s = startOfWeek(d);
   const e = new Date(s);
@@ -159,6 +157,9 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
   >(null);
   const [listSearch, setListSearch] = useState("");
   const [selectedTaxonomy, setSelectedTaxonomy] = useState<string>("");
+  const OVERVIEW_PAGE_SIZE = 20;
+const [projectsOverviewPage, setProjectsOverviewPage] = useState(1);
+const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
   const [taxonomyMetrics, setTaxonomyMetrics] = useState<any>(null);
   const [activeMode, setActiveMode] = useState<DashboardMode>("aggregation");
   const [showAllBrands, setShowAllBrands] = useState(false);
@@ -1196,21 +1197,23 @@ export default function DashboardTab({ projectId, onNavigate }: Props) {
               </table>
             </div>
           </div>
-          {!projectId &&
-  (projectsLoading ? (
-    <div className="flex justify-center py-8">
-      <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-    </div>
-  ) : (
-    <ProjectsOverviewTab
-      projects={projectsOverview}
-      totalCount={totalProjectCount}
-      page={projectsOverviewPage}
-      totalPages={projectsOverviewTotalPages}
-      onPageChange={handleProjectsOverviewPageChange}
-      onOpenProject={(id) => onNavigate?.("aggregation", "all")}
-    />
-  ))}
+           {!projectId &&
+        (projectsLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <ProjectsOverviewTab
+            projects={projectsOverview}
+            totalCount={totalProjectCount}
+            page={projectsOverviewPage}
+            totalPages={projectsOverviewTotalPages}
+            onPageChange={handleProjectsOverviewPageChange}
+            onOpenProject={(id) => onNavigate?.("aggregation", "all")}
+          />
+        ))}
+        </>
+      )}
       {activeMode !== "attributes" && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
