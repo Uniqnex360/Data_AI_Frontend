@@ -150,7 +150,6 @@ export default function SourcesTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [projectName, setProjectName] = useState<string>("");
   const [overviewPage, setOverviewPage] = useState(1);
-  const [overviewTotalPages, setOverviewTotalPages] = useState(1);
   const [overviewSearch, setOverviewSearch] = useState("");
   const OVERVIEW_PAGE_SIZE = 20;
 
@@ -163,8 +162,11 @@ export default function SourcesTab({
         status: overviewFilter,
         search: overviewSearch || undefined,
       });
-      setProjectsOverview(data.projects || []);
-      setTotalProjectCount(data.total || 0);
+       const projects = Array.isArray(data?.projects) ? data.projects : [];
+    const total = Number.isFinite(data?.total) ? data.total : 0;
+
+    setProjectsOverview(projects);
+    setTotalProjectCount(total);
     } catch (error) {
       console.error("Failed to load projects overview:", error);
     } finally {
@@ -869,6 +871,9 @@ export default function SourcesTab({
       setMultiExtracting(false);
     }
   };
+  const overviewTotalPages=useMemo(()=>{
+    return Math.max(1,Math.ceil(totalProjectCount/OVERVIEW_PAGE_SIZE))
+  },[totalProjectCount])
   const handleManualSubmit = async () => {
     const newErrors: Record<string, string> = {};
     const hasUniqueId =
