@@ -308,7 +308,7 @@ export default function UserManagement() {
           </div>
         </div>
       )}
-
+const code=
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">

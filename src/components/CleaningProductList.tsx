@@ -9,7 +9,7 @@ interface Props {
   onEnterAdvanced: (category?: string) => void;
   onInspectProduct: (product: Product) => void;
 }
-
+const sessionActive = true
 export function CleaningProductList({ projectName, products, onBack, onEnterAdvanced, onInspectProduct }: Props) {
   return (
     <div className="flex flex-col h-full space-y-4">
