@@ -534,3 +534,14 @@ export interface EnrichmentTabProps {
   onNavigate?: (tab: string, filterStatus?: string) => void;
   onNavigateToProject?: (tab: string, projectId: string) => void;  
 }
+export type ValidationDecision = 'approved' | 'rejected';
+
+export interface PendingValidation {
+  id: string;
+  product_code: string;
+  project_id: string | null;
+  pdf_url: string;
+  source_page_url: string;
+  status: string;
+  created_at: string | null;
+}
