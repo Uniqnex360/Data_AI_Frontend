@@ -260,7 +260,7 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
       };
       fetchTaxonomies();
     }
-  }, [activeMode, projectId, rangeParams]);
+  }, [activeMode, projectId]);
 
   useEffect(() => {
     const now = new Date();
@@ -269,10 +269,10 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
       setEndDate(toYMD(endOfDay(now)));
     } else if (preset === "week") {
       setStartDate(toYMD(startOfWeek(now)));
-      setEndDate(toYMD(endOfWeek(now)));
+      setEndDate(toYMD(endOfDay(now)));
     } else if (preset === "month") {
       setStartDate(toYMD(startOfMonth(now)));
-      setEndDate(toYMD(endOfMonth(now)));
+      setEndDate(toYMD(endOfDay(now)));
     }
   }, [preset]);
   useEffect(() => {
@@ -282,7 +282,6 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
           const metrics = await dashboardService.getTaxonomyAttributeMetrics(
             selectedTaxonomy,
             projectId,
-            rangeParams.user_id,
           );
           setTaxonomyMetrics(metrics);
 
@@ -297,9 +296,7 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
         }
       };
       fetchTaxonomyDetails();
-    } else {
-      loadData(); // Your existing main load function
-    }
+    } 
   }, [selectedTaxonomy, activeMode, projectId, rangeParams]);
   useEffect(() => {
     if (!startDate || !endDate) return;
@@ -307,6 +304,7 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
   }, [startDate, endDate]);
 
   useEffect(() => {
+    if(activeMode==='attributes')return
     loadData();
   }, [
     projectId,
