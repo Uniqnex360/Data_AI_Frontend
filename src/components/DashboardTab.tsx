@@ -166,6 +166,9 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
   const [brandSearch, setBrandSearch] = useState("");
   const [endDate, setEndDate] = useState<string>(toYMD(new Date()));
   const [attributeSummary, setAttributeSummary] = useState<any[]>([]);
+  const [draftStartDate, setDraftStartDate] = useState(startDate);
+const [draftEndDate, setDraftEndDate] = useState(endDate);
+const [dateError, setDateError] = useState<string | null>(null);
 
   const [dateField, setDateField] = useState<DateField>("updated_at");
   const [totalProjectCount, setTotalProjectCount] = useState(0);
@@ -220,6 +223,29 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
     setProjectsLoading(false);
   }
 };
+const hasPendingDateChange =
+  draftStartDate !== startDate || draftEndDate !== endDate;
+
+const handleApplyDates = () => {
+  if (!draftStartDate || !draftEndDate) {
+    setDateError("Please select both start and end dates.");
+    return;
+  }
+
+  if (draftStartDate > draftEndDate) {
+    setDateError("Start date cannot be after end date.");
+    return;
+  }
+
+  if (draftEndDate > todayYMD) {
+    setDateError("End date cannot be in the future.");
+    return;
+  }
+
+  setDateError(null);
+  setStartDate(draftStartDate);
+  setEndDate(draftEndDate);
+};
   useEffect(() => {
     if (isAdmin) {
       dashboardService
@@ -262,19 +288,27 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
     }
   }, [activeMode, projectId]);
 
-  useEffect(() => {
-    const now = new Date();
-    if (preset === "today") {
-      setStartDate(toYMD(startOfDay(now)));
-      setEndDate(toYMD(endOfDay(now)));
-    } else if (preset === "week") {
-      setStartDate(toYMD(startOfWeek(now)));
-      setEndDate(toYMD(endOfDay(now)));
-    } else if (preset === "month") {
-      setStartDate(toYMD(startOfMonth(now)));
-      setEndDate(toYMD(endOfDay(now)));
-    }
-  }, [preset]);
+ useEffect(() => {
+  const now = new Date();
+  const today = toYMD(now);
+
+  setDateError(null); 
+
+  if (preset === "today") {
+    
+    setDraftStartDate(today);
+    setDraftEndDate(today);
+  } else if (preset === "week") {
+    
+    setDraftStartDate(toYMD(startOfWeek(now)));
+    setDraftEndDate(today);
+  } else if (preset === "month") {
+    
+    setDraftStartDate(toYMD(startOfMonth(now)));
+    setDraftEndDate(today);
+  }
+  
+}, [preset]);
   useEffect(() => {
     if (activeMode === "attributes" && selectedTaxonomy) {
       const fetchTaxonomyDetails = async () => {
@@ -299,9 +333,11 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
     } 
   }, [selectedTaxonomy, activeMode, projectId, rangeParams]);
   useEffect(() => {
-    if (!startDate || !endDate) return;
-    if (startDate > endDate) setEndDate(startDate);
-  }, [startDate, endDate]);
+  if (!draftStartDate || !draftEndDate) return;
+  if (draftStartDate > draftEndDate) {
+    setDraftEndDate(draftStartDate);
+  }
+}, [draftStartDate, draftEndDate]);
 
   useEffect(() => {
     if(activeMode==='attributes')return
@@ -327,15 +363,10 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
         : await dashboardService.getGlobalMetrics(rangeParams);
       setGlobalStats(data);
 
-      if (activeMode === "attributes") {
-        const attrSummary = await dashboardService.getAttributeSummary({
-          project_id: projectId,
-          ...rangeParams,
-        } as any);
-        setAttributeSummary(attrSummary);
-      } else {
-        setAttributeSummary([]);
-      }
+      if (activeMode !== "attributes") {
+      setAttributeSummary([]);
+    }
+
       const prev = shiftRangeBack(startDate, endDate);
       const prevData = projectId
         ? await dashboardService.getProjectMetrics(projectId, {
@@ -601,29 +632,37 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
             </PillButton>
           </div>
 
-          <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
-            <input
-              type="date"
-              value={startDate}
-              max={todayYMD}
-              onChange={(e) => {
-                setPreset("custom");
-                setStartDate(e.target.value);
-              }}
-              className="text-sm outline-none bg-transparent"
-            />
-            <span className="text-slate-400 text-sm">to</span>
-            <input
-              type="date"
-              value={endDate}
-              max={todayYMD}
-              onChange={(e) => {
-                setPreset("custom");
-                setEndDate(e.target.value);
-              }}
-              className="text-sm outline-none bg-transparent"
-            />
-          </div>
+         <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
+  <input
+    type="date"
+    value={draftStartDate}
+    max={todayYMD}
+    onChange={(e) => {
+      setPreset("custom");
+      setDraftStartDate(e.target.value);
+      setDateError(null); 
+    }}
+    className="text-sm outline-none bg-transparent"
+  />
+  <span className="text-slate-400 text-sm">to</span>
+  <input
+    type="date"
+    value={draftEndDate}
+    max={todayYMD}
+    onChange={(e) => {
+      setPreset("custom");
+      setDraftEndDate(e.target.value);
+      setDateError(null); 
+    }}
+    className="text-sm outline-none bg-transparent"
+  />
+</div>
+
+{dateError && (
+  <div className="text-xs text-red-600 font-medium mt-1">
+    {dateError}
+  </div>
+)}
 
           <select
             value={dateField}
@@ -644,6 +683,17 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
             Live · {lastRefreshedAt ? "just now" : "—"}
             <RefreshCw className="w-4 h-4 text-slate-400" />
           </button>
+          <button
+  type="button"
+  onClick={handleApplyDates}
+  disabled={!hasPendingDateChange}
+  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-sm
+    ${hasPendingDateChange
+      ? "bg-blue-600 text-white hover:bg-blue-700"
+      : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
+>
+  Apply
+</button>
         </div>
       </div>
       <div className="bg-white border-b border-slate-200">
@@ -1024,7 +1074,7 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
                     <button
                       key={idx}
                       className="w-full group flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 transition-colors text-left"
-                      title={row.category} // Shows full path on hover
+                      title={row.category} 
                     >
                       <div className="space-y-1 min-w-0 flex-1 pr-4">
                         <div className="flex items-center gap-2">
@@ -1452,7 +1502,7 @@ const [projectsOverviewTotalPages, setProjectsOverviewTotalPages] = useState(1);
                   .map((row: any, idx: number) => {
                     const name =
                       viewAllType === "brands" ? row.brand : row.category;
-                    // For categories, show the breadcrumb path nicely
+                    
                     const displayName =
                       viewAllType === "categories"
                         ? name.split(">").pop().trim()
