@@ -39,6 +39,20 @@ import { formatValue } from "../utils/valueParser.tsx";
 import { useProductMovement } from "../hooks/useProductMovement.ts";
 import { Pagination } from "./Pagination";
 import { ProjectStats } from "./ProjectStats.tsx";
+type DashboardDateFilter = {
+  start_date?: string;
+  end_date?: string;
+  date_field?: "created_at" | "updated_at";
+};
+
+function getSavedDashboardFilter(): DashboardDateFilter {
+  try {
+    const raw = localStorage.getItem("dashboard_date_filter");
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
 const ITEMS_PER_PAGE = 10;
 export default function EnrichmentTab({
   projectId,
@@ -123,12 +137,14 @@ export default function EnrichmentTab({
     setStatsProject(null);
   }, []);
 
-  const loadProjects = useCallback(async (silent = false) => {
+  const loadProjects = useCallback(
+  async (silent = false, dateFilter?: DashboardDateFilter) => {
   if (!silent) setProjectsLoading(true);
   try {
     const data = await projectService.getAllProjects({
       operation_mode: "aggregation,pdf_extraction,enrichment",
       tab: "enrichment",
+       ...dateFilter, 
     });
     const enrichmentProjects = data.filter(
       (p: Project) => p.operation_mode === "enrichment",
@@ -158,8 +174,20 @@ export default function EnrichmentTab({
   }
 }, []);
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+  const filter = getSavedDashboardFilter();
+  loadProjects(false, filter);
+}, [loadProjects]);
+useEffect(() => {
+  const handler = () => {
+    const filter = getSavedDashboardFilter();
+    loadProjects(false, filter);
+  };
+
+  window.addEventListener("dashboard-date-changed", handler);
+  return () => {
+    window.removeEventListener("dashboard-date-changed", handler);
+  };
+}, [loadProjects]);
   const loadDefaultFilters = useCallback(async () => {
     await loadProjectFilters();
   }, [loadProjectFilters]);

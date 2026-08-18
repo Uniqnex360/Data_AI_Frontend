@@ -231,12 +231,10 @@ const handleApplyDates = () => {
     setDateError("Please select both start and end dates.");
     return;
   }
-
   if (draftStartDate > draftEndDate) {
     setDateError("Start date cannot be after end date.");
     return;
   }
-
   if (draftEndDate > todayYMD) {
     setDateError("End date cannot be in the future.");
     return;
@@ -245,6 +243,14 @@ const handleApplyDates = () => {
   setDateError(null);
   setStartDate(draftStartDate);
   setEndDate(draftEndDate);
+
+  const payload = {
+    start_date: draftStartDate,
+    end_date: draftEndDate,
+    date_field: dateField, // "updated_at" or "created_at"
+  };
+  localStorage.setItem("dashboard_date_filter", JSON.stringify(payload));
+  window.dispatchEvent(new Event("dashboard-date-changed"));
 };
   useEffect(() => {
     if (isAdmin) {
