@@ -28,6 +28,7 @@ import { ChevronRight, ChevronLeft } from "lucide-react";
 import UserManagement from "./components/UserManagement.tsx";
 import { useEffect } from 'react';
 import { dashboardService } from './services/dashboardService';
+import { clearDashboardFilter } from "./utils/dashboardFilter.ts";
 
 type TabId =
   | "dashboard"
@@ -146,6 +147,10 @@ function AppShell() {
       .catch((err) => console.error("Failed to fetch users", err));
   }
 }, [isAdmin]);
+useEffect(() => {
+    clearDashboardFilter();
+  }, []);
+
   const handleDashboardNavigate = (tab: TabId, filterStatus?: string) => {
     const targetTab = allowedTabs.find((t) => t.id === tab);
     if (!targetTab) return;

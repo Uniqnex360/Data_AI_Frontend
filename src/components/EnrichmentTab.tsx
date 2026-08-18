@@ -184,16 +184,13 @@ useEffect(() => {
     }
   }, [loadDefaultFilters, projectId]);
   useEffect(() => {
-  if (!projectId) return;
-
-  const project = projects.find((p) => p.id === projectId);
-  if (project) {
-    setSelectedProjectId(projectId);
-    openProjectStats(projectId);
-  } else {
-    setSelectedProjectId("");
-  }
-}, [projectId, projects, openProjectStats]);
+    if (selectedProjectId && projects.length > 0) {
+      const project = projects.find((p) => p.id === selectedProjectId);
+      if (project?.use_case) {
+        setSelectedUseCase(project.use_case);
+      }
+    }
+  }, [selectedProjectId, projects]);
   const filteredProjects = useMemo(() => {
     let filtered = projects;
     if (selectedUseCase) {

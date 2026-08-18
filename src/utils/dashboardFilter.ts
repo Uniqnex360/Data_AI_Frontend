@@ -22,3 +22,10 @@ export function saveDashboardFilter(filter: DashboardDateFilter) {
 export function dispatchDashboardDateChanged() {
   window.dispatchEvent(new Event("dashboard-date-changed"));
 }
+export function clearDashboardFilter() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
