@@ -132,7 +132,7 @@ export default function EnrichmentTab({
       const data = await projectService.getAllProjects({
         operation_mode: "aggregation,pdf_extraction,enrichment",
         tab: "enrichment",
-        ...getDashboardFilter(),              // 🔹 use common filter here
+        ...getDashboardFilter(),              
       });
     const enrichmentProjects = data.filter(
       (p: Project) => p.operation_mode === "enrichment",
@@ -184,13 +184,16 @@ useEffect(() => {
     }
   }, [loadDefaultFilters, projectId]);
   useEffect(() => {
-    if (selectedProjectId && projects.length > 0) {
-      const project = projects.find((p) => p.id === selectedProjectId);
-      if (project?.use_case) {
-        setSelectedUseCase(project.use_case);
-      }
-    }
-  }, [selectedProjectId, projects]);
+  if (!projectId) return;
+
+  const project = projects.find((p) => p.id === projectId);
+  if (project) {
+    setSelectedProjectId(projectId);
+    openProjectStats(projectId);
+  } else {
+    setSelectedProjectId("");
+  }
+}, [projectId, projects, openProjectStats]);
   const filteredProjects = useMemo(() => {
     let filtered = projects;
     if (selectedUseCase) {
