@@ -25,6 +25,7 @@ import { getStatusBadge } from "../utils/projectStatusColorizer";
 import { useProjectFilters } from "../hooks/useProjectFilters.ts";
 import { CleaningProductsOverview } from "./CleaningProductsOverview.tsx";
 import { Pagination } from "./Pagination.tsx";
+import { getDashboardFilter } from "../utils/dashboardFilter.ts";
 type SortDir = "asc" | "desc" | null;
 interface ColSort {
   attr: string;
@@ -331,6 +332,7 @@ export default function DataCleaningTab() {
     try {
       const data = await projectService.getAllProjects({
         operation_mode: "cleaning",
+        ...getDashboardFilter()
       });
       setProjects(data.filter((p: Project) => p.operation_mode === "cleaning"));
     } catch {
@@ -339,6 +341,16 @@ export default function DataCleaningTab() {
       if (!silent) setProjectsLoading(false);
     }
   }, []);
+  useEffect(() => {
+  const handler = () => {
+    loadProjects(false); 
+  };
+
+  window.addEventListener("dashboard-date-changed", handler);
+  return () => {
+    window.removeEventListener("dashboard-date-changed", handler);
+  };
+}, [loadProjects]);
     useEffect(() => {
     loadProjects();
     loadProjectFilters();

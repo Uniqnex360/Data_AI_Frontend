@@ -39,20 +39,8 @@ import { formatValue } from "../utils/valueParser.tsx";
 import { useProductMovement } from "../hooks/useProductMovement.ts";
 import { Pagination } from "./Pagination";
 import { ProjectStats } from "./ProjectStats.tsx";
-type DashboardDateFilter = {
-  start_date?: string;
-  end_date?: string;
-  date_field?: "created_at" | "updated_at";
-};
+import { getDashboardFilter } from "../utils/dashboardFilter.ts";
 
-function getSavedDashboardFilter(): DashboardDateFilter {
-  try {
-    const raw = localStorage.getItem("dashboard_date_filter");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 const ITEMS_PER_PAGE = 10;
 export default function EnrichmentTab({
   projectId,
@@ -138,14 +126,14 @@ export default function EnrichmentTab({
   }, []);
 
   const loadProjects = useCallback(
-  async (silent = false, dateFilter?: DashboardDateFilter) => {
-  if (!silent) setProjectsLoading(true);
-  try {
-    const data = await projectService.getAllProjects({
-      operation_mode: "aggregation,pdf_extraction,enrichment",
-      tab: "enrichment",
-       ...dateFilter, 
-    });
+  async (silent = false) => {
+    if (!silent) setProjectsLoading(true);
+    try {
+      const data = await projectService.getAllProjects({
+        operation_mode: "aggregation,pdf_extraction,enrichment",
+        tab: "enrichment",
+        ...getDashboardFilter(),              // 🔹 use common filter here
+      });
     const enrichmentProjects = data.filter(
       (p: Project) => p.operation_mode === "enrichment",
     );
@@ -173,14 +161,13 @@ export default function EnrichmentTab({
     if (!silent) setProjectsLoading(false);
   }
 }, []);
-  useEffect(() => {
-  const filter = getSavedDashboardFilter();
-  loadProjects(false, filter);
+ useEffect(() => {
+  loadProjects(false);
 }, [loadProjects]);
+
 useEffect(() => {
   const handler = () => {
-    const filter = getSavedDashboardFilter();
-    loadProjects(false, filter);
+    loadProjects(false); 
   };
 
   window.addEventListener("dashboard-date-changed", handler);
