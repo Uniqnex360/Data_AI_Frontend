@@ -43,7 +43,7 @@ export function ProjectStats({
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
   );
-    const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(
+  const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(
     new Set(),
   );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,8 +148,7 @@ export function ProjectStats({
       }
     };
   }, []);
-  
- 
+
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedProduct(null), 300);
@@ -167,7 +166,7 @@ export function ProjectStats({
           p.product_name?.toLowerCase().includes(q) ||
           p.brand_name?.toLowerCase().includes(q) ||
           p.mpn?.toLowerCase().includes(q) ||
-           p.sku?.toLowerCase().includes(q) ||
+          p.sku?.toLowerCase().includes(q) ||
           p.category_3?.toLowerCase().includes(q),
       );
     }
@@ -193,18 +192,17 @@ export function ProjectStats({
   );
   const totalProducts =
     projectProp?.product_count ?? projectStats?.totalProducts ?? 0;
-    const projectMode =
-  projectProp?.operation_mode ?? projectStats?.operation_mode ?? "";
-const isEnrichmentProject = projectMode === "enrichment";
+  const projectMode =
+    projectProp?.operation_mode ?? projectStats?.operation_mode ?? "";
+  const isEnrichmentProject = projectMode === "enrichment";
   const aggregatedCount =
     projectStats?.aggregatedProducts ??
     aggregationProducts.filter((p) => p.enrichment_status === "completed")
       .length;
-      const enrichedCount =
-  (projectStats as any)?.enriched_count ??
-  enrichmentProducts.filter(
-    (p) => p.enrichment_status === "completed",
-  ).length;
+  const enrichedCount =
+    (projectStats as any)?.enriched_count ??
+    enrichmentProducts.filter((p) => p.enrichment_status === "completed")
+      .length;
   const failedCount =
     projectStats?.failedProducts ??
     aggregationProducts.filter((p) => p.enrichment_status === "failed").length;
@@ -442,10 +440,10 @@ const isEnrichmentProject = projectMode === "enrichment";
           <div className="px-6 py-2 grid grid-cols-2 md:grid-cols-5 gap-2 border-b border-slate-200 bg-white">
             <MetricPill label="Total Products" value={totalProducts} />
             <MetricPill
-  label={isEnrichmentProject ? "Enriched" : "Aggregated"}
-  value={isEnrichmentProject ? enrichedCount : aggregatedCount}
-  color="text-indigo-400"
-/>
+              label={isEnrichmentProject ? "Enriched" : "Aggregated"}
+              value={isEnrichmentProject ? enrichedCount : aggregatedCount}
+              color="text-indigo-400"
+            />
             <MetricPill
               label="Moved to Enrichment"
               value={movedToEnrichment}
@@ -734,11 +732,11 @@ const isEnrichmentProject = projectMode === "enrichment";
                     Product Name & MPN
                   </th>
                   <th
-  className="py-2 border-b border-slate-200"
-  style={{ width: 300 }}
->
-  Recommended Title
-</th>
+                    className="py-2 border-b border-slate-200"
+                    style={{ width: 300 }}
+                  >
+                    Recommended Title
+                  </th>
                   <th
                     className="py-2 border-b border-slate-200 whitespace-nowrap"
                     style={{ width: 120 }}
@@ -875,19 +873,17 @@ const isEnrichmentProject = projectMode === "enrichment";
                             >
                               MPN: {p.product_code}
                             </span>
-                            
                           </div>
                         </div>
-                        
                       </td>
                       <td className="py-2">
-  <div
-    className="text-xs text-slate-700 line-clamp-2"
-    title={p.title_recommendation}
-  >
-    {p.title_recommendation || "—"}
-  </div>
-</td>
+                        <div
+                          className="text-xs text-slate-700 line-clamp-2"
+                          title={p.title_recommendation}
+                        >
+                          {p.title_recommendation || "—"}
+                        </div>
+                      </td>
                       <td
                         className="py-2 text-slate-500 truncate"
                         title={p.brand_name}
@@ -935,8 +931,9 @@ const isEnrichmentProject = projectMode === "enrichment";
                           {(p as any).data_quality_score ?? 100}%
                         </span>
                       </td>
-                                           <td className="py-2 text-center">
-                        {p.enrichment_status === "failed" && (p as any).failure_reason ? (
+                      <td className="py-2 text-center">
+                        {p.enrichment_status === "failed" &&
+                        (p as any).failure_reason ? (
                           <div className="group relative inline-block">
                             {getStatusBadge("failed", true)}
                             {/* Tooltip on hover */}
@@ -950,7 +947,10 @@ const isEnrichmentProject = projectMode === "enrichment";
                               </div>
                               {(p as any).failed_at && (
                                 <div className="text-[9px] text-slate-400 mt-1.5 border-t border-slate-700 pt-1">
-                                  Failed: {new Date((p as any).failed_at).toLocaleString()}
+                                  Failed:{" "}
+                                  {new Date(
+                                    (p as any).failed_at,
+                                  ).toLocaleString()}
                                 </div>
                               )}
                               {/* Tooltip arrow */}
