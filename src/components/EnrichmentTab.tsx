@@ -7,14 +7,11 @@ import React, {
 } from "react";
 import {
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Download,
   Loader2,
   Play,
   RefreshCw,
-  Sparkles,
   X,
   Zap,
   Target,
@@ -23,10 +20,10 @@ import {
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { notify } from "../lib/notifications";
-import type { Product } from "../types/database.types";
 import type {
   AggregatedAttribute,
   EnrichmentTabProps,
+  Product,
   Project,
 } from "../types/business-rules.types.ts";
 import {
@@ -104,7 +101,6 @@ export default function EnrichmentTab({
       {
         openProjectStats(projectId)
       }
-
     }
   }, [projectId,projects]);
   const openProjectStats = useCallback(
@@ -117,54 +113,10 @@ export default function EnrichmentTab({
     },
     [projects],
   );
-
   const closeProjectStats = useCallback(() => {
     setStatsProjectId(null);
     setStatsProject(null);
   }, []);
-  // const loadProjects = useCallback(async () => {
-  //   setProjectsLoading(true);
-  //   try {
-  //     const data = await projectService.getAllProjects({
-  //       operation_mode: "aggregation,pdf_extraction,enrichment",
-  //       tab: "enrichment",
-  //     });
-  //     const enrichmentProjects = data.filter(
-  //       (p: Project) =>
-  //         p.operation_mode === "enrichment",
-  //     );
-  //     setProjects(enrichmentProjects);
-  //     const counts:Record<string,number>={}
-  //     enrichmentProjects.forEach((p:Project)=>{
-  //       counts[p.id]=(p as any).enrichment_pending_count?? 0
-  //     })
-  //      setProjectEnrichmentCounts((prev) => ({ ...prev, ...counts }));
-  //     const uniqueUseCases = [
-  //       ...new Set(
-  //         enrichmentProjects
-  //           .map((p: Project) => p.use_case)
-  //           .filter(Boolean) as string[],
-  //       ),
-  //     ];
-  //     const sortedUseCases = uniqueUseCases.sort((a, b) => {
-  //       const aIsAggregation =
-  //         a === "Products with Category Assignments" ||
-  //         a === "Products without Category Assignments";
-  //       const bIsAggregation =
-  //         b === "Products with Category Assignments" ||
-  //         b === "Products without Category Assignments";
-  //       if (aIsAggregation && !bIsAggregation) return -1;
-  //       if (!aIsAggregation && bIsAggregation) return 1;
-  //       return a.localeCompare(b);
-  //     });
-  //     setUseCases(sortedUseCases);
-  //   } catch (error) {
-  //     console.error("Failed to load enrichment projects:", error);
-  //     notify.error("Failed to load enrichment projects");
-  //   } finally {
-  //     setProjectsLoading(false);
-  //   }
-  // }, []);
   const loadProjects = useCallback(async (silent = false) => {
   if (!silent) setProjectsLoading(true);
   try {
@@ -435,15 +387,9 @@ export default function EnrichmentTab({
   };
   const handleEnrichAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
-    // const selectedPendingProducts = expandedProjectProducts.filter(
-    //   (p) =>
-    //     selectedProductIds.has(p.id) &&
-    //     (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
-    // );
     const pendingProducts =selectedProductIds.size > 0
     ? expandedProjectProducts.filter((p) => selectedProductIds.has(p.id))
     : expandedProjectProducts;
-
   if (pendingProducts.length === 0) {
     notify.info("No products found to process in this project");
     return;
@@ -471,10 +417,8 @@ export default function EnrichmentTab({
       );
       notify.success(
         `Enrichment started for ${pendingProducts.length} product(s)`,
-        
       );
         loadProjects(true);
-
     } catch (error) {
       console.error("Batch enrichment failed", error);
       notify.error("Batch enrichment failed");
@@ -1223,9 +1167,6 @@ export default function EnrichmentTab({
                   Products
                 </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
-                  Aggregated
-                </th>
-                <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
                   Enrichment
                 </th>
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
@@ -1318,30 +1259,15 @@ export default function EnrichmentTab({
                           {project.product_count ?? 0}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        {project?.aggregated_count > 0 ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onNavigate?.("aggregation", project.id);
-                            }}
-                            className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full w-fit hover:bg-emerald-200 transition-colors cursor-pointer font-medium"
-                          >
-                            {project.aggregated_count}
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 text-xs">—</span>
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-center">
-                        {projectEnrichmentCounts?.[project.id] > 0 ? (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
-                            {projectEnrichmentCounts[project.id]}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-xs">—</span>
-                        )}
-                      </td>
+  {project.enriched_count && project.enriched_count > 0 ? (
+    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+      {project.enriched_count}
+    </span>
+  ) : (
+    <span className="text-slate-400 text-xs">—</span>
+  )}
+</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -1389,7 +1315,6 @@ export default function EnrichmentTab({
                         </span>
                       </td>
                     </tr>
-                   
                   </React.Fragment>
                 ))
               )}
@@ -1403,7 +1328,6 @@ export default function EnrichmentTab({
           />
         </div>  
         </div>
-        
       </div>
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -1704,7 +1628,7 @@ function TagIcon() {
       viewBox="0 0 24 24"
       fill="none"
       className="text-amber-700"
-      xmlns="http://www.w3.org/2000/svg"
+      xmlns="http:
       aria-hidden="true"
     >
       <path

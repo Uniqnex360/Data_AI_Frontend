@@ -172,6 +172,7 @@ export interface Project {
   cleaned_count?:number
   failed_count?:number
   pending_count?:number
+  enriched_count?: number;     
 }
 // src/types/database.types.ts
 
