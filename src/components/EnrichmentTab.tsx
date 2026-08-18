@@ -7,11 +7,14 @@ import React, {
 } from "react";
 import {
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Download,
   Loader2,
   Play,
   RefreshCw,
+  Sparkles,
   X,
   Zap,
   Target,
@@ -20,10 +23,10 @@ import {
 import { productService } from "../services/productService";
 import { projectService } from "../services/projectService";
 import { notify } from "../lib/notifications";
+import type { Product } from "../types/database.types";
 import type {
   AggregatedAttribute,
   EnrichmentTabProps,
-  Product,
   Project,
 } from "../types/business-rules.types.ts";
 import {
@@ -101,6 +104,7 @@ export default function EnrichmentTab({
       {
         openProjectStats(projectId)
       }
+
     }
   }, [projectId,projects]);
   const openProjectStats = useCallback(
@@ -113,10 +117,12 @@ export default function EnrichmentTab({
     },
     [projects],
   );
+
   const closeProjectStats = useCallback(() => {
     setStatsProjectId(null);
     setStatsProject(null);
   }, []);
+
   const loadProjects = useCallback(async (silent = false) => {
   if (!silent) setProjectsLoading(true);
   try {
@@ -387,9 +393,15 @@ export default function EnrichmentTab({
   };
   const handleEnrichAllInExpanded = useCallback(async () => {
     if (!expandedProjectId) return;
+    // const selectedPendingProducts = expandedProjectProducts.filter(
+    //   (p) =>
+    //     selectedProductIds.has(p.id) &&
+    //     (p.enrichment_status === "pending" || p.enrichment_status === "failed"),
+    // );
     const pendingProducts =selectedProductIds.size > 0
     ? expandedProjectProducts.filter((p) => selectedProductIds.has(p.id))
     : expandedProjectProducts;
+
   if (pendingProducts.length === 0) {
     notify.info("No products found to process in this project");
     return;
@@ -417,8 +429,10 @@ export default function EnrichmentTab({
       );
       notify.success(
         `Enrichment started for ${pendingProducts.length} product(s)`,
+        
       );
         loadProjects(true);
+
     } catch (error) {
       console.error("Batch enrichment failed", error);
       notify.error("Batch enrichment failed");
@@ -1166,6 +1180,7 @@ export default function EnrichmentTab({
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
                   Products
                 </th>
+              
                 <th className="px-4 py-3 text-center text-[13px] font-semibold text-slate-500">
                   Enrichment
                 </th>
@@ -1259,6 +1274,7 @@ export default function EnrichmentTab({
                           {project.product_count ?? 0}
                         </span>
                       </td>
+                      
                       <td className="px-4 py-3 text-center">
   {project.enriched_count && project.enriched_count > 0 ? (
     <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
@@ -1315,6 +1331,7 @@ export default function EnrichmentTab({
                         </span>
                       </td>
                     </tr>
+                   
                   </React.Fragment>
                 ))
               )}
@@ -1328,6 +1345,7 @@ export default function EnrichmentTab({
           />
         </div>  
         </div>
+        
       </div>
       {isDrawerOpen && selectedProductData && (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -1628,7 +1646,7 @@ function TagIcon() {
       viewBox="0 0 24 24"
       fill="none"
       className="text-amber-700"
-      xmlns="http:
+      xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
       <path
