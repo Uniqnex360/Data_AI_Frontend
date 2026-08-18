@@ -1680,7 +1680,6 @@ useEffect(() => {
                           </div>
                         )}
                       </div>
-                      {/* Optional: Show current product being processed */}
                       {aggregatingProjects.has(project.id) &&
                         jobProgress[project.id]?.current_product && (
                           <p className="text-[10px] text-slate-400 mt-1 truncate max-w-[200px]">

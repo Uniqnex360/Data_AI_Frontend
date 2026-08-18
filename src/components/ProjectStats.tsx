@@ -43,7 +43,7 @@ export function ProjectStats({
   const [projectStats, setProjectStats] = useState<ProjectWithStats | null>(
     null,
   );
-  const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(
+    const [aggregatingProducts, setAggregatingProducts] = useState<Set<string>>(
     new Set(),
   );
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -193,10 +193,18 @@ export function ProjectStats({
   );
   const totalProducts =
     projectProp?.product_count ?? projectStats?.totalProducts ?? 0;
+    const projectMode =
+  projectProp?.operation_mode ?? projectStats?.operation_mode ?? "";
+const isEnrichmentProject = projectMode === "enrichment";
   const aggregatedCount =
     projectStats?.aggregatedProducts ??
     aggregationProducts.filter((p) => p.enrichment_status === "completed")
       .length;
+      const enrichedCount =
+  (projectStats as any)?.enriched_count ??
+  enrichmentProducts.filter(
+    (p) => p.enrichment_status === "completed",
+  ).length;
   const failedCount =
     projectStats?.failedProducts ??
     aggregationProducts.filter((p) => p.enrichment_status === "failed").length;
@@ -434,10 +442,10 @@ export function ProjectStats({
           <div className="px-6 py-2 grid grid-cols-2 md:grid-cols-5 gap-2 border-b border-slate-200 bg-white">
             <MetricPill label="Total Products" value={totalProducts} />
             <MetricPill
-              label="Aggregated"
-              value={aggregatedCount}
-              color="text-indigo-400"
-            />
+  label={isEnrichmentProject ? "Enriched" : "Aggregated"}
+  value={isEnrichmentProject ? enrichedCount : aggregatedCount}
+  color="text-indigo-400"
+/>
             <MetricPill
               label="Moved to Enrichment"
               value={movedToEnrichment}
