@@ -52,7 +52,7 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
       </div>
     );
   }
-  
+
   const getSafeHostname = (urlString: string | undefined): string => {
     if (!urlString) return "Unknown Source";
     try {
@@ -93,9 +93,17 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
     { id: "documents", label: "Documents" },
   ];
 
-  const getImages = (): { url: string; sourcePageUrl?: string; sourceType?: string }[] => {
-    const images: { url: string; sourcePageUrl?: string; sourceType?: string }[] = [];
-   if (product.image_assets && Array.isArray(product.image_assets)) {
+  const getImages = (): {
+    url: string;
+    sourcePageUrl?: string;
+    sourceType?: string;
+  }[] => {
+    const images: {
+      url: string;
+      sourcePageUrl?: string;
+      sourceType?: string;
+    }[] = [];
+    if (product.image_assets && Array.isArray(product.image_assets)) {
       product.image_assets.forEach((asset) => {
         if (asset?.image_url) {
           images.push({
@@ -194,16 +202,23 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
   const videos = getVideos();
   const documents = getDocuments();
   const features = product.features || [];
-const pendingOnlyDocs = pendingValidations
-  .filter((v) => v.status === "pending" && !documents.find((d) => d.url === v.pdf_url))
-  .map((v) => ({ name: v.pdf_url.split("/").pop() || "PDF (pending validation)", url: v.pdf_url }));
+  const pendingOnlyDocs = pendingValidations
+    .filter(
+      (v) =>
+        v.status === "pending" && !documents.find((d) => d.url === v.pdf_url),
+    )
+    .map((v) => ({
+      name: v.pdf_url.split("/").pop() || "PDF (pending validation)",
+      url: v.pdf_url,
+    }));
 
-const allDocs = [...documents, ...pendingOnlyDocs];
+  const allDocs = [...documents, ...pendingOnlyDocs];
   const hasDescription = !!product.long_description || features.length > 0;
   const hasAttributes =
     !!product.attributes && Object.keys(product.attributes).length > 0;
   const hasMedia = images.length > 0 || videos.length > 0;
-  const hasDocuments = allDocs.length > 0 || (product.sources_consulted?.length ?? 0) > 0;
+  const hasDocuments =
+    allDocs.length > 0 || (product.sources_consulted?.length ?? 0) > 0;
 
   const parseAttrValue = (attr: unknown): string => {
     if (!attr) return "—";
@@ -367,26 +382,29 @@ const allDocs = [...documents, ...pendingOnlyDocs];
                   </div>
                 </>
               )}
-                 {images[carouselIndex]?.sourcePageUrl && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                <ExternalLink className="w-3 h-3" />
-                <span className="truncate">
-                  Source:{" "}
-                  <a
-                    href={images[carouselIndex].sourcePageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
-                  >
-{getSafeHostname(images[carouselIndex].sourcePageUrl)}                  </a>
-                  {images[carouselIndex].sourceType && (
-                    <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium">
-                      {images[carouselIndex].sourceType}
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
+              {images[carouselIndex]?.sourcePageUrl && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                  <ExternalLink className="w-3 h-3" />
+                  <span className="truncate">
+                    Source:{" "}
+                    <a
+                      href={images[carouselIndex].sourcePageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
+                    >
+                      {getSafeHostname(
+                        images[carouselIndex].sourcePageUrl,
+                      )}{" "}
+                    </a>
+                    {images[carouselIndex].sourceType && (
+                      <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium">
+                        {images[carouselIndex].sourceType}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -565,87 +583,89 @@ const allDocs = [...documents, ...pendingOnlyDocs];
           {/* Media Tab */}
           {activeTab === "media" && (
             <div className="space-y-8">
-                      {images.length > 0 && (
-          <div className="px-6 py-4 border-b border-slate-100 shrink-0">
-            <div className="relative aspect-video rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center group">
-              <img
-                src={images[carouselIndex].url}
-                alt={`${product.product_name} ${carouselIndex + 1}`}
-                className="max-h-full max-w-full object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
+              {images.length > 0 && (
+                <div className="px-6 py-4 border-b border-slate-100 shrink-0">
+                  <div className="relative aspect-video rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center group">
+                    <img
+                      src={images[carouselIndex].url}
+                      alt={`${product.product_name} ${carouselIndex + 1}`}
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
 
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={() =>
-                      setCarouselIndex((i) =>
-                        i === 0 ? images.length - 1 : i - 1,
-                      )
-                    }
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                    aria-label="Previous image"
-                  >
-                    <ChevronDown className="w-4 h-4 text-slate-600 rotate-90" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCarouselIndex((i) =>
-                        i === images.length - 1 ? 0 : i + 1,
-                      )
-                    }
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                    aria-label="Next image"
-                  >
-                    <ChevronDown className="w-4 h-4 text-slate-600 -rotate-90" />
-                  </button>
+                    {images.length > 1 && (
+                      <>
+                        <button
+                          onClick={() =>
+                            setCarouselIndex((i) =>
+                              i === 0 ? images.length - 1 : i - 1,
+                            )
+                          }
+                          className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                          aria-label="Previous image"
+                        >
+                          <ChevronDown className="w-4 h-4 text-slate-600 rotate-90" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            setCarouselIndex((i) =>
+                              i === images.length - 1 ? 0 : i + 1,
+                            )
+                          }
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                          aria-label="Next image"
+                        >
+                          <ChevronDown className="w-4 h-4 text-slate-600 -rotate-90" />
+                        </button>
 
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                    {images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCarouselIndex(i)}
-                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                          i === carouselIndex
-                            ? "bg-indigo-600"
-                            : "bg-white/70 border border-slate-300"
-                        }`}
-                        aria-label={`Go to image ${i + 1}`}
-                      />
-                    ))}
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                          {images.map((_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setCarouselIndex(i)}
+                              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                i === carouselIndex
+                                  ? "bg-indigo-600"
+                                  : "bg-white/70 border border-slate-300"
+                              }`}
+                              aria-label={`Go to image ${i + 1}`}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
+                          {carouselIndex + 1}/{images.length}
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
-                    {carouselIndex + 1}/{images.length}
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {images[carouselIndex]?.sourcePageUrl && (
+                  {images[carouselIndex]?.sourcePageUrl && (
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                <ExternalLink className="w-3 h-3" />
-                <span className="truncate">
+                <ExternalLink className="w-3 h-3 shrink-0" />
+                <span className="truncate flex-1">
                   Source:{" "}
                   <a
                     href={images[carouselIndex].sourcePageUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
+                    className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium truncate block max-w-[250px]"
+                    title={images[carouselIndex].sourcePageUrl}
                   >
-{getSafeHostname(images[carouselIndex].sourcePageUrl)}                  </a>
+                    {images[carouselIndex].sourcePageUrl}
+                  </a>
                   {images[carouselIndex].sourceType && (
-                    <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium">
+                    <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium whitespace-nowrap">
                       {images[carouselIndex].sourceType}
                     </span>
                   )}
                 </span>
               </div>
             )}
-          </div>
-        )}
+                </div>
+              )}
 
               {videos.length > 0 && (
                 <div>
@@ -721,39 +741,43 @@ const allDocs = [...documents, ...pendingOnlyDocs];
                             )}
                           </div>
 
-                         {pending ? (
-  <div className="flex items-center gap-1.5 shrink-0">
-    <button
-      onClick={() => window.open(doc.url, "_blank")}
-      className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
-      title="View PDF"
-    >
-      <ExternalLink className="w-4 h-4" />
-    </button>
-    <button
-      onClick={() => handleResolve(pending.id, "approved")}
-      disabled={resolvingId === pending.id}
-      className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
-    >
-      {resolvingId === pending.id ? "..." : "Approve"}
-    </button>
-    <button
-      onClick={() => handleResolve(pending.id, "rejected")}
-      disabled={resolvingId === pending.id}
-      className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
-    >
-      {resolvingId === pending.id ? "..." : "Reject"}
-    </button>
-  </div>
-) : (
-  <button
-    onClick={() => handleDownload(doc.url, doc.name)}
-    className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
-    title="Download"
-  >
-    <Download className="w-4 h-4" />
-  </button>
-)}
+                          {pending ? (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => window.open(doc.url, "_blank")}
+                                className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
+                                title="View PDF"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleResolve(pending.id, "approved")
+                                }
+                                disabled={resolvingId === pending.id}
+                                className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                              >
+                                {resolvingId === pending.id ? "..." : "Approve"}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleResolve(pending.id, "rejected")
+                                }
+                                disabled={resolvingId === pending.id}
+                                className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                              >
+                                {resolvingId === pending.id ? "..." : "Reject"}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleDownload(doc.url, doc.name)}
+                              className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
+                              title="Download"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       );
                     })}
