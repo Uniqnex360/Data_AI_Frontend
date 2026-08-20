@@ -326,88 +326,90 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
         </div>
 
         {images.length > 0 && (
-          <div className="px-6 py-4 border-b border-slate-100 shrink-0">
-            <div className="relative aspect-video rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center group">
-              <img
-                src={images[carouselIndex].url}
-                alt={`${product.product_name} ${carouselIndex + 1}`}
-                className="max-h-full max-w-full object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
+  <div className="px-6 py-4 border-b border-slate-100 shrink-0">
+    {/* Image Container - Full Width */}
+    <div className="relative aspect-video rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center group">
+      <img
+        src={images[carouselIndex].url}
+        alt={`${product.product_name} ${carouselIndex + 1}`}
+        className="max-h-full max-w-full object-contain"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+      />
+
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={() =>
+              setCarouselIndex((i) =>
+                i === 0 ? images.length - 1 : i - 1,
+              )
+            }
+            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+            aria-label="Previous image"
+          >
+            <ChevronDown className="w-4 h-4 text-slate-600 rotate-90" />
+          </button>
+          <button
+            onClick={() =>
+              setCarouselIndex((i) =>
+                i === images.length - 1 ? 0 : i + 1,
+              )
+            }
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+            aria-label="Next image"
+          >
+            <ChevronDown className="w-4 h-4 text-slate-600 -rotate-90" />
+          </button>
+
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCarouselIndex(i)}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  i === carouselIndex
+                    ? "bg-indigo-600"
+                    : "bg-white/70 border border-slate-300"
+                }`}
+                aria-label={`Go to image ${i + 1}`}
               />
-
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={() =>
-                      setCarouselIndex((i) =>
-                        i === 0 ? images.length - 1 : i - 1,
-                      )
-                    }
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                    aria-label="Previous image"
-                  >
-                    <ChevronDown className="w-4 h-4 text-slate-600 rotate-90" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCarouselIndex((i) =>
-                        i === images.length - 1 ? 0 : i + 1,
-                      )
-                    }
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                    aria-label="Next image"
-                  >
-                    <ChevronDown className="w-4 h-4 text-slate-600 -rotate-90" />
-                  </button>
-
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                    {images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCarouselIndex(i)}
-                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                          i === carouselIndex
-                            ? "bg-indigo-600"
-                            : "bg-white/70 border border-slate-300"
-                        }`}
-                        aria-label={`Go to image ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
-                    {carouselIndex + 1}/{images.length}
-                  </div>
-                </>
-              )}
-              {images[carouselIndex]?.sourcePageUrl && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                  <ExternalLink className="w-3 h-3" />
-                  <span className="truncate">
-                    Source:{" "}
-                    <a
-                      href={images[carouselIndex].sourcePageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
-                    >
-                      {getSafeHostname(
-                        images[carouselIndex].sourcePageUrl,
-                      )}{" "}
-                    </a>
-                    {images[carouselIndex].sourceType && (
-                      <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium">
-                        {images[carouselIndex].sourceType}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
-        )}
+
+          <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
+            {carouselIndex + 1}/{images.length}
+          </div>
+        </>
+      )}
+    </div>
+    
+    {/* Source URL - BELOW the image */}
+    {images[carouselIndex]?.sourcePageUrl && (
+      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+        <ExternalLink className="w-3 h-3 shrink-0" />
+        <span className="truncate flex-1">
+          Source:{" "}
+          <a
+            href={images[carouselIndex].sourcePageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium truncate block max-w-[300px]"
+            title={images[carouselIndex].sourcePageUrl}
+          >
+            {images[carouselIndex].sourcePageUrl}
+          </a>
+          {images[carouselIndex].sourceType && (
+            <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium whitespace-nowrap">
+              {images[carouselIndex].sourceType}
+            </span>
+          )}
+        </span>
+      </div>
+    )}
+  </div>
+)}
 
         {/* Tabs */}
         <div className="flex border-b border-slate-200 shrink-0 px-6">
