@@ -85,10 +85,14 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
 
   const getImages = (): string[] => {
     const images: string[] = [];
-    for (let i = 1; i <= 8; i++) {
-      const key = `image_url_${i}` as keyof Product;
-      const url = product[key];
-      if (typeof url === "string" && url) images.push(url);
+    if(product.image_assets && Array.isArray(product.image_assets))
+    {
+      product.image_assets.forEach((asset)=>{
+        if(asset?.image_url)
+        {
+          images.push(asset.image_url)
+        }
+      })
     }
     return images;
   };
