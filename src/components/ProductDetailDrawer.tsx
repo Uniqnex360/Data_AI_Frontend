@@ -584,131 +584,108 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
 
           {/* Media Tab */}
           {activeTab === "media" && (
-            <div className="space-y-8">
-              {images.length > 0 && (
-                <div className="px-6 py-4 border-b border-slate-100 shrink-0">
-                  <div className="relative aspect-video rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center group">
-                    <img
-                      src={images[carouselIndex].url}
-                      alt={`${product.product_name} ${carouselIndex + 1}`}
-                      className="max-h-full max-w-full object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
+  <div className="space-y-8">
+    {images.length > 0 && (
+      <div>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+          Images ({images.length})
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          {images.map((img, idx) => (
+            <div key={idx} className="space-y-2">
+              {/* Image Container */}
+              <div className="aspect-square rounded-lg border border-slate-200 overflow-hidden bg-slate-50 hover:border-indigo-300 transition-colors group relative">
+                <img
+                  src={img.url}
+                  alt={`Product image ${idx + 1}`}
+                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                
+                {/* Index Badge */}
+                <div className="absolute top-2 right-2 w-6 h-6 bg-black/50 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {idx + 1}
+                </div>
 
-                    {images.length > 1 && (
-                      <>
-                        <button
-                          onClick={() =>
-                            setCarouselIndex((i) =>
-                              i === 0 ? images.length - 1 : i - 1,
-                            )
-                          }
-                          className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                          aria-label="Previous image"
-                        >
-                          <ChevronDown className="w-4 h-4 text-slate-600 rotate-90" />
-                        </button>
-                        <button
-                          onClick={() =>
-                            setCarouselIndex((i) =>
-                              i === images.length - 1 ? 0 : i + 1,
-                            )
-                          }
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/90 rounded-full shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                          aria-label="Next image"
-                        >
-                          <ChevronDown className="w-4 h-4 text-slate-600 -rotate-90" />
-                        </button>
+                {/* Download button */}
+                <button
+                  onClick={() => handleDownload(img.url, `image_${idx + 1}.jpg`)}
+                  className="absolute bottom-2 right-2 p-2 bg-white/90 rounded-lg shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  title="Download image"
+                >
+                  <Download className="w-4 h-4 text-slate-600" />
+                </button>
+              </div>
 
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                          {images.map((_, i) => (
-                            <button
-                              key={i}
-                              onClick={() => setCarouselIndex(i)}
-                              className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                                i === carouselIndex
-                                  ? "bg-indigo-600"
-                                  : "bg-white/70 border border-slate-300"
-                              }`}
-                              aria-label={`Go to image ${i + 1}`}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
-                          {carouselIndex + 1}/{images.length}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {images[carouselIndex]?.sourcePageUrl && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                <ExternalLink className="w-3 h-3 shrink-0" />
-                <span className="truncate flex-1">
-                  Source:{" "}
+              {/* Source Link - Integrated below image */}
+              {img.sourcePageUrl && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
                   <a
-                    href={images[carouselIndex].sourcePageUrl}
+                    href={img.sourcePageUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium truncate block max-w-[250px]"
-                    title={images[carouselIndex].sourcePageUrl}
+                    className="text-indigo-600 hover:text-indigo-700 hover:underline truncate block"
+                    title={img.sourcePageUrl}
                   >
-                    {images[carouselIndex].sourcePageUrl}
+                    <span className="font-medium">
+                      {getSafeHostname(img.sourcePageUrl)}
+                    </span>
                   </a>
-                  {images[carouselIndex].sourceType && (
-                    <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium whitespace-nowrap">
-                      {images[carouselIndex].sourceType}
+                  {img.sourceType && (
+                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium whitespace-nowrap">
+                      {img.sourceType}
                     </span>
                   )}
-                </span>
-              </div>
-            )}
-                </div>
-              )}
-
-              {videos.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-                    Videos ({videos.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {videos.map((video, idx) => (
-                      <a
-                        key={idx}
-                        href={video.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-indigo-200 transition-colors group"
-                      >
-                        <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
-                          <Film className="w-5 h-5 text-indigo-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-700 truncate">
-                            {video.name}
-                          </p>
-                          <p className="text-xs text-slate-400 truncate">
-                            {video.url}
-                          </p>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!hasMedia && (
-                <div className="text-center py-12 text-slate-400">
-                  <ImageIcon className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-                  <p className="text-sm">No media available</p>
                 </div>
               )}
             </div>
-          )}
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Videos section - keep as is */}
+    {videos.length > 0 && (
+      <div>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+          Videos ({videos.length})
+        </h3>
+        <div className="space-y-2">
+          {videos.map((video, idx) => (
+            <a
+              key={idx}
+              href={video.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-indigo-200 transition-colors group"
+            >
+              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
+                <Film className="w-5 h-5 text-indigo-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-700 truncate">
+                  {video.name}
+                </p>
+                <p className="text-xs text-slate-400 truncate">{video.url}</p>
+              </div>
+              <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0" />
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {!hasMedia && (
+      <div className="text-center py-12 text-slate-400">
+        <ImageIcon className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+        <p className="text-sm">No media available</p>
+      </div>
+    )}
+  </div>
+)}
 
           {/* Documents Tab */}
           {activeTab === "documents" && (
