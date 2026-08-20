@@ -53,7 +53,17 @@ export function ProductDetailDrawer({ product, onClose, loading }: Props) {
     );
   }
   
-
+  const getSafeHostname = (urlString: string | undefined): string => {
+    if (!urlString) return "Unknown Source";
+    try {
+      if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
+        return new URL(urlString).hostname.replace(/^www\./, "");
+      }
+      return urlString;
+    } catch {
+      return "Invalid URL";
+    }
+  };
   const handleResolve = async (
     validationId: string,
     decision: "approved" | "rejected",
@@ -368,8 +378,7 @@ const allDocs = [...documents, ...pendingOnlyDocs];
                     rel="noopener noreferrer"
                     className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
                   >
-                    {new URL(images[carouselIndex].sourcePageUrl).hostname}
-                  </a>
+{getSafeHostname(images[carouselIndex].sourcePageUrl)}                  </a>
                   {images[carouselIndex].sourceType && (
                     <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium">
                       {images[carouselIndex].sourceType}
@@ -615,7 +624,6 @@ const allDocs = [...documents, ...pendingOnlyDocs];
               )}
             </div>
             
-            {/* ✅ Source info - now outside the image container */}
             {images[carouselIndex]?.sourcePageUrl && (
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
                 <ExternalLink className="w-3 h-3" />
@@ -627,8 +635,7 @@ const allDocs = [...documents, ...pendingOnlyDocs];
                     rel="noopener noreferrer"
                     className="text-indigo-600 hover:text-indigo-700 hover:underline font-medium"
                   >
-                    {new URL(images[carouselIndex].sourcePageUrl).hostname}
-                  </a>
+{getSafeHostname(images[carouselIndex].sourcePageUrl)}                  </a>
                   {images[carouselIndex].sourceType && (
                     <span className="ml-1.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-medium">
                       {images[carouselIndex].sourceType}
