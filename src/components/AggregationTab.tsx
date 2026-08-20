@@ -1647,10 +1647,10 @@ useEffect(() => {
                 </div>
               ) : (
                 <>
-                  {selectedProductData.image_url_1 && (
+                  {selectedProductData.image_assets?.[0]?.image_url  && (
                     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm aspect-video flex items-center justify-center p-4">
                       <img
-                        src={selectedProductData.image_url_1}
+                        src={selectedProductData.image_assets?.[0]?.image_url }
                         alt={selectedProductData.product_name}
                         className="max-h-full max-w-full object-contain"
                         onError={(e) =>

@@ -1739,7 +1739,7 @@ export default function DataCleaningTab() {
                           >
                             <div className="flex justify-center">
                               <ProductThumbnail
-                                src={(product as any).image_url_1}
+                                src={(product as any).image_assets?.[0]?.image_url}
                                 alt={product.product_name}
                               />
                             </div>

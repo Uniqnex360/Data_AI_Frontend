@@ -52,7 +52,7 @@ export function CleaningProductList({ projectName, products, onBack, onEnterAdva
                 <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="p-4">
                     <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
-                      {p.image_url_1 ? <img src={p.image_url_1} className="w-full h-full object-contain" /> : <FileText className="w-4 h-4 text-slate-400" />}
+                      {p.image_assets?.[0]?.image_url  ? <img src={p.image_assets?.[0]?.image_url } className="w-full h-full object-contain" /> : <FileText className="w-4 h-4 text-slate-400" />}
                     </div>
                   </td>
                   <td className="p-4">

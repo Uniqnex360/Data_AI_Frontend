@@ -174,8 +174,6 @@ export interface Project {
   pending_count?:number
   enriched_count?: number;     
 }
-// src/types/database.types.ts
-
 export interface Product {
   id: string;
   product_name: string;
@@ -194,7 +192,6 @@ export interface Product {
   category_id?: string;
   taxonomy?: string;
    cleansed_attribute_count?: number; 
-  // Identifiers
   mpn?: string;
   sku?: string;
   gtin?: string;
@@ -203,14 +200,10 @@ export interface Product {
   unspc?: string;
   model_number?: string;
   parent_sku?: string;
-  
-  // Descriptions
   description?: string;
   short_description?: string;
   long_description?: string;
   features?: string[];
-  
-  // Attributes
   attributes?: Record<string, AttributeValue>;
   attributes_dict?: Record<string, {
     value: string;
@@ -220,29 +213,15 @@ export interface Product {
   attribute_names?: string[];
   attribute_count?: number;
   dynamic_attributes?: any[];
-  
-  // Validation
   validation_conflicts?: Record<string, string>;
-  
-  // Media
-  image_url_1?: string;
-  image_url_2?: string;
-  image_url_3?: string;
-  image_url_4?: string;
-  image_url_5?: string;
-  image_url_6?: string;
-  image_url_7?: string;
-  image_url_8?: string;
-  image_name_1?: string;
-  image_name_2?: string;
-  image_name_3?: string;
-  image_name_4?: string;
-  image_name_5?: string;
-  image_name_6?: string;
-  image_name_7?: string;
-  image_name_8?: string;
+  image_assets?:Array<{
+      image_url: string;
+    source_page_url?: string;
+    source_type?: string;
+    is_primary?: boolean;
+  }
+  >
   images?: Record<string, { name: string; url: string }>;
-  
   video_url_1?: string;
   video_url_2?: string;
   video_url_3?: string;
@@ -250,7 +229,6 @@ export interface Product {
   video_name_2?: string;
   video_name_3?: string;
   videos?: Record<string, { name: string; url: string }>;
-  
   document_url_1?: string;
   document_url_2?: string;
   document_url_3?: string;
@@ -262,29 +240,19 @@ export interface Product {
   document_name_4?: string;
   document_name_5?: string;
   documents?: Record<string, { name: string; url: string }>;
-  
-  // Sources
   source_url?: string;
   sources_consulted?: string[];
-  
-  // Scores & Status
   completeness_score?: number;
   data_quality_score?: number;
   enrichment_status: string;
   workflow_stage?: string;
-  
-  // Metadata
   meta_title?: string;
   meta_description?: string;
   search_keywords?: string;
-  
-  // Pricing
   currency?: string;
   base_price?: number;
   sale_price?: number;
   list_price?: number;
-  
-  // Physical
   weight?: string;
   weight_unit?: string;
   length?: string;
@@ -293,8 +261,6 @@ export interface Product {
   dimension_unit?: string;
   country_of_origin?: string;
   warranty?: string;
-  
-  // Business
   vendor_id?: string;
   vendor_name?: string;
   vendor_code?: string;
@@ -305,8 +271,6 @@ export interface Product {
   lifecycle_stage?: string;
   launch_date?: string;
   discontinue_status?: string;
-  
-  // Other
   certification?: string;
   safety_standard?: string;
   hazardous_material?: string;
@@ -322,7 +286,6 @@ export interface Product {
   used_llms?: string[];
   last_algorithm_used?: string | null;
 }
-
 export interface AttributeValue {
   name?: string;
   value: string;
@@ -332,7 +295,6 @@ export interface AttributeValue {
   sources?: string[];
   extraction_algorithm?: string;
 }
-
 export interface Source {
   id: string;
   source_type: string;
@@ -419,7 +381,7 @@ export interface AggregationJob {
   failed: number;
   progress_percent?: number;
   progress_percentage?: number;
-  job_id?: string;  // ← ADD THIS
+  job_id?: string;  
   current_product?: string;
   error_message?: string;
 }
@@ -453,7 +415,6 @@ export interface ExpandedStats {
   failed: number;
   pending: number;
 }
-
 export interface ProjectsTableProps {
   projects: Project[];
   loading: boolean;
@@ -465,7 +426,6 @@ export interface ProjectsTableProps {
   onSelectProject: (projectId: string) => void;
   selectedProjectId: string | null;
 }
-
 export interface ProjectProductsViewProps {
   project: Project;
   products: Product[];
@@ -495,7 +455,6 @@ export interface ProjectProductsViewProps {
   onPageChange: (page: number) => void;
   selectedProductId: string | null;
 }
-
 export interface ProductAttributesViewProps {
   isOpen: boolean;
   product: Product | undefined;
@@ -506,7 +465,6 @@ export interface ProductAttributesViewProps {
   onAggregate: (productId: string) => void;
   onBack: () => void;
 }
-
 export interface FiltersBarProps {
   selectedLLM: string;
   llmOptions: Array<{ value: string; label: string }>;
@@ -536,7 +494,6 @@ export interface EnrichmentTabProps {
   onNavigateToProject?: (tab: string, projectId: string) => void;  
 }
 export type ValidationDecision = 'approved' | 'rejected';
-
 export interface PendingValidation {
   id: string;
   product_code: string;

@@ -760,9 +760,9 @@ export function ProductDetailView({
                     </td>
                     <td className="p-4 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
                       <div className="w-12 h-12 bg-slate-50 rounded-lg p-1 border border-slate-100 flex items-center justify-center">
-                        {p.image_url_1 ? (
+                        {p.image_assets?.[0]?.image_url  ? (
                           <img
-                            src={p.image_url_1}
+                            src={p.image_assets?.[0]?.image_url }
                             alt={p.product_name || "Product"}
                             className="w-full h-full object-contain"
                             onError={(e) => {
@@ -775,7 +775,7 @@ export function ProductDetailView({
                           />
                         ) : null}
                         <div
-                          className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}
+                          className={`flex flex-col items-center justify-center text-center ${p.image_assets?.[0]?.image_url ? "hidden" : ""}`}
                         >
                           <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
                           <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
@@ -912,7 +912,7 @@ export function ProductDetailView({
             selectedProductForLogs.product_code
           }
           productCode={selectedProductForLogs.product_code}
-          productImage={selectedProductForLogs.image_url_1}
+          productImage={selectedProductForLogs.image_assets?.[0]?.image_url}
           attributes={(selectedProductForLogs as any).attributes || {}}
           sourcesConsulted={
             (selectedProductForLogs as any).sources_consulted || []

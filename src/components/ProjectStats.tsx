@@ -825,9 +825,9 @@ export function ProjectStats({
                         <div className="flex items-center gap-3 min-w-0">
                           {/* Image Container */}
                           <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 overflow-hidden border border-slate-100 relative">
-                            {p.image_url_1 ? (
+                            {p.image_assets?.[0]?.image_url  ? (
                               <img
-                                src={p.image_url_1}
+                                src={p.image_assets?.[0]?.image_url }
                                 className="w-full h-full object-contain p-1"
                                 alt=""
                                 onError={(e) => {
@@ -843,7 +843,7 @@ export function ProjectStats({
                             ) : null}
 
                             <div
-                              className={`flex flex-col items-center justify-center text-center ${p.image_url_1 ? "hidden" : ""}`}
+                              className={`flex flex-col items-center justify-center text-center ${p.image_assets?.[0]?.image_url  ? "hidden" : ""}`}
                             >
                               <ImageIcon className="w-4 h-4 text-slate-300 mb-0.5" />
                               <span className="text-[6px] text-slate-400 font-black leading-tight uppercase">
@@ -1058,10 +1058,10 @@ export function ProjectStats({
                     </div>
                   ) : (
                     <>
-                      {selectedProduct.image_url_1 && (
+                      {selectedProduct.image_assets?.[0]?.image_url  && (
                         <div className="rounded-xl border border-slate-200 bg-white overflow-hidden aspect-video flex items-center justify-center p-4">
                           <img
-                            src={selectedProduct.image_url_1}
+                            src={selectedProduct.image_assets?.[0]?.image_url }
                             alt={selectedProduct.product_name}
                             className="max-h-full max-w-full object-contain"
                             onError={(e) =>

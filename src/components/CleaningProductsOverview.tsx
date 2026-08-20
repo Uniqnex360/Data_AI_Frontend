@@ -244,9 +244,9 @@ const fullProduct = await extractionService.getProductById(product.id, project.i
                     />
                   </td>
                   <td className="px-4 py-3">
-                    {product.image_url_1 ? (
+                    {product.image_assets?.[0]?.image_url  ? (
                       <img
-                        src={product.image_url_1}
+                        src={product.image_assets?.[0]?.image_url }
                         alt=""
                         className="w-10 h-10 rounded-lg object-cover bg-slate-100"
                       />
