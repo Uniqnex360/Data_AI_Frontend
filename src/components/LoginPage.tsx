@@ -57,11 +57,11 @@ export default function LoginPage() {
           <div className="text-center mb-8 flex flex-col items-center justify-center">
             <img 
               src={logo} 
-              alt="DAM & Product Visualizer" 
+              alt="Product Data Engine" 
               className="h-24 w-80 object-contain mb-6" 
             />
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
-              DAM & Product Visualizer
+              Product Data Engine
             </h1>
             <p className="text-slate-600">
               Sign in to your account

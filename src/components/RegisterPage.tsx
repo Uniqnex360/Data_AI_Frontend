@@ -49,11 +49,11 @@ export default function RegisterPage() {
           <div className="text-center mb-6 flex flex-col items-center justify-center">
             <img 
               src={logo} 
-              alt="DAM & Product Visualizer" 
+              alt="Product Data Engine" 
               className="h-20 w-60 object-contain mb-4" 
             />
             <h1 className="text-2xl font-bold text-slate-900 mb-1">
-              DAM & Product Visualizer
+              Product Data Engine
             </h1>
             <p className="text-slate-600 text-sm">
               Create your account
